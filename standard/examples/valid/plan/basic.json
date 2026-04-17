@@ -1,25 +1,33 @@
 {
-  "id": "plan-001",
+  "id": "ACME-102",
   "type": "plan",
   "status": "approved",
   "owner": { "kind": "agent", "id": "plan" },
-  "parent": "rfc-001",
-  "dependencies": [],
-  "parent_rfc": "rfc-001",
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-100" },
+  "parent_rfc": { "project": "ACME", "id": "ACME-100" },
   "task_dag": {
-    "nodes": ["task-001", "task-002"],
-    "edges": [{ "from": "task-001", "to": "task-002" }]
+    "nodes": [
+      { "project": "ACME", "id": "ACME-200" },
+      { "project": "ACME", "id": "ACME-201" }
+    ],
+    "edges": [
+      { "from": { "project": "ACME", "id": "ACME-200" }, "to": { "project": "ACME", "id": "ACME-201" } }
+    ]
   },
   "tasks": [
     {
-      "id": "task-001",
+      "id": "ACME-200",
       "type": "task",
       "status": "pending",
       "owner": { "kind": "agent", "id": "implementer" },
-      "parent": "plan-001",
-      "dependencies": [],
+      "project": "ACME",
+      "parent": { "project": "ACME", "id": "ACME-102" },
       "title": "Add OAuth provider registration endpoint",
-      "context": { "rfc": "rfc-001", "spikes": ["spike-001"] },
+      "context": {
+        "rfc": { "project": "ACME", "id": "ACME-100" },
+        "spikes": [{ "project": "ACME", "id": "ACME-101" }]
+      },
       "definition_of_done": ["POST /auth/oauth/providers persists configs."],
       "acceptance_criteria": ["Valid POST returns 201."],
       "risk_class": "high"
