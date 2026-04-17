@@ -1,11 +1,15 @@
 openapi: 3.1.0
 info:
   title: Cloverleaf UI Reviewer Agent Contract
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The UI Reviewer inspects UI changes in a headless browser:
     visual diff, accessibility, responsive behavior. Conditional —
     only runs when the PR touches UI paths.
+
+    Returns a feedback envelope (verdict + summary + findings) with
+    accessibility findings carried under findings[] with rule: "a11y.<wcag-id>".
+    Additionally returns a sibling visual_diff_uri when available.
 servers:
   - url: https://example.com/cloverleaf/ui-reviewer
     description: Implementation-defined; placeholder.
@@ -32,9 +36,10 @@ paths:
                     properties:
                       width: { type: integer, minimum: 1 }
                       height: { type: integer, minimum: 1 }
+                    additionalProperties: false
       responses:
         '200':
-          description: UI review verdict
+          description: UI review verdict + feedback + optional visual diff
           content:
             application/json:
               schema:
@@ -42,14 +47,16 @@ paths:
                 required: [verdict]
                 properties:
                   verdict: { type: string, enum: [pass, bounce, escalate] }
-                  visual_diff_uri: { type: string, format: uri }
-                  a11y_findings:
+                  summary: { type: string }
+                  findings:
                     type: array
                     items:
-                      type: object
-                      required: [rule, severity, description]
-                      properties:
-                        rule: { type: string }
-                        severity: { type: string, enum: [low, medium, high, critical] }
-                        description: { type: string }
-                  feedback: { type: string }
+                      $ref: 'https://cloverleaf.example/schemas/feedback.schema.json#/$defs/finding'
+                  visual_diff_uri: { type: string, format: uri }
+                additionalProperties: false
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'
