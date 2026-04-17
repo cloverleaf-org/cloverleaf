@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info:
+  title: Cloverleaf Implementer Agent Contract
+  version: 0.1.0
+  description: |
+    The Implementer Agent receives a Task and produces a PR satisfying its DoD/AC
+    (code + tests).
+servers:
+  - url: https://example.com/cloverleaf/implementer
+    description: Implementation-defined; placeholder.
+paths:
+  /implement:
+    post:
+      summary: Implement a Task end-to-end
+      operationId: implement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task, repo_uri, base_branch]
+              properties:
+                task:
+                  $ref: 'https://cloverleaf.example/schemas/task.schema.json'
+                repo_uri:
+                  type: string
+                  format: uri
+                base_branch:
+                  type: string
+      responses:
+        '200':
+          description: PR opened
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [pr_uri, branch]
+                properties:
+                  pr_uri: { type: string, format: uri }
+                  branch: { type: string }
+                  summary: { type: string }
