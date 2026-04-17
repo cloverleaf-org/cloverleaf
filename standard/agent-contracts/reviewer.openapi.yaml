@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Cloverleaf Reviewer Agent Contract
+  version: 0.1.0
+  description: |
+    The Reviewer Agent reviews a PR diff in an isolated context.
+    Per Cloverleaf Principle 3, the Reviewer must NOT have access to the
+    Implementer's reasoning, plan, or thought process — only the diff.
+servers:
+  - url: https://example.com/cloverleaf/reviewer
+    description: Implementation-defined; placeholder.
+paths:
+  /review:
+    post:
+      summary: Review a PR diff cold
+      operationId: review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pr_uri, task]
+              properties:
+                pr_uri: { type: string, format: uri }
+                task:
+                  $ref: 'https://cloverleaf.example/schemas/task.schema.json'
+                  description: The Task spec only — NOT the Implementer's tactical plan or working notes.
+      responses:
+        '200':
+          description: Review verdict
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verdict]
+                properties:
+                  verdict: { type: string, enum: [pass, bounce, escalate] }
+                  feedback: { type: string }
