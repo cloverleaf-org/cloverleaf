@@ -1,0 +1,10 @@
+{
+  "id": "spike-003",
+  "type": "spike",
+  "status": "completed",
+  "owner": { "kind": "agent", "id": "researcher" },
+  "parent_rfc": "rfc-001",
+  "title": "Half-baked spike",
+  "question": "Does this approach work?",
+  "method": "prototype"
+}
