@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.dev/schemas/work-item.schema.json",
+  "title": "WorkItem",
+  "description": "Abstract parent of all Cloverleaf trackable units (RFC, Spike, Plan, Task).",
+  "type": "object",
+  "required": ["id", "type", "status", "owner"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Globally unique identifier."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["rfc", "spike", "plan", "task"]
+    },
+    "status": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lifecycle status. The set of valid statuses depends on the concrete type and is defined in per-type schemas."
+    },
+    "owner": {
+      "type": "object",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["human", "agent"] },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "parent": {
+      "type": ["string", "null"],
+      "description": "Parent Work Item id, if any."
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Work Item ids this item depends on."
+    },
+    "extensions": {
+      "type": "object",
+      "description": "Team-defined namespaced extensions; see extensions.schema.json.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

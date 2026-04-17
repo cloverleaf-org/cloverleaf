@@ -1,0 +1,6 @@
+{
+  "id": "x-001",
+  "type": "epic",
+  "status": "drafting",
+  "owner": { "kind": "human", "id": "alice" }
+}

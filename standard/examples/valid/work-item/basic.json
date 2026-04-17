@@ -1,0 +1,8 @@
+{
+  "id": "rfc-001",
+  "type": "rfc",
+  "status": "drafting",
+  "owner": { "kind": "agent", "id": "researcher" },
+  "parent": null,
+  "dependencies": []
+}
