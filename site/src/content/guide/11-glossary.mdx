@@ -1,0 +1,33 @@
+---
+chapter: 11
+eyebrow: 'Reference'
+title: 'Glossary'
+---
+
+**Agent** — A specialized AI worker with a defined role. Cloverleaf recommends 7 by default but binds at phase contracts, not at agent count.
+
+**Cloverleaf Interoperability Standard** — The machine-readable spec (JSON Schemas, OpenAPI contracts, conformance runner, reference validators) that lives in `standard/`.
+
+**DAG** — Directed Acyclic Graph. Cloverleaf's Task structure is a DAG: tasks have ordered dependencies but no cycles.
+
+**Delivery Track** — The per-Task execution loop. Pickup → Risk Classifier → Fast Lane / Full Pipeline → Final Approval → Merge.
+
+**Discovery Track** — The strategic planning loop. RFC → Spike → Strategy Gate → Plan & Breakdown → Task Batch Gate.
+
+**Fast Lane** — Delivery path for low-risk Tasks. Implementer → Reviewer → Final Approval.
+
+**Full Pipeline** — Delivery path for higher-risk Tasks. Adds UI Reviewer, QA, and Documenter steps.
+
+**Gate** — A human approval point. Cloverleaf has three: Strategy Gate, Task Batch Gate, Final Approval Gate.
+
+**Plan** — The output of Plan & Breakdown. Contains finalized RFC, Task DAG, schema-valid Tasks, and path → reviewer mappings.
+
+**RFC** — A proposal Work Item. The starting point for any non-trivial change.
+
+**Risk Classifier** — Deterministic, rules-based mechanism that decides Fast Lane vs Full Pipeline.
+
+**Spike** — A bounded research Task attached to an RFC. Single question, single method, evidence-backed findings.
+
+**Task** — A unit of implementation work with DoD, AC, risk markers, and dependency edges.
+
+**Work Item** — Any of the 4 mandatory artifact types: RFC, Spike, Plan, Task.

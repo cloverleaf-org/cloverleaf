@@ -1,0 +1,25 @@
+---
+chapter: 10
+eyebrow: 'When things break'
+title: 'Failure handling'
+---
+
+import Callout from '../../components/Callout.astro';
+
+Cloverleaf classifies failure types so handling is mechanical, not improvised.
+
+### Mechanical failures
+
+Build breaks, lint errors, test flakes, transient infra issues. **Handling:** auto-retry with the same agent, up to N attempts. If still failing, escalate to a human via the next available gate.
+
+### Quality failures
+
+Reviewer rejections, QA findings, documentation gaps. **Handling:** bounce once back to the Implementer with the rejection rationale. If rejected again, escalate.
+
+### Strategic failures
+
+Mid-implementation discovery that the Task is wrong, that the RFC is incomplete, or that a key assumption was false. **Handling:** escalate immediately to Discovery. The Task is unblocked; the rest of the batch continues. The escalation may trigger a new Spike or a revised RFC.
+
+<Callout title="Typed failures preserve human attention">
+  Without typing, every failure looks like a human problem. With typing, mechanical failures never reach humans, quality failures get one bounce, and strategic failures route to the right place. Human attention is reserved for decisions only humans can make.
+</Callout>

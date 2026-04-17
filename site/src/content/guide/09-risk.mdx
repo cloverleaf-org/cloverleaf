@@ -1,0 +1,34 @@
+---
+chapter: 9
+eyebrow: 'Determinism'
+title: 'Risk classification'
+---
+
+import Code from '../../components/Code.astro';
+
+Risk classification is deterministic and conservative. AI never decides "is this risky?" — risk is rules-based, only ever escalates.
+
+### Inputs
+
+- Touched code paths (from the Task DAG)
+- Touched data schemas
+- Author identity (the Implementer Agent does not influence its own risk score)
+- Project-specific rule configuration
+
+### Outputs
+
+A single classification: **Fast Lane** or **Full Pipeline**.
+
+### Conservative principle
+
+If any rule matches Full Pipeline, the Task is Full Pipeline. Rules can only escalate; nothing in the Task or its execution can downgrade the lane after classification.
+
+### Example rules
+
+- Any change under <Code>auth/</Code> → Full Pipeline
+- Any schema migration → Full Pipeline
+- Any change touching > 200 LOC → Full Pipeline
+- Frontend-only change in a single component → Fast Lane
+- Documentation-only change → Fast Lane (skips QA)
+
+Teams configure their own rules at project setup. The framework provides the matcher; the rules are project property.
