@@ -1,0 +1,37 @@
+---
+// Pill in the top-right corner of a TrackDiagram showing icon meanings
+import StepIcon from './StepIcon.astro';
+---
+<div class="floating-legend">
+  <div class="legend-item">
+    <StepIcon variant="agent" size={16} />
+    <span>Agent</span>
+  </div>
+  <div class="legend-item">
+    <StepIcon variant="gate" size={16} />
+    <span>Human</span>
+  </div>
+</div>
+
+<style>
+  .floating-legend {
+    position: absolute;
+    top: -14px;
+    right: 0;
+    display: inline-flex;
+    gap: 14px;
+    padding: 6px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    box-shadow: 0 4px 14px rgba(13, 20, 33, 0.08), 0 1px 3px rgba(13, 20, 33, 0.04);
+    z-index: 5;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--color-text-body);
+  }
+</style>
