@@ -1,0 +1,29 @@
+---
+chapter: 4
+eyebrow: 'Discovery track'
+title: 'Discovery'
+---
+
+import Callout from '../../components/Callout.astro';
+
+The Discovery Track converts an idea into a ratified plan with well-formed Tasks.
+
+### Stages
+
+1. **RFC** — A proposal authored by the Researcher Agent. Origination is org-decided.
+2. **Spike(s)** — Zero or more research/de-risk tasks. Each Spike has a single specific question, a method (research/prototype/benchmark), evidence-backed findings, and a recommended path.
+3. **RFC + Strategy Gate** *(Human)* — Approves the RFC + Spike findings as a strategic decision. Rejection sends the RFC back for revision.
+4. **Plan & Task Breakdown** — Executed by the Plan Agent. Emits the Plan artifact: finalized RFC, Task DAG, Tasks (each conforming to the mandatory Task schema), and path → reviewer mappings.
+5. **Task Batch Gate** *(Human)* — Verifies the Task breakdown is well-decomposed, achievable, and faithfully implements the RFC intent.
+
+Approved Tasks land in the Delivery backlog.
+
+<Callout title="Splitting strategy from breakdown">
+  Plan & Breakdown is non-trivial AI effort. Gating the RFC first prevents wasting it on a doomed strategy. The two decisions also need different competencies — strategy is product + architecture; breakdown is engineering decomposition.
+</Callout>
+
+### Failure handling on Discovery
+
+- A failed Spike does not invalidate the RFC; it informs the next Spike or the RFC revision.
+- A failed Strategy Gate sends the RFC back for re-drafting; if multiple iterations fail, the RFC is closed.
+- A failed Task Batch Gate bounces back to Plan for re-decomposition (cheaper than re-spiking).

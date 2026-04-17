@@ -1,0 +1,28 @@
+---
+chapter: 5
+eyebrow: 'Delivery track'
+title: 'Delivery'
+---
+
+import Callout from '../../components/Callout.astro';
+import Code from '../../components/Code.astro';
+
+The Delivery Track executes Tasks through one of two lanes based on deterministic risk classification.
+
+### Stages
+
+1. **Pickup** — The Implementer Agent picks up an approved Task with its Definition of Done, Acceptance Criteria, and risk markers.
+2. **Risk Classifier** — Rules-based, deterministic. Examines the Task's touched paths against project-defined rules (e.g., changes under <Code>auth/</Code> are always Full Pipeline). Conservative by design: only escalates, never downgrades.
+3. **Fast Lane / Full Pipeline** — Fast Lane: Implementer → Reviewer → Final Approval. Full Pipeline adds: UI Reviewer (if frontend touched), QA Agent (if functional tests warranted), Documenter Agent (always).
+4. **Final Approval Gate** *(Human)* — The single human gate in Delivery. Approves merge.
+5. **Merge & Deploy** — The Implementer (or a deploy agent) merges and ships.
+
+<Callout title="Why deterministic risk">
+  AI is good at reasoning but bad at calibrating its own risk tolerance. Hard rules prevent an agent from talking itself into shipping a Fast Lane change that should have been Full Pipeline.
+</Callout>
+
+### Failure handling on Delivery
+
+- **Mechanical** (build break, test flakiness, lint) — auto-retry with the same agent.
+- **Quality** (Reviewer rejection) — bounce once back to Implementer; if rejected again, escalate.
+- **Strategic** (mid-implementation discovery that the Task is wrong) — escalate immediately to Discovery; the Task does not block the rest of the batch.
