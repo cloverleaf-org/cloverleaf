@@ -1,0 +1,40 @@
+{
+  "type": "task",
+  "states": {
+    "initial": ["pending"],
+    "terminal": ["merged", "rejected", "escalated"],
+    "all": [
+      "pending", "tactical-plan", "implementing", "documenting",
+      "review", "automated-gates", "ui-review", "qa", "final-gate",
+      "merged", "rejected", "escalated"
+    ]
+  },
+  "transitions": [
+    { "from": "pending", "to": "tactical-plan", "allowed_actors": ["agent"], "description": "Implementer picks up the Task." },
+    { "from": "tactical-plan", "to": "implementing", "allowed_actors": ["agent"] },
+    { "from": "tactical-plan", "to": "pending", "allowed_actors": ["human"], "gate": "per_task_plan_review", "description": "Optional Per-Task Plan Review rejected." },
+    { "from": "implementing", "to": "documenting", "allowed_actors": ["agent"] },
+    { "from": "documenting", "to": "review", "allowed_actors": ["agent"] },
+    { "from": "review", "to": "automated-gates", "allowed_actors": ["agent"], "description": "Fresh-Eyes Reviewer passed." },
+    { "from": "review", "to": "implementing", "allowed_actors": ["agent"], "description": "Reviewer bounced; back to Implementer." },
+    { "from": "automated-gates", "to": "ui-review", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "UI changes detected; run UI Review." },
+    { "from": "automated-gates", "to": "qa", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "No UI changes; skip UI Review." },
+    { "from": "automated-gates", "to": "merged", "path": "fast_lane", "allowed_actors": ["human"], "gate": "human_merge", "description": "Fast Lane: gated by single Human Merge." },
+    { "from": "automated-gates", "to": "implementing", "allowed_actors": ["agent"], "description": "Automated check failed; back to Implementer." },
+    { "from": "ui-review", "to": "qa", "path": "full_pipeline", "allowed_actors": ["agent"] },
+    { "from": "ui-review", "to": "implementing", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "UI Review bounced." },
+    { "from": "qa", "to": "final-gate", "path": "full_pipeline", "allowed_actors": ["agent"] },
+    { "from": "qa", "to": "implementing", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "QA bounced." },
+    { "from": "final-gate", "to": "merged", "path": "full_pipeline", "allowed_actors": ["human"], "gate": "final_approval_gate" },
+    { "from": "final-gate", "to": "rejected", "path": "full_pipeline", "allowed_actors": ["human"], "gate": "final_approval_gate" },
+    { "from": "pending", "to": "escalated", "allowed_actors": ["agent", "human"] },
+    { "from": "tactical-plan", "to": "escalated", "allowed_actors": ["agent", "human"] },
+    { "from": "implementing", "to": "escalated", "allowed_actors": ["agent", "human"] },
+    { "from": "documenting", "to": "escalated", "allowed_actors": ["agent", "human"] },
+    { "from": "review", "to": "escalated", "allowed_actors": ["agent", "human"] },
+    { "from": "automated-gates", "to": "escalated", "allowed_actors": ["agent", "human"] },
+    { "from": "ui-review", "to": "escalated", "path": "full_pipeline", "allowed_actors": ["agent", "human"] },
+    { "from": "qa", "to": "escalated", "path": "full_pipeline", "allowed_actors": ["agent", "human"] },
+    { "from": "final-gate", "to": "escalated", "path": "full_pipeline", "allowed_actors": ["human"] }
+  ]
+}
