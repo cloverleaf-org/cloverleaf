@@ -1,0 +1,9 @@
+{
+  "protected_paths": ["auth/**", "payments/**", "secrets/**", "infra/**"],
+  "public_api_paths": ["api/**/*.ts", "openapi/**"],
+  "schema_paths": ["db/migrations/**", "schemas/**"],
+  "dependency_files": ["package.json", "package-lock.json", "requirements.txt", "Cargo.lock"],
+  "ci_paths": [".github/**", ".gitlab-ci.yml", ".circleci/**"],
+  "ui_paths": ["ui/**", "components/**", "**/*.tsx"],
+  "thresholds": { "max_loc_changed": 50, "max_files_changed": 5, "min_coverage_pct": 80 }
+}

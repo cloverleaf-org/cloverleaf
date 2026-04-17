@@ -1,0 +1,8 @@
+{
+  "protected_paths": ["auth/**"],
+  "public_api_paths": [],
+  "schema_paths": [],
+  "dependency_files": [],
+  "ci_paths": [],
+  "ui_paths": []
+}
