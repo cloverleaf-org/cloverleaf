@@ -1,0 +1,61 @@
+openapi: 3.1.0
+info:
+  title: Cloverleaf Researcher Agent Contract
+  version: 0.1.0
+  description: |
+    The Researcher Agent drafts RFCs and executes Spikes.
+    Reads existing AI-facing docs as primary context.
+servers:
+  - url: https://example.com/cloverleaf/researcher
+    description: Implementation-defined; placeholder.
+paths:
+  /draft-rfc:
+    post:
+      summary: Draft a new RFC from a brief
+      operationId: draftRfc
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [brief, doc_context_uri]
+              properties:
+                brief:
+                  type: string
+                  description: Problem statement / signal that motivates the RFC.
+                doc_context_uri:
+                  type: string
+                  format: uri
+                  description: URI to the AI-facing docs root the agent should consult.
+      responses:
+        '200':
+          description: RFC drafted
+          content:
+            application/json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/rfc.schema.json'
+  /run-spike:
+    post:
+      summary: Execute a Spike and return findings
+      operationId: runSpike
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [spike, doc_context_uri]
+              properties:
+                spike:
+                  $ref: 'https://cloverleaf.example/schemas/spike.schema.json'
+                doc_context_uri:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Spike findings
+          content:
+            application/json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/spike.schema.json'
