@@ -35,6 +35,12 @@ paths:
             application/json:
               schema:
                 $ref: 'https://cloverleaf.example/schemas/rfc.schema.json'
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'
   /run-spike:
     post:
       summary: Execute a Spike and return findings
@@ -59,3 +65,9 @@ paths:
             application/json:
               schema:
                 $ref: 'https://cloverleaf.example/schemas/spike.schema.json'
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'

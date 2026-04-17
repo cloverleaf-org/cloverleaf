@@ -40,3 +40,9 @@ paths:
                   pr_uri: { type: string, format: uri }
                   branch: { type: string }
                   summary: { type: string }
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'

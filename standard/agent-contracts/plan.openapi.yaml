@@ -41,3 +41,9 @@ paths:
             application/json:
               schema:
                 $ref: 'https://cloverleaf.example/schemas/plan.schema.json'
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'
