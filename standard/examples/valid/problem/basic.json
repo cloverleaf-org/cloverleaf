@@ -1,0 +1,6 @@
+{
+  "type": "https://cloverleaf.example/problems/invalid-task-payload",
+  "title": "Invalid Task payload",
+  "status": 400,
+  "detail": "The provided task does not conform to task.schema.json: required field 'definition_of_done' is missing."
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.example/schemas/problem.schema.json",
+  "title": "Problem",
+  "description": "Error envelope for Cloverleaf agent contracts. RFC 7807 Problem Details with Cloverleaf-specific extensions (prefixed 'cloverleaf.' per RFC 7807 §3.2).",
+  "type": "object",
+  "required": ["type", "title", "status"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "format": "uri",
+      "description": "URI reference identifying the problem type."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
+    },
+    "detail": {
+      "type": "string"
+    },
+    "instance": {
+      "type": "string",
+      "format": "uri"
+    },
+    "cloverleaf.failure_class": {
+      "type": "string",
+      "enum": ["mechanical", "quality", "strategic"],
+      "description": "Per Cloverleaf Principle 6 failure-handling taxonomy."
+    },
+    "cloverleaf.work_item_id": {
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef",
+      "description": "Qualified reference to the Work Item this error relates to. Enables correlation with status-transition and gate-decision events."
+    }
+  },
+  "additionalProperties": true
+}

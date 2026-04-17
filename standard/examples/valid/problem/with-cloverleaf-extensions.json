@@ -1,0 +1,8 @@
+{
+  "type": "https://cloverleaf.example/problems/quality-bounce-failed",
+  "title": "Quality check failed after retry",
+  "status": 422,
+  "detail": "The reviewer bounced this Task twice; escalating to human review.",
+  "cloverleaf.failure_class": "strategic",
+  "cloverleaf.work_item_id": { "project": "ACME", "id": "ACME-200" }
+}
