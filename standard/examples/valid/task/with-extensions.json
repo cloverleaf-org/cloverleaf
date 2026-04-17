@@ -1,0 +1,26 @@
+{
+  "id": "ACME-210",
+  "type": "task",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "implementer" },
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-112" },
+  "title": "Add token-bucket middleware",
+  "context": {
+    "rfc": { "project": "ACME", "id": "ACME-110" }
+  },
+  "definition_of_done": [
+    "Token bucket middleware intercepts every request.",
+    "Exceeded bucket returns 429 with Retry-After header.",
+    "Bucket state is stored in Redis with per-IP key."
+  ],
+  "acceptance_criteria": [
+    "A client making 100 req/s gets throttled within 5 seconds.",
+    "A client making 1 req/s is never throttled."
+  ],
+  "risk_class": "high",
+  "extensions": {
+    "acme.sprint": "2026-Q2-S03",
+    "acme.assignee": "alice@acme.com"
+  }
+}

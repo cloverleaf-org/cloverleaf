@@ -1,0 +1,21 @@
+{
+  "id": "ACME-110",
+  "type": "rfc",
+  "status": "drafting",
+  "owner": { "kind": "agent", "id": "researcher" },
+  "project": "ACME",
+  "parent": null,
+  "title": "Rate-limit public API",
+  "problem": "Public API is being abused by scraper traffic.",
+  "solution": "Add IP-based token bucket rate limiting with 429 responses.",
+  "unknowns": ["What per-IP limit fits normal use?"],
+  "acceptance_criteria": [
+    "Normal clients see no 429s under typical load.",
+    "Scraper traffic is throttled to < 10 req/s per IP."
+  ],
+  "out_of_scope": ["API key tier support"],
+  "extensions": {
+    "acme.priority": "P1",
+    "acme.tags": ["infra", "api", "abuse-prevention"]
+  }
+}
