@@ -3,6 +3,7 @@
   "$id": "https://cloverleaf.dev/schemas/plan.schema.json",
   "title": "Plan",
   "description": "Output of Plan & Task Breakdown: finalized RFC + Task DAG + Tasks + path→reviewer mappings.",
+  "$comment": "Runtime invariant (not enforceable by schema): the set of tasks[].id MUST equal the set of task_dag.nodes. Tools should validate this separately.",
   "type": "object",
   "required": ["id", "type", "status", "owner", "parent_rfc", "task_dag", "tasks"],
   "properties": {
@@ -28,6 +29,7 @@
     },
     "path_reviewer_map": {
       "type": "array",
+      "uniqueItems": true,
       "items": {
         "type": "object",
         "required": ["pattern", "role"],
