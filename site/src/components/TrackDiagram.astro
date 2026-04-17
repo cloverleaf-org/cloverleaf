@@ -1,0 +1,73 @@
+---
+import FloatingLegend from './FloatingLegend.astro';
+import FlowArrow from './FlowArrow.astro';
+
+interface Props {
+  leftLabel: string;
+  rightLabel: string;
+  flowTopLabel?: string;
+  flowBottomLabel?: string;
+}
+const {
+  leftLabel,
+  rightLabel,
+  flowTopLabel = 'tasks',
+  flowBottomLabel = 'feedback'
+} = Astro.props;
+---
+<div class="track-detail-wrap">
+  <FloatingLegend />
+  <div class="track-detail">
+    <div class="track">
+      <div class="track-header">
+        <span class="track-label">{leftLabel}</span>
+        <slot name="left-popover" />
+      </div>
+      <slot name="left-steps" />
+    </div>
+    <FlowArrow topLabel={flowTopLabel} bottomLabel={flowBottomLabel} />
+    <div class="track">
+      <div class="track-header">
+        <span class="track-label">{rightLabel}</span>
+        <slot name="right-popover" />
+      </div>
+      <slot name="right-steps" />
+    </div>
+  </div>
+</div>
+
+<style>
+  .track-detail-wrap { position: relative; }
+  .track-detail {
+    display: grid;
+    grid-template-columns: 1fr 80px 1fr;
+    gap: 14px;
+    align-items: stretch;
+  }
+  .track {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    position: relative;
+  }
+  .track-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-divider);
+    position: relative;
+    gap: 10px;
+    min-height: 24px;
+  }
+  .track-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+</style>
