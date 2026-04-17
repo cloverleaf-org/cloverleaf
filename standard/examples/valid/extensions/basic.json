@@ -1,0 +1,6 @@
+{
+  "acme.priority": "P1",
+  "acme.sprint": "2026-Q2-S03",
+  "acme.assignee": "alice@acme.com",
+  "acme.labels": ["backend", "auth"]
+}
