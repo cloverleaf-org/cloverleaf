@@ -4,7 +4,7 @@
   "title": "Task",
   "description": "A Cloverleaf Delivery work unit. The atomic unit of execution.",
   "type": "object",
-  "required": ["id", "type", "status", "owner", "title", "context", "definition_of_done", "acceptance_criteria", "risk_class"],
+  "required": ["id", "type", "status", "owner", "project", "title", "context", "definition_of_done", "acceptance_criteria", "risk_class"],
   "properties": {
     "id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "type": { "const": "task" },
@@ -17,24 +17,37 @@
       ]
     },
     "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
+    "project": { "type": "string", "minLength": 1 },
     "parent": {
-      "description": "Parent Plan id. Generic Work Item parent link; tools should prefer context.rfc as the authoritative RFC reference.",
-      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemIdOrNull"
+      "description": "Parent Plan reference. Tools should prefer context.rfc as the authoritative RFC reference.",
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRefOrNull"
     },
-    "dependencies": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "relationships": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["type", "target"],
+        "properties": {
+          "type": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/relationshipType" },
+          "target": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef" }
+        },
+        "additionalProperties": false
+      }
+    },
     "title": { "type": "string", "minLength": 1 },
     "context": {
       "type": "object",
       "required": ["rfc"],
       "properties": {
         "rfc": {
-          "description": "Parent RFC id (authoritative).",
-          "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId"
+          "description": "Parent RFC reference (authoritative).",
+          "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef"
         },
         "spikes": {
-          "description": "Relevant Spike ids that informed this Task.",
+          "description": "Relevant Spike references that informed this Task.",
           "type": "array",
-          "items": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
+          "items": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef" },
           "uniqueItems": true
         }
       },

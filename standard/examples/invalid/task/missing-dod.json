@@ -1,10 +1,11 @@
 {
-  "id": "task-002",
+  "id": "ACME-201",
   "type": "task",
   "status": "pending",
   "owner": { "kind": "agent", "id": "implementer" },
+  "project": "ACME",
   "title": "Half-defined task",
-  "context": { "rfc": "rfc-001" },
+  "context": { "rfc": { "project": "ACME", "id": "ACME-100" } },
   "acceptance_criteria": ["something"],
   "risk_class": "low"
 }
