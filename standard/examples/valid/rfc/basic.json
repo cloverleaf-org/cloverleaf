@@ -1,0 +1,24 @@
+{
+  "id": "rfc-001",
+  "type": "rfc",
+  "status": "drafting",
+  "owner": { "kind": "agent", "id": "researcher" },
+  "parent": null,
+  "dependencies": [],
+  "title": "Add OAuth login",
+  "problem": "Users currently must create a password-only account, blocking enterprise SSO adoption.",
+  "solution": "Add OAuth 2.1 PKCE flow with Google and Microsoft as initial providers.",
+  "unknowns": [
+    "How do we handle account merging when a user signs up with email then later with OAuth?",
+    "What's the PII retention requirement for OAuth-derived profile data?"
+  ],
+  "acceptance_criteria": [
+    "Existing users can link an OAuth provider to their account.",
+    "New users can sign up via Google or Microsoft OAuth.",
+    "Account merging follows the resolved policy from the linked Spike."
+  ],
+  "out_of_scope": [
+    "SAML SSO (separate RFC)",
+    "Custom IdP support"
+  ]
+}

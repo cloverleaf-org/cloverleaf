@@ -1,0 +1,11 @@
+{
+  "id": "rfc-002",
+  "type": "rfc",
+  "status": "drafting",
+  "owner": { "kind": "agent", "id": "researcher" },
+  "title": "Some change",
+  "solution": "Do the thing.",
+  "unknowns": [],
+  "acceptance_criteria": ["It works"],
+  "out_of_scope": []
+}
