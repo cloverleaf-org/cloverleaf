@@ -1,0 +1,123 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Eyebrow from '../components/Eyebrow.astro';
+import { getCollection } from 'astro:content';
+
+const chapters = (await getCollection('guide')).sort(
+  (a, b) => a.data.chapter - b.data.chapter
+);
+---
+<Layout title="The Cloverleaf Guide">
+  <article class="guide">
+    <header class="guide-header">
+      <Eyebrow>The Cloverleaf Guide</Eyebrow>
+      <h1>How AI-first teams build software.</h1>
+      <p class="lede">The canonical reference. Read top to bottom for the full methodology, or jump to a chapter.</p>
+    </header>
+
+    <nav class="toc" aria-label="Chapters">
+      {chapters.map(c => (
+        <a href={`#chapter-${c.data.chapter}`}>
+          <span class="toc-num">{String(c.data.chapter).padStart(2, '0')}</span>
+          <span>{c.data.title}</span>
+        </a>
+      ))}
+    </nav>
+
+    {chapters.map(async (c) => {
+      const { Content } = await c.render();
+      return (
+        <section id={`chapter-${c.data.chapter}`} class="chapter">
+          <Eyebrow>§ {c.data.chapter} · {c.data.eyebrow}</Eyebrow>
+          <h2>{c.data.title}</h2>
+          <Content />
+        </section>
+      );
+    })}
+  </article>
+</Layout>
+
+<style>
+  .guide {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 60px 32px 80px;
+  }
+  .guide-header {
+    margin-bottom: 64px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .guide-header h1 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 42px;
+    line-height: 1.1;
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--color-text-body);
+    max-width: 540px;
+  }
+  .toc {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 24px;
+    margin-bottom: 80px;
+    padding: 24px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+  .toc a {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+    color: var(--color-ink);
+    font-size: 14px;
+  }
+  .toc a:hover { color: var(--color-accent); text-decoration: none; }
+  .toc-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-subtle);
+    letter-spacing: 0.06em;
+  }
+  .chapter {
+    margin-bottom: 80px;
+    scroll-margin-top: 24px;
+  }
+  .chapter h2 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 34px;
+    line-height: 1.08;
+    margin: 0 0 24px;
+    letter-spacing: -0.018em;
+  }
+  .chapter :global(p) {
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--color-text-body);
+    margin: 0 0 14px;
+  }
+  .chapter :global(p strong) { color: var(--color-ink); }
+  .chapter :global(h3) {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 20px;
+    margin: 36px 0 12px;
+  }
+  .chapter :global(ul), .chapter :global(ol) {
+    margin: 0 0 14px;
+    padding-left: 22px;
+    font-size: 14.5px;
+    line-height: 1.65;
+    color: var(--color-text-body);
+  }
+  .chapter :global(li) { margin-bottom: 6px; }
+</style>
