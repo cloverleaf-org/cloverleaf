@@ -1,0 +1,20 @@
+{
+  "id": "plan-002",
+  "type": "plan",
+  "status": "drafting",
+  "owner": { "kind": "agent", "id": "plan" },
+  "task_dag": { "nodes": ["task-001"], "edges": [] },
+  "tasks": [
+    {
+      "id": "task-001",
+      "type": "task",
+      "status": "pending",
+      "owner": { "kind": "agent", "id": "implementer" },
+      "title": "Stub",
+      "context": { "rfc": "rfc-001" },
+      "definition_of_done": ["x"],
+      "acceptance_criteria": ["y"],
+      "risk_class": "low"
+    }
+  ]
+}

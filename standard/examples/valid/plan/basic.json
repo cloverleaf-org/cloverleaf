@@ -1,0 +1,31 @@
+{
+  "id": "plan-001",
+  "type": "plan",
+  "status": "approved",
+  "owner": { "kind": "agent", "id": "plan" },
+  "parent": "rfc-001",
+  "dependencies": [],
+  "parent_rfc": "rfc-001",
+  "task_dag": {
+    "nodes": ["task-001", "task-002"],
+    "edges": [{ "from": "task-001", "to": "task-002" }]
+  },
+  "tasks": [
+    {
+      "id": "task-001",
+      "type": "task",
+      "status": "pending",
+      "owner": { "kind": "agent", "id": "implementer" },
+      "parent": "plan-001",
+      "dependencies": [],
+      "title": "Add OAuth provider registration endpoint",
+      "context": { "rfc": "rfc-001", "spikes": ["spike-001"] },
+      "definition_of_done": ["POST /auth/oauth/providers persists configs."],
+      "acceptance_criteria": ["Valid POST returns 201."],
+      "risk_class": "high"
+    }
+  ],
+  "path_reviewer_map": [
+    { "pattern": "auth/**", "role": "SecurityReviewer" }
+  ]
+}
