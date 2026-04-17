@@ -1,8 +1,8 @@
 {
-  "event_id": "evt-2026-04-16-002",
+  "event_id": "evt-2026-04-17-002",
   "event_type": "status_transition",
-  "occurred_at": "2026-04-16T10:35:00Z",
-  "work_item_id": "task-002",
+  "occurred_at": "2026-04-17T10:35:00Z",
+  "work_item_id": { "project": "ACME", "id": "ACME-201" },
   "work_item_type": "task",
   "to_status": "implementing",
   "actor": { "kind": "agent", "id": "implementer" }

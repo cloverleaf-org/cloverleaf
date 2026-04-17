@@ -9,7 +9,7 @@
     "event_id": { "type": "string", "minLength": 1 },
     "event_type": { "const": "status_transition" },
     "occurred_at": { "type": "string", "format": "date-time" },
-    "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
+    "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef" },
     "work_item_type": { "type": "string", "enum": ["rfc", "spike", "plan", "task"] },
     "from_status": {
       "type": "string",
