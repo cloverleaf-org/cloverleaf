@@ -8,29 +8,35 @@
   "properties": {
     "protected_paths": {
       "type": "array",
+      "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 },
       "description": "Glob patterns. Any change to a matching path forces HIGH-RISK."
     },
     "public_api_paths": {
       "type": "array",
+      "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 },
       "description": "Globs for public API surface."
     },
     "schema_paths": {
       "type": "array",
+      "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 },
       "description": "Globs for data-model / schema / migration files."
     },
     "dependency_files": {
       "type": "array",
+      "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
     },
     "ci_paths": {
       "type": "array",
+      "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
     },
     "ui_paths": {
       "type": "array",
+      "uniqueItems": true,
       "items": { "type": "string", "minLength": 1 }
     },
     "thresholds": {
