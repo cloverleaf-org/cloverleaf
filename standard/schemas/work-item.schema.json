@@ -68,7 +68,7 @@
         "split_from", "split_to",
         "relates_to"
       ],
-      "description": "Canonical relationship vocabulary. 10 values: 4 pairs of explicit inverses plus the symmetric relates_to. Teams may add custom types under extensions.team.relationship_type."
+      "description": "Canonical relationship vocabulary. 9 values: 4 pairs of explicit inverses plus the symmetric relates_to. Teams may add custom types under extensions.team.relationship_type."
     },
     "owner": {
       "type": "object",
