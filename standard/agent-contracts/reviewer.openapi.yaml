@@ -1,11 +1,15 @@
 openapi: 3.1.0
 info:
   title: Cloverleaf Reviewer Agent Contract
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The Reviewer Agent reviews a PR diff in an isolated context.
     Per Cloverleaf Principle 3, the Reviewer must NOT have access to the
     Implementer's reasoning, plan, or thought process — only the diff.
+
+    Returns a structured feedback envelope (feedback.schema.json) carrying
+    the verdict and, on non-pass verdicts, a human summary and programmatically
+    actionable findings.
 servers:
   - url: https://example.com/cloverleaf/reviewer
     description: Implementation-defined; placeholder.
@@ -28,12 +32,14 @@ paths:
                   description: The Task spec only — NOT the Implementer's tactical plan or working notes.
       responses:
         '200':
-          description: Review verdict
+          description: Review verdict + feedback
           content:
             application/json:
               schema:
-                type: object
-                required: [verdict]
-                properties:
-                  verdict: { type: string, enum: [pass, bounce, escalate] }
-                  feedback: { type: string }
+                $ref: 'https://cloverleaf.example/schemas/feedback.schema.json'
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'
