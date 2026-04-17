@@ -1,0 +1,10 @@
+{
+  "event_id": "evt-2026-04-16-100",
+  "event_type": "gate_decision",
+  "occurred_at": "2026-04-16T11:15:00Z",
+  "gate": "task_batch_gate",
+  "work_item_id": "plan-001",
+  "decision": "approve",
+  "approver": { "kind": "human", "id": "alice" },
+  "comment": "Breakdown is well-decomposed; aligns with RFC intent."
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.example/schemas/gate-decision-event.schema.json",
+  "title": "GateDecisionEvent",
+  "description": "Emitted when a human (or automated) gate renders a decision.",
+  "type": "object",
+  "required": ["event_id", "event_type", "occurred_at", "gate", "work_item_id", "decision", "approver"],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "event_type": { "const": "gate_decision" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "gate": {
+      "type": "string",
+      "enum": [
+        "rfc_strategy_gate",
+        "task_batch_gate",
+        "per_task_plan_review",
+        "final_approval_gate",
+        "human_merge"
+      ]
+    },
+    "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
+    "decision": {
+      "type": "string",
+      "enum": ["approve", "reject", "revise", "split", "escalate"]
+    },
+    "approver": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/actor" },
+    "comment": { "type": "string" }
+  },
+  "additionalProperties": false
+}
