@@ -1,0 +1,40 @@
+openapi: 3.1.0
+info:
+  title: Cloverleaf Documenter Agent Contract
+  version: 0.1.0
+  description: |
+    The Documenter Agent consumes a PR diff and produces doc-only commits that
+    update the AI-facing docs to reflect the change.
+    The Documenter does NOT touch source code and does NOT write user-facing manuals.
+servers:
+  - url: https://example.com/cloverleaf/documenter
+    description: Implementation-defined; placeholder.
+paths:
+  /update-docs:
+    post:
+      summary: Update AI-facing docs from a PR diff
+      operationId: updateDocs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pr_uri, doc_context_uri]
+              properties:
+                pr_uri: { type: string, format: uri }
+                doc_context_uri: { type: string, format: uri }
+      responses:
+        '200':
+          description: Doc-only commits added to the PR
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [commits_added, files_changed]
+                properties:
+                  commits_added: { type: integer, minimum: 0 }
+                  files_changed:
+                    type: array
+                    items: { type: string }
+                  summary: { type: string }
