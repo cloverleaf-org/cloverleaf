@@ -1,6 +1,6 @@
 {
   "nodes": [],
   "edges": [
-    { "from": "task-001", "to": "task-002" }
+    { "from": { "project": "ACME", "id": "ACME-200" }, "to": { "project": "ACME", "id": "ACME-201" } }
   ]
 }
