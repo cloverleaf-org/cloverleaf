@@ -1,0 +1,57 @@
+---
+chapter: 3
+eyebrow: 'Architecture'
+title: 'Two tracks'
+---
+
+import SignatureLoop from '../../components/SignatureLoop.astro';
+import TrackDiagram from '../../components/TrackDiagram.astro';
+import StepRow from '../../components/StepRow.astro';
+import StepArrow from '../../components/StepArrow.astro';
+import Popover from '../../components/Popover.astro';
+
+<SignatureLoop
+  leftLabel="Heavyweight · batched"
+  leftTitle="Discovery"
+  leftMeta="strategic gating"
+  rightLabel="Per-task · parallel"
+  rightTitle="Delivery"
+  rightMeta="tactical execution"
+/>
+
+**Discovery feeds Delivery** via approved Tasks.<br/>
+**Delivery feeds Discovery** via emergent questions, mid-implementation discoveries, or Final-Gate rejections that require revisiting the RFC.
+
+### The stages
+
+<TrackDiagram leftLabel="Discovery" rightLabel="Delivery">
+  <Popover slot="left-popover" triggerLabel="Why two gates?">
+    <span slot="title">Two gates, not one</span>
+    <p>Strategy approval and breakdown approval are split because they need different competencies — strategy is product + architecture; breakdown is engineering decomposition.</p>
+    <p>And bouncing a Plan back for re-decomposition is far cheaper than re-running Spikes.</p>
+  </Popover>
+
+  <Fragment slot="left-steps">
+    <StepRow variant="agent" label="RFC" />
+    <StepArrow />
+    <StepRow variant="agent" label="Spike(s)" meta="optional" />
+    <StepArrow />
+    <StepRow variant="gate" label="Strategy Gate" />
+    <StepArrow />
+    <StepRow variant="agent" label="Plan & Breakdown" />
+    <StepArrow />
+    <StepRow variant="gate" label="Task Batch Gate" />
+  </Fragment>
+
+  <Fragment slot="right-steps">
+    <StepRow variant="agent" label="Pickup" />
+    <StepArrow />
+    <StepRow variant="agent" label="Risk Classifier" />
+    <StepArrow />
+    <StepRow variant="agent" label="Fast / Full Pipeline" />
+    <StepArrow />
+    <StepRow variant="gate" label="Final Approval" />
+    <StepArrow />
+    <StepRow variant="agent" label="Merge & Deploy" />
+  </Fragment>
+</TrackDiagram>

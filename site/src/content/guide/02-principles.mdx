@@ -1,0 +1,17 @@
+---
+chapter: 2
+eyebrow: 'The 9 principles'
+title: 'Principles'
+---
+
+These principles bind throughout the methodology. They are not aspirational — they are the contract.
+
+1. **Humans gate, AI executes.** Humans never implement on the critical path. They define, approve, and reject.
+2. **Specs are contracts, not suggestions.** Every artifact has a mandatory schema. Agents can rely on the contract.
+3. **Fresh eyes, always.** Code review happens in a *separate* AI context. The agent that wrote the code never reviews it.
+4. **Risk is deterministic, not judged.** AI never decides "is this risky?" — risk is rules-based, conservative, and only ever escalates.
+5. **Strategic decisions are batched upstream; tactical decisions stay with the agent.** Humans approve at the RFC/batch level, not per-Task by default.
+6. **Failure type determines handling.** Mechanical → auto-retry; quality → bounce once; strategic → escalate immediately.
+7. **Phases are contracts, agents are recommendations.** The methodology binds at phase input/output. Agent split is a recommended default.
+8. **Roles are agnostic; gates carry responsibilities.** The methodology defines what each gate decides; how teams staff it is an org choice.
+9. **Docs are for AI; Work Items are for humans.** Documenter Agent output serves AI; humans communicate intent through RFCs, Spikes, Plans, and Tasks.
