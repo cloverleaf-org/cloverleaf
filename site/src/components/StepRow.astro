@@ -1,0 +1,33 @@
+---
+import StepIcon from './StepIcon.astro';
+interface Props {
+  variant: 'agent' | 'gate';
+  label: string;
+  meta?: string;
+}
+const { variant, label, meta } = Astro.props;
+---
+<div class="track-step">
+  <StepIcon variant={variant} />
+  <span class="step-label">{label}</span>
+  {meta && <span class="step-meta">{meta}</span>}
+</div>
+
+<style>
+  .track-step {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 5px 0;
+    font-size: 13.5px;
+    color: var(--color-ink);
+  }
+  .step-label { flex: 0 1 auto; }
+  .step-meta {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: var(--color-text-subtle);
+    margin-left: auto;
+    letter-spacing: 0.06em;
+  }
+</style>
