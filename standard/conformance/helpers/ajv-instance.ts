@@ -8,7 +8,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const SCHEMAS = resolve(__dirname, '..', '..', 'schemas');
 
-export function makeAjv(): Ajv {
+let _ajv: Ajv | null = null;
+
+function buildAjv(): Ajv {
   const ajv = new Ajv({ strict: true, allErrors: true });
   addFormats(ajv);
   if (existsSync(SCHEMAS)) {
@@ -18,4 +20,13 @@ export function makeAjv(): Ajv {
     }
   }
   return ajv;
+}
+
+export function makeAjv(): Ajv {
+  return (_ajv ??= buildAjv());
+}
+
+/** Test-only: clears the memoized instance so a fresh build picks up newly-added schemas. */
+export function _resetAjvForTesting(): void {
+  _ajv = null;
 }

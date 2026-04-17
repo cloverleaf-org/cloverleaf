@@ -13,8 +13,8 @@ const SCHEMA_BASE = 'https://cloverleaf.dev/schemas/';
 /**
  * Run conformance tests for a given schema name.
  * - Loads `${name}.schema.json` by `$id` from the shared Ajv instance.
- * - Validates every file in `examples/valid/` whose basename starts with `${name}-` or equals `${name}.json`.
- * - Validates every file in `examples/invalid/` whose basename starts with `${name}-`.
+ * - Validates every `*.json` file under `examples/valid/${name}/`.
+ * - Validates every `*.json` file under `examples/invalid/${name}/` (must reject).
  */
 export function testSchema(name: string): void {
   describe(`${name} schema`, () => {
@@ -24,23 +24,25 @@ export function testSchema(name: string): void {
       throw new Error(`Schema not registered: ${SCHEMA_BASE}${name}.schema.json`);
     }
 
-    const matches = (dir: string) =>
-      existsSync(dir)
-        ? readdirSync(dir).filter((f) => f === `${name}.json` || f.startsWith(`${name}-`))
+    const fixtureFiles = (root: string): string[] => {
+      const dir = resolve(root, name);
+      return existsSync(dir)
+        ? readdirSync(dir).filter((f) => f.endsWith('.json'))
         : [];
+    };
 
-    for (const f of matches(VALID)) {
-      it(`accepts valid/${f}`, () => {
-        const doc = JSON.parse(readFileSync(resolve(VALID, f), 'utf-8'));
+    for (const f of fixtureFiles(VALID)) {
+      it(`accepts valid/${name}/${f}`, () => {
+        const doc = JSON.parse(readFileSync(resolve(VALID, name, f), 'utf-8'));
         const ok = validate(doc);
         expect(validate.errors ?? null).toBeNull();
         expect(ok).toBe(true);
       });
     }
 
-    for (const f of matches(INVALID)) {
-      it(`rejects invalid/${f}`, () => {
-        const doc = JSON.parse(readFileSync(resolve(INVALID, f), 'utf-8'));
+    for (const f of fixtureFiles(INVALID)) {
+      it(`rejects invalid/${name}/${f}`, () => {
+        const doc = JSON.parse(readFileSync(resolve(INVALID, name, f), 'utf-8'));
         const ok = validate(doc);
         expect(ok).toBe(false);
       });
