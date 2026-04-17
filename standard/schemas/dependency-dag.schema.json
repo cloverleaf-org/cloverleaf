@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.dev/schemas/dependency-dag.schema.json",
+  "title": "DependencyDAG",
+  "description": "Directed acyclic graph of Task dependencies emitted by Plan & Task Breakdown. Acyclicity is a runtime invariant — schema validation cannot enforce it; tools must check separately.",
+  "type": "object",
+  "required": ["nodes", "edges"],
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+      "description": "Task ids participating in the DAG. Must be unique."
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+          "to": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" }
+        },
+        "additionalProperties": false
+      },
+      "description": "Directed edges. 'to' depends on 'from'. Both endpoints must appear in nodes (runtime check)."
+    }
+  },
+  "additionalProperties": false
+}
