@@ -1,0 +1,72 @@
+---
+interface Props {
+  title: string;
+  subtitle?: string;
+}
+const { title, subtitle } = Astro.props;
+---
+<section class="hero">
+  <h1>{title}</h1>
+  {subtitle && <p class="subtitle">{subtitle}</p>}
+  <div class="cta-row">
+    <a href="/guide" class="cta">Read the Guide</a>
+    <a href="/start" class="cta-secondary">Get started →</a>
+  </div>
+  <div class="meta">
+    <span>v0.2 / 2026-04-17</span>
+    <span>4 work items · 7 agents · 2 tracks</span>
+  </div>
+</section>
+
+<style>
+  .hero {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 80px 32px 60px;
+  }
+  .hero h1 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 46px;
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    margin: 0 0 22px;
+    color: var(--color-ink);
+  }
+  .subtitle {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--color-text-body);
+    max-width: 540px;
+    margin: 0 0 32px;
+  }
+  .cta-row { display: flex; align-items: center; gap: 0; }
+  .cta {
+    display: inline-block;
+    background: transparent;
+    color: var(--color-ink);
+    border: 1.5px solid var(--color-ink);
+    padding: 11px 22px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .cta:hover { background: var(--color-ink); color: var(--color-bg); text-decoration: none; }
+  .cta-secondary {
+    margin-left: 10px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    padding: 11px 18px;
+  }
+  .cta-secondary:hover { color: var(--color-ink); text-decoration: none; }
+  .meta {
+    margin-top: 42px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    gap: 32px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+  }
+</style>
