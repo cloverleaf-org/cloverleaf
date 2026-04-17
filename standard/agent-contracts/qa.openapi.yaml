@@ -1,10 +1,14 @@
 openapi: 3.1.0
 info:
   title: Cloverleaf QA Agent Contract
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The QA Agent runs integration and end-to-end tests against an ephemeral
     preview environment.
+
+    Returns a feedback envelope (verdict + summary + findings) plus a sibling
+    'results' object carrying quantitative pass/fail counts and an optional
+    report URI.
 servers:
   - url: https://example.com/cloverleaf/qa
     description: Implementation-defined; placeholder.
@@ -27,7 +31,7 @@ paths:
                   $ref: 'https://cloverleaf.example/schemas/task.schema.json'
       responses:
         '200':
-          description: QA verdict + results
+          description: QA verdict + feedback + results
           content:
             application/json:
               schema:
@@ -35,6 +39,11 @@ paths:
                 required: [verdict, results]
                 properties:
                   verdict: { type: string, enum: [pass, bounce, escalate] }
+                  summary: { type: string }
+                  findings:
+                    type: array
+                    items:
+                      $ref: 'https://cloverleaf.example/schemas/feedback.schema.json#/$defs/finding'
                   results:
                     type: object
                     required: [passed, failed, total]
@@ -43,4 +52,11 @@ paths:
                       failed: { type: integer, minimum: 0 }
                       total: { type: integer, minimum: 0 }
                       report_uri: { type: string, format: uri }
-                  feedback: { type: string }
+                    additionalProperties: false
+                additionalProperties: false
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'
