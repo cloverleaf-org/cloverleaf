@@ -1,0 +1,39 @@
+openapi: 3.1.0
+info:
+  title: Cloverleaf Plan Agent Contract
+  version: 0.1.0
+  description: |
+    The Plan Agent takes an approved RFC + Spike findings and produces a Plan
+    artifact (finalized RFC + Task DAG + Tasks + path→reviewer mappings).
+servers:
+  - url: https://example.com/cloverleaf/plan
+    description: Implementation-defined; placeholder.
+paths:
+  /breakdown:
+    post:
+      summary: Produce a Plan artifact from an approved RFC
+      operationId: breakdown
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rfc, spikes, doc_context_uri]
+              properties:
+                rfc:
+                  $ref: 'https://cloverleaf.example/schemas/rfc.schema.json'
+                spikes:
+                  type: array
+                  items:
+                    $ref: 'https://cloverleaf.example/schemas/spike.schema.json'
+                doc_context_uri:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Plan artifact
+          content:
+            application/json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/plan.schema.json'
