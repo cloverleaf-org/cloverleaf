@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.example/schemas/status-transitions.schema.json",
+  "title": "StatusTransitions",
+  "description": "Declares the legal status transitions for a Work Item type. The standard ships canonical per-type machines under state-machines/*.json conforming to this schema.",
+  "type": "object",
+  "required": ["type", "states", "transitions"],
+  "properties": {
+    "type": { "type": "string", "enum": ["rfc", "spike", "plan", "task"] },
+    "states": {
+      "type": "object",
+      "required": ["initial", "terminal", "all"],
+      "properties": {
+        "initial": { "type": "array", "items": { "type": "string", "minLength": 1 }, "minItems": 1, "uniqueItems": true },
+        "terminal": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "all": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true, "minItems": 1 }
+      },
+      "additionalProperties": false
+    },
+    "transitions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["from", "to"],
+        "properties": {
+          "from": { "type": "string", "minLength": 1 },
+          "to": { "type": "string", "minLength": 1 },
+          "allowed_actors": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["human", "agent", "system"] },
+            "uniqueItems": true
+          },
+          "gate": { "type": "string", "minLength": 1 },
+          "path": {
+            "type": "string",
+            "enum": ["fast_lane", "full_pipeline"],
+            "description": "Task-only: which Delivery path this transition applies to. Omit for transitions valid in both."
+          },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

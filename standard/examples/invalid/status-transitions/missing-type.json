@@ -1,0 +1,10 @@
+{
+  "states": {
+    "initial": ["pending"],
+    "terminal": ["completed"],
+    "all": ["pending", "completed"]
+  },
+  "transitions": [
+    { "from": "pending", "to": "completed" }
+  ]
+}
