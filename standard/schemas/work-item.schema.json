@@ -20,11 +20,7 @@
     "owner": { "$ref": "#/$defs/owner" },
     "parent": { "$ref": "#/$defs/workItemIdOrNull" },
     "dependencies": { "$ref": "#/$defs/dependencyList" },
-    "extensions": {
-      "type": "object",
-      "description": "Team-defined namespaced extensions; see extensions.schema.json.",
-      "additionalProperties": true
-    }
+    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
   },
   "additionalProperties": true,
   "$defs": {

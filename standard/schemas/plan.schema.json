@@ -41,7 +41,7 @@
       },
       "description": "Path-glob → reviewer-role mappings emitted from path analysis (suggestions only)."
     },
-    "extensions": { "type": "object", "additionalProperties": true }
+    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
   },
   "additionalProperties": false
 }

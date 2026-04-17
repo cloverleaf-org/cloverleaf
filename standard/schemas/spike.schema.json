@@ -27,7 +27,7 @@
     "method": { "type": "string", "enum": ["research", "prototype", "benchmark"] },
     "findings": { "type": "string", "minLength": 1, "description": "Evidence-backed answer. REQUIRED when status is 'completed'." },
     "recommendation": { "type": "string", "minLength": 1, "description": "Implication for the RFC / Plan. REQUIRED when status is 'completed'." },
-    "extensions": { "type": "object", "additionalProperties": true }
+    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
   },
   "additionalProperties": false,
   "if": { "properties": { "status": { "const": "completed" } }, "required": ["status"] },

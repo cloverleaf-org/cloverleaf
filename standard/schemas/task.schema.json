@@ -57,7 +57,7 @@
       "enum": ["low", "high"],
       "description": "Computed by the deterministic Risk Classifier. 'low' = Fast Lane eligible; 'high' = Full Pipeline."
     },
-    "extensions": { "type": "object", "additionalProperties": true }
+    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
   },
   "additionalProperties": false
 }
