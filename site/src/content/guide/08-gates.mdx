@@ -1,0 +1,31 @@
+---
+chapter: 8
+eyebrow: 'Human decisions'
+title: 'Gates'
+---
+
+import Code from '../../components/Code.astro';
+
+Cloverleaf has three human gates. Each decides one thing.
+
+### Strategy Gate (Discovery)
+
+Decides: *"Is this strategy sound?"* Considers RFC + Spike findings. Outputs: approve, reject (with reason), or send back for revision.
+
+### Task Batch Gate (Discovery)
+
+Decides: *"Does this breakdown faithfully implement the strategy?"* Considers the Plan artifact. Outputs: approve, reject (re-decompose), or escalate (re-RFC).
+
+### Final Approval Gate (Delivery)
+
+Decides: *"Is this Task ready to merge?"* Considers the implementation, review reports, and any QA artifacts. Outputs: approve (merge) or reject (back to Implementer).
+
+### Path → reviewer mappings
+
+Project-configurable rules suggest reviewers based on which code paths a Task touches:
+
+- Changes under <Code>auth/</Code> request a Security Reviewer
+- Schema changes request a Database Reviewer
+- Frontend changes request a Frontend Reviewer
+
+The framework provides the mechanism (path → role rules); teams define the mappings per project.

@@ -1,0 +1,25 @@
+---
+chapter: 6
+eyebrow: 'Artifacts'
+title: 'Work items'
+---
+
+Cloverleaf has four Work Item types. Each maps to one leaf of the cloverleaf interchange and has a mandatory schema.
+
+### RFC
+
+A proposal. Captures problem, context, recommended approach, alternatives, and acceptance criteria. Authored by the Researcher Agent.
+
+### Spike
+
+A bounded research task with a single specific question, a method (research/prototype/benchmark), evidence-backed findings, and a recommended path.
+
+### Plan
+
+The output of Plan & Breakdown. Contains: finalized RFC, Task DAG, Tasks (each schema-valid), and path → reviewer mappings.
+
+### Task
+
+A unit of implementation work. Has DoD, AC, risk markers, dependency edges, and assigned reviewers.
+
+All four types share a common envelope (project, id, status, relationships, extensions). The full schemas live in the Cloverleaf Interoperability Standard at `standard/`.
