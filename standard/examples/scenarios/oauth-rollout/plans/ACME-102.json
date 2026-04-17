@@ -1,0 +1,60 @@
+{
+  "id": "ACME-102",
+  "type": "plan",
+  "status": "approved",
+  "owner": { "kind": "agent", "id": "plan" },
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-100" },
+  "parent_rfc": { "project": "ACME", "id": "ACME-100" },
+  "task_dag": {
+    "nodes": [
+      { "project": "ACME", "id": "ACME-200" },
+      { "project": "ACME", "id": "ACME-201" }
+    ],
+    "edges": [
+      { "from": { "project": "ACME", "id": "ACME-200" }, "to": { "project": "ACME", "id": "ACME-201" } }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "ACME-200",
+      "type": "task",
+      "status": "pending",
+      "owner": { "kind": "agent", "id": "implementer" },
+      "project": "ACME",
+      "parent": { "project": "ACME", "id": "ACME-102" },
+      "title": "Add OAuth provider registration endpoint",
+      "context": {
+        "rfc": { "project": "ACME", "id": "ACME-100" },
+        "spikes": [{ "project": "ACME", "id": "ACME-101" }]
+      },
+      "definition_of_done": ["POST /auth/oauth/providers persists configs."],
+      "acceptance_criteria": ["Valid POST returns 201."],
+      "risk_class": "high",
+      "relationships": [
+        { "type": "blocks", "target": { "project": "ACME", "id": "ACME-201" } }
+      ]
+    },
+    {
+      "id": "ACME-201",
+      "type": "task",
+      "status": "pending",
+      "owner": { "kind": "agent", "id": "implementer" },
+      "project": "ACME",
+      "parent": { "project": "ACME", "id": "ACME-102" },
+      "title": "Add OAuth callback handler",
+      "context": {
+        "rfc": { "project": "ACME", "id": "ACME-100" }
+      },
+      "definition_of_done": ["GET /auth/oauth/callback exchanges code for token."],
+      "acceptance_criteria": ["Valid code returns the user session cookie."],
+      "risk_class": "high",
+      "relationships": [
+        { "type": "is_blocked_by", "target": { "project": "ACME", "id": "ACME-200" } }
+      ]
+    }
+  ],
+  "path_reviewer_map": [
+    { "pattern": "auth/**", "role": "SecurityReviewer" }
+  ]
+}

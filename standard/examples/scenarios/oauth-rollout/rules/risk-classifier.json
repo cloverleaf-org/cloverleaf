@@ -1,0 +1,9 @@
+{
+  "protected_paths": ["auth/**", "payments/**", "secrets/**"],
+  "public_api_paths": ["api/**/*.ts"],
+  "schema_paths": ["db/migrations/**"],
+  "dependency_files": ["package.json", "package-lock.json"],
+  "ci_paths": [".github/**"],
+  "ui_paths": ["ui/**", "**/*.tsx"],
+  "thresholds": { "max_loc_changed": 50, "max_files_changed": 5, "min_coverage_pct": 80 }
+}

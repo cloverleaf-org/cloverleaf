@@ -1,0 +1,19 @@
+{
+  "id": "ACME-100",
+  "type": "rfc",
+  "status": "approved",
+  "owner": { "kind": "agent", "id": "researcher" },
+  "project": "ACME",
+  "parent": null,
+  "title": "Add OAuth login",
+  "problem": "Users currently must create a password-only account, blocking enterprise SSO adoption.",
+  "solution": "Add OAuth 2.1 PKCE flow with Google and Microsoft as initial providers.",
+  "unknowns": [
+    "How do we handle account merging when a user signs up with email then later with OAuth?"
+  ],
+  "acceptance_criteria": [
+    "Existing users can link an OAuth provider to their account.",
+    "New users can sign up via Google or Microsoft OAuth."
+  ],
+  "out_of_scope": ["SAML SSO", "Custom IdP support"]
+}

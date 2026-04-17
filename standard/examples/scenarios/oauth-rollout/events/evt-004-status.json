@@ -1,0 +1,11 @@
+{
+  "event_id": "evt-2026-04-17-004",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-17T14:30:00Z",
+  "work_item_id": { "project": "ACME", "id": "ACME-201" },
+  "work_item_type": "task",
+  "from_status": "review",
+  "to_status": "automated-gates",
+  "actor": { "kind": "agent", "id": "reviewer" },
+  "reason": "Fresh-Eyes Reviewer passed; advancing to automated gates."
+}

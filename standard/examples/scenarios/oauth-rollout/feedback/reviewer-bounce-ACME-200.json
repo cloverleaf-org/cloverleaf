@@ -1,0 +1,24 @@
+{
+  "verdict": "bounce",
+  "summary": "Two issues must be addressed before ACME-200 can be re-reviewed.",
+  "findings": [
+    {
+      "severity": "error",
+      "location": {
+        "file": "auth/oauth.ts",
+        "line": 42,
+        "work_item_id": { "project": "ACME", "id": "ACME-200" }
+      },
+      "message": "OAuth callback does not verify the state parameter against the session store.",
+      "suggestion": "Compare the incoming state to the value stored when the redirect was issued; reject on mismatch.",
+      "rule": "auth.state-parameter-required"
+    },
+    {
+      "severity": "warning",
+      "location": { "file": "auth/oauth.ts", "line": 88 },
+      "message": "Access token is logged at info level.",
+      "suggestion": "Redact or drop the token before logging.",
+      "rule": "security.no-secrets-in-logs"
+    }
+  ]
+}

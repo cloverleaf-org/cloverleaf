@@ -1,0 +1,11 @@
+{
+  "event_id": "evt-2026-04-17-001",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-17T09:00:00Z",
+  "work_item_id": { "project": "ACME", "id": "ACME-200" },
+  "work_item_type": "task",
+  "from_status": "pending",
+  "to_status": "tactical-plan",
+  "actor": { "kind": "agent", "id": "implementer" },
+  "reason": "Implementer picked up the task from the Delivery backlog."
+}

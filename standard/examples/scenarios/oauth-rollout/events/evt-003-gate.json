@@ -1,0 +1,10 @@
+{
+  "event_id": "evt-2026-04-17-003",
+  "event_type": "gate_decision",
+  "occurred_at": "2026-04-17T08:30:00Z",
+  "gate": "task_batch_gate",
+  "work_item_id": { "project": "ACME", "id": "ACME-102" },
+  "decision": "approve",
+  "approver": { "kind": "human", "id": "alice" },
+  "comment": "Breakdown is well-decomposed; ready for Delivery."
+}
