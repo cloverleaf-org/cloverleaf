@@ -1,0 +1,17 @@
+---
+interface Props {
+  size?: number;
+  color?: string;
+}
+const { size = 24, color = 'var(--color-accent)' } = Astro.props;
+---
+<svg
+  width={size}
+  height={size}
+  viewBox="0 0 40 40"
+  style={`color: ${color};`}
+  aria-label="Cloverleaf"
+  role="img"
+>
+  <use href="#icon-mark" />
+</svg>
