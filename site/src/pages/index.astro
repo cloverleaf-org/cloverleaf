@@ -1,17 +1,10 @@
 ---
-
+import Layout from '../layouts/Layout.astro';
+import Hero from '../components/Hero.astro';
 ---
-
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout title="Cloverleaf — a methodology for AI-first teams">
+  <Hero
+    title="Humans gate. Agents execute."
+    subtitle="A methodology for software teams where AI is the primary author of code. Discovery is human-gated and strategic. Delivery is AI-driven and parallel."
+  />
+</Layout>
