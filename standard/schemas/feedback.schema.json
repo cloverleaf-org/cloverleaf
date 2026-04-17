@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.example/schemas/feedback.schema.json",
+  "title": "Feedback",
+  "description": "Structured feedback envelope returned by Reviewer, UI Reviewer, and QA agents. Carries the verdict plus a human summary and structured findings.",
+  "type": "object",
+  "required": ["verdict"],
+  "properties": {
+    "verdict": { "$ref": "#/$defs/verdict" },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable one-paragraph summary. REQUIRED when verdict is 'bounce' or 'escalate'."
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" },
+      "description": "Structured findings the Implementer can act on programmatically. Empty or omitted when verdict is 'pass'."
+    }
+  },
+  "additionalProperties": false,
+  "if": { "properties": { "verdict": { "enum": ["bounce", "escalate"] } }, "required": ["verdict"] },
+  "then": {
+    "required": ["summary"],
+    "properties": {
+      "summary": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "bounce", "escalate"],
+      "description": "Canonical reviewer-family verdict."
+    },
+    "finding": {
+      "type": "object",
+      "required": ["severity", "message"],
+      "properties": {
+        "severity": { "type": "string", "enum": ["info", "warning", "error", "blocker"] },
+        "location": {
+          "type": "object",
+          "properties": {
+            "file": { "type": "string" },
+            "line": { "type": "integer", "minimum": 1 },
+            "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef" }
+          },
+          "additionalProperties": false
+        },
+        "message": { "type": "string", "minLength": 1 },
+        "suggestion": { "type": "string" },
+        "rule": {
+          "type": "string",
+          "description": "Stable identifier for the check that fired (e.g., 'no-self-review', 'a11y.wcag.1.3.1')."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

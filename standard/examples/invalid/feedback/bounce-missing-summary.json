@@ -1,0 +1,6 @@
+{
+  "verdict": "bounce",
+  "findings": [
+    { "severity": "error", "message": "x" }
+  ]
+}
