@@ -1,0 +1,11 @@
+{
+  "event_id": "evt-2026-04-16-001",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-16T10:32:00Z",
+  "work_item_id": "task-001",
+  "work_item_type": "task",
+  "from_status": "review",
+  "to_status": "automated-gates",
+  "actor": { "kind": "agent", "id": "reviewer" },
+  "reason": "Code review passed; advancing to automated gates."
+}
