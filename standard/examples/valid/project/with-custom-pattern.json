@@ -1,0 +1,9 @@
+{
+  "key": "CONTOSO",
+  "name": "Contoso Platform",
+  "description": "Infrastructure and platform services.",
+  "id_pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+  "extensions": {
+    "contoso.slack_channel": "#platform"
+  }
+}
