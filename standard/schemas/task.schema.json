@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.dev/schemas/task.schema.json",
+  "title": "Task",
+  "description": "A Cloverleaf Delivery work unit. The atomic unit of execution.",
+  "type": "object",
+  "required": ["id", "type", "status", "owner", "title", "context", "definition_of_done", "acceptance_criteria", "risk_class"],
+  "properties": {
+    "id": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+    "type": { "const": "task" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending", "tactical-plan", "implementing", "documenting",
+        "review", "automated-gates", "ui-review", "qa", "final-gate",
+        "merged", "rejected", "escalated"
+      ]
+    },
+    "owner": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/owner" },
+    "parent": {
+      "description": "Parent Plan id. Generic Work Item parent link; tools should prefer context.rfc as the authoritative RFC reference.",
+      "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemIdOrNull"
+    },
+    "dependencies": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "title": { "type": "string", "minLength": 1 },
+    "context": {
+      "type": "object",
+      "required": ["rfc"],
+      "properties": {
+        "rfc": {
+          "description": "Parent RFC id (authoritative).",
+          "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId"
+        },
+        "spikes": {
+          "description": "Relevant Spike ids that informed this Task.",
+          "type": "array",
+          "items": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "definition_of_done": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Explicit, testable. What must be true."
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Test scenarios / verifiable behaviors."
+    },
+    "risk_class": {
+      "type": "string",
+      "enum": ["low", "high"],
+      "description": "Computed by the deterministic Risk Classifier. 'low' = Fast Lane eligible; 'high' = Full Pipeline."
+    },
+    "extensions": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

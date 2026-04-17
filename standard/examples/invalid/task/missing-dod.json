@@ -1,0 +1,10 @@
+{
+  "id": "task-002",
+  "type": "task",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "implementer" },
+  "title": "Half-defined task",
+  "context": { "rfc": "rfc-001" },
+  "acceptance_criteria": ["something"],
+  "risk_class": "low"
+}

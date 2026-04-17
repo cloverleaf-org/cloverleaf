@@ -1,0 +1,24 @@
+{
+  "id": "task-001",
+  "type": "task",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "implementer" },
+  "parent": "plan-001",
+  "dependencies": [],
+  "title": "Add OAuth provider registration endpoint",
+  "context": {
+    "rfc": "rfc-001",
+    "spikes": ["spike-001"]
+  },
+  "definition_of_done": [
+    "POST /auth/oauth/providers accepts a provider config and persists it.",
+    "Endpoint requires admin auth.",
+    "Validation rejects invalid provider configs with structured 422 responses."
+  ],
+  "acceptance_criteria": [
+    "POST a valid Google provider config returns 201 and the persisted record.",
+    "POST without admin auth returns 401.",
+    "POST with missing client_id returns 422 with a field-specific error."
+  ],
+  "risk_class": "high"
+}
