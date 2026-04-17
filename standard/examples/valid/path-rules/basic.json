@@ -1,0 +1,8 @@
+{
+  "rules": [
+    { "pattern": "auth/**", "role": "SecurityReviewer", "description": "Anything touching authentication" },
+    { "pattern": "db/migrations/**", "role": "DatabaseReviewer" },
+    { "pattern": "ui/**", "role": "FrontendReviewer" },
+    { "pattern": "infra/**", "role": "InfrastructureReviewer" }
+  ]
+}
