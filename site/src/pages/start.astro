@@ -1,0 +1,69 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Eyebrow from '../components/Eyebrow.astro';
+import Code from '../components/Code.astro';
+---
+<Layout title="Start — Cloverleaf">
+  <article class="page">
+    <Eyebrow>Get started</Eyebrow>
+    <h1>Adopting Cloverleaf in a real team</h1>
+
+    <p class="lede">A practical walkthrough for setting up a Cloverleaf-shaped team. Adapt liberally — the methodology binds at phase contracts, not at staffing.</p>
+
+    <h2>1. Pick the agents</h2>
+    <p>The 7 default agents are a recommended split, not a mandate. A solo developer can run all 7 in a single Claude session by switching personas; a 50-person engineering org can map them to teams. Start by reading <a href="/guide#chapter-7">Chapter 7 of the guide</a>.</p>
+
+    <h2>2. Define the gates</h2>
+    <p>For each gate (Strategy, Task Batch, Final Approval), decide who staffs it. Use path → reviewer mappings (e.g., changes under <Code>auth/</Code> request a Security Reviewer) to route Tasks automatically.</p>
+
+    <h2>3. Author the schemas</h2>
+    <p>Cloverleaf binds at artifact contracts. The Standard at <Code>standard/</Code> ships canonical JSON Schemas for RFC, Spike, Plan, and Task. Use them as-is, or extend them via the <Code>extensions</Code> field.</p>
+
+    <h2>4. Run a pilot</h2>
+    <p>Pick one feature. Run it end-to-end through Discovery and Delivery with the agents you defined. Iterate on the path → reviewer mappings as you learn what your codebase actually needs.</p>
+
+    <p class="footnote">Detailed adoption playbook coming in v2 of the site.</p>
+  </article>
+</Layout>
+
+<style>
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 32px 80px;
+  }
+  .page h1 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 38px;
+    line-height: 1.1;
+    margin: 0 0 24px;
+    letter-spacing: -0.02em;
+  }
+  .page h2 {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 22px;
+    margin: 36px 0 12px;
+  }
+  .page .lede {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--color-text-body);
+    margin-bottom: 32px;
+  }
+  .page p {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--color-text-body);
+    margin: 0 0 14px;
+  }
+  .page p.footnote {
+    margin-top: 48px;
+    padding-top: 18px;
+    border-top: 1px solid var(--color-border);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-text-subtle);
+  }
+</style>

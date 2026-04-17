@@ -1,0 +1,82 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Eyebrow from '../components/Eyebrow.astro';
+
+const items = [
+  {
+    q: 'How is Cloverleaf different from Scrum?',
+    a: 'Scrum assumes humans are the slow part of building software. Cloverleaf assumes AI is the primary author and humans are the slow part of <em>judgment</em>. The result is a different bottleneck and a different optimisation: Cloverleaf shifts human attention upstream into strategy and review, where the leverage now lives.'
+  },
+  {
+    q: 'How is Cloverleaf different from Shape Up?',
+    a: 'Shape Up keeps humans implementing during the cycle and uses appetites as a soft cap. Cloverleaf removes humans from implementation entirely (agents do that) and uses gates as hard caps on strategy and merge.'
+  },
+  {
+    q: 'Can a single developer use Cloverleaf?',
+    a: 'Yes. The 7 agents are recommended roles, not staffing. A solo dev can switch personas in a single Claude session and still get the structural benefits of fresh-eyes review and typed failure handling.'
+  },
+  {
+    q: 'What about teams that aren\'t using AI yet?',
+    a: 'Cloverleaf is specifically for teams where AI is the primary code author. If your team writes most code by hand, Scrum or Shape Up will fit better.'
+  },
+  {
+    q: 'Is the methodology stable?',
+    a: 'v0.2.0 (this version). The architecture (two tracks, 4 work items, 7 agents) is settled. Some details may evolve based on real-team feedback.'
+  },
+  {
+    q: 'How do I cite Cloverleaf?',
+    a: 'Until publication, cite the working draft of this guide. Once published, a stable URL and DOI will be provided.'
+  },
+];
+---
+<Layout title="FAQ — Cloverleaf">
+  <article class="page">
+    <Eyebrow>Frequently asked</Eyebrow>
+    <h1>Questions about adopting Cloverleaf</h1>
+
+    <dl class="faq">
+      {items.map(item => (
+        <div class="faq-item">
+          <dt>{item.q}</dt>
+          <dd set:html={item.a} />
+        </div>
+      ))}
+    </dl>
+  </article>
+</Layout>
+
+<style>
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 32px 80px;
+  }
+  .page h1 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    font-size: 38px;
+    line-height: 1.1;
+    margin: 0 0 48px;
+    letter-spacing: -0.02em;
+  }
+  .faq { display: flex; flex-direction: column; gap: 32px; }
+  .faq-item {
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 32px;
+  }
+  .faq-item:last-child { border-bottom: none; }
+  dt {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 22px;
+    color: var(--color-ink);
+    margin-bottom: 12px;
+    letter-spacing: -0.01em;
+  }
+  dd {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--color-text-body);
+  }
+</style>
