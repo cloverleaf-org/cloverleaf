@@ -3,6 +3,7 @@
   "$id": "https://cloverleaf.dev/schemas/work-item.schema.json",
   "title": "WorkItem",
   "description": "Abstract parent of all Cloverleaf trackable units (RFC, Spike, Plan, Task).",
+  "$comment": "Permissive at the abstract level (additionalProperties: true); concrete types (rfc/spike/plan/task) tighten via additionalProperties: false. Reusable component definitions live under $defs and are $ref'd by per-type schemas.",
   "type": "object",
   "required": ["id", "type", "status", "owner"],
   "properties": {
@@ -20,15 +21,7 @@
       "minLength": 1,
       "description": "Lifecycle status. The set of valid statuses depends on the concrete type and is defined in per-type schemas."
     },
-    "owner": {
-      "type": "object",
-      "required": ["kind", "id"],
-      "properties": {
-        "kind": { "type": "string", "enum": ["human", "agent"] },
-        "id": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": false
-    },
+    "owner": { "$ref": "#/$defs/owner" },
     "parent": {
       "type": ["string", "null"],
       "description": "Parent Work Item id, if any."
@@ -44,5 +37,17 @@
       "additionalProperties": true
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "$defs": {
+    "owner": {
+      "type": "object",
+      "description": "Identifies who owns a Work Item — a human or an agent.",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["human", "agent"] },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
 }
