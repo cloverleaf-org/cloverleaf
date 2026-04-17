@@ -1,10 +1,10 @@
 {
-  "id": "rfc-001",
+  "id": "ACME-100",
   "type": "rfc",
   "status": "drafting",
   "owner": { "kind": "agent", "id": "researcher" },
+  "project": "ACME",
   "parent": null,
-  "dependencies": [],
   "title": "Add OAuth login",
   "problem": "Users currently must create a password-only account, blocking enterprise SSO adoption.",
   "solution": "Add OAuth 2.1 PKCE flow with Google and Microsoft as initial providers.",

@@ -1,8 +1,9 @@
 {
-  "id": "rfc-002",
+  "id": "ACME-101",
   "type": "rfc",
   "status": "drafting",
   "owner": { "kind": "agent", "id": "researcher" },
+  "project": "ACME",
   "title": "Some change",
   "solution": "Do the thing.",
   "unknowns": [],
