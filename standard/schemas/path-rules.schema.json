@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloverleaf.dev/schemas/path-rules.schema.json",
+  "$id": "https://cloverleaf.example/schemas/path-rules.schema.json",
   "title": "PathRules",
   "description": "Project-defined path-glob → reviewer-role mappings. Suggestions only.",
   "type": "object",

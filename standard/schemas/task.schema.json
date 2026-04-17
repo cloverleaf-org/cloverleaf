@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloverleaf.dev/schemas/task.schema.json",
+  "$id": "https://cloverleaf.example/schemas/task.schema.json",
   "title": "Task",
   "description": "A Cloverleaf Delivery work unit. The atomic unit of execution.",
   "type": "object",
   "required": ["id", "type", "status", "owner", "title", "context", "definition_of_done", "acceptance_criteria", "risk_class"],
   "properties": {
-    "id": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+    "id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "type": { "const": "task" },
     "status": {
       "type": "string",
@@ -16,12 +16,12 @@
         "merged", "rejected", "escalated"
       ]
     },
-    "owner": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/owner" },
+    "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
     "parent": {
       "description": "Parent Plan id. Generic Work Item parent link; tools should prefer context.rfc as the authoritative RFC reference.",
-      "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemIdOrNull"
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemIdOrNull"
     },
-    "dependencies": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "dependencies": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/dependencyList" },
     "title": { "type": "string", "minLength": 1 },
     "context": {
       "type": "object",
@@ -29,12 +29,12 @@
       "properties": {
         "rfc": {
           "description": "Parent RFC id (authoritative).",
-          "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId"
+          "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId"
         },
         "spikes": {
           "description": "Relevant Spike ids that informed this Task.",
           "type": "array",
-          "items": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+          "items": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
           "uniqueItems": true
         }
       },
@@ -57,7 +57,7 @@
       "enum": ["low", "high"],
       "description": "Computed by the deterministic Risk Classifier. 'low' = Fast Lane eligible; 'high' = Full Pipeline."
     },
-    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
+    "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
   },
   "additionalProperties": false
 }

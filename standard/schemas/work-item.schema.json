@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloverleaf.dev/schemas/work-item.schema.json",
+  "$id": "https://cloverleaf.example/schemas/work-item.schema.json",
   "title": "WorkItem",
   "description": "Abstract parent of all Cloverleaf trackable units (RFC, Spike, Plan, Task).",
   "$comment": "Permissive at the abstract level (additionalProperties: true); concrete types (rfc/spike/plan/task) tighten via additionalProperties: false. Reusable component definitions live under $defs and are $ref'd by per-type schemas.",
@@ -20,7 +20,7 @@
     "owner": { "$ref": "#/$defs/owner" },
     "parent": { "$ref": "#/$defs/workItemIdOrNull" },
     "dependencies": { "$ref": "#/$defs/dependencyList" },
-    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
+    "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
   },
   "additionalProperties": true,
   "$defs": {

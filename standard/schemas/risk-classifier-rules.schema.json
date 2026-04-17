@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloverleaf.dev/schemas/risk-classifier-rules.schema.json",
+  "$id": "https://cloverleaf.example/schemas/risk-classifier-rules.schema.json",
   "title": "RiskClassifierRules",
   "description": "Project-tunable rules for the deterministic Risk Classifier. Default classification is HIGH-RISK; downgrade to LOW-RISK requires ALL checks to pass.",
   "type": "object",

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloverleaf.dev/schemas/status-transition-event.schema.json",
+  "$id": "https://cloverleaf.example/schemas/status-transition-event.schema.json",
   "title": "StatusTransitionEvent",
   "description": "Emitted when a Work Item changes status.",
   "type": "object",
@@ -9,7 +9,7 @@
     "event_id": { "type": "string", "minLength": 1 },
     "event_type": { "const": "status_transition" },
     "occurred_at": { "type": "string", "format": "date-time" },
-    "work_item_id": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+    "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "work_item_type": { "type": "string", "enum": ["rfc", "spike", "plan", "task"] },
     "from_status": { "type": "string", "minLength": 1 },
     "to_status": { "type": "string", "minLength": 1 },

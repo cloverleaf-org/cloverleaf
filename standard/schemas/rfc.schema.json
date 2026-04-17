@@ -1,20 +1,20 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloverleaf.dev/schemas/rfc.schema.json",
+  "$id": "https://cloverleaf.example/schemas/rfc.schema.json",
   "title": "RFC",
   "description": "A Cloverleaf Discovery proposal.",
   "type": "object",
   "required": ["id", "type", "status", "owner", "title", "problem", "solution", "unknowns", "acceptance_criteria", "out_of_scope"],
   "properties": {
-    "id": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+    "id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "type": { "const": "rfc" },
     "status": {
       "type": "string",
       "enum": ["drafting", "spike-in-flight", "planning", "gate-pending", "approved", "rejected", "abandoned"]
     },
-    "owner": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/owner" },
-    "parent": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemIdOrNull" },
-    "dependencies": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
+    "parent": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemIdOrNull" },
+    "dependencies": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/dependencyList" },
     "title": { "type": "string", "minLength": 1 },
     "problem": { "type": "string", "minLength": 1 },
     "solution": { "type": "string", "minLength": 1 },
@@ -32,7 +32,7 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 }
     },
-    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
+    "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
   },
   "additionalProperties": false
 }

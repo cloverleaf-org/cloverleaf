@@ -8,7 +8,7 @@ Validates that every artifact in this repo (schemas, examples, agent contracts) 
 - `runner.ts` — CLI script for CI: validates every example in one shot (added in Task 21).
 
 ## Adding a new schema
-1. Add `schemas/<name>.schema.json` with `"$id": "https://cloverleaf.dev/schemas/<name>.schema.json"`.
+1. Add `schemas/<name>.schema.json` with `"$id": "https://cloverleaf.example/schemas/<name>.schema.json"`.
 2. Add positive examples under `examples/valid/<name>/<descriptor>.json` (e.g., `basic.json`). At least one required.
 3. Add negative examples under `examples/invalid/<name>/<reason>.json` (e.g., `missing-id.json`). At least one required.
 4. Add `tests/<name>.test.ts` containing `import { testSchema } from '../helpers/test-schema.js'; testSchema('<name>');`.

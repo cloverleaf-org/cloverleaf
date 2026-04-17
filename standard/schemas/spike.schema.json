@@ -1,33 +1,33 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cloverleaf.dev/schemas/spike.schema.json",
+  "$id": "https://cloverleaf.example/schemas/spike.schema.json",
   "title": "Spike",
   "description": "A Cloverleaf Discovery research/de-risk task answering one specific question raised by an RFC.",
   "type": "object",
   "required": ["id", "type", "status", "owner", "title", "parent_rfc", "question", "method"],
   "properties": {
-    "id": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+    "id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "type": { "const": "spike" },
     "status": {
       "type": "string",
       "enum": ["pending", "running", "completed", "abandoned"]
     },
-    "owner": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/owner" },
+    "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
     "parent": {
       "description": "Generic Work Item parent link. For a Spike, this MUST equal parent_rfc when set; tools that don't understand the typed link can use this for tree-walking. Prefer parent_rfc as the authoritative reference.",
-      "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemIdOrNull"
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemIdOrNull"
     },
-    "dependencies": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "dependencies": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/dependencyList" },
     "title": { "type": "string", "minLength": 1 },
     "parent_rfc": {
       "description": "The RFC id this Spike answers. Required and typed; this is the authoritative parent reference for Spikes.",
-      "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId"
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId"
     },
     "question": { "type": "string", "minLength": 1 },
     "method": { "type": "string", "enum": ["research", "prototype", "benchmark"] },
     "findings": { "type": "string", "minLength": 1, "description": "Evidence-backed answer. REQUIRED when status is 'completed'." },
     "recommendation": { "type": "string", "minLength": 1, "description": "Implication for the RFC / Plan. REQUIRED when status is 'completed'." },
-    "extensions": { "$ref": "https://cloverleaf.dev/schemas/extensions.schema.json" }
+    "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
   },
   "additionalProperties": false,
   "if": { "properties": { "status": { "const": "completed" } }, "required": ["status"] },

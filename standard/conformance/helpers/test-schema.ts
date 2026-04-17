@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const VALID = resolve(__dirname, '..', '..', 'examples', 'valid');
 const INVALID = resolve(__dirname, '..', '..', 'examples', 'invalid');
-const SCHEMA_BASE = 'https://cloverleaf.dev/schemas/';
+const SCHEMA_BASE = 'https://cloverleaf.example/schemas/';
 
 /**
  * Run conformance tests for a given schema name.
