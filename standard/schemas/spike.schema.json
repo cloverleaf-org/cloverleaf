@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.dev/schemas/spike.schema.json",
+  "title": "Spike",
+  "description": "A Cloverleaf Discovery research/de-risk task answering one specific question.",
+  "type": "object",
+  "required": ["id", "type", "status", "owner", "title", "parent_rfc", "question", "method"],
+  "properties": {
+    "id": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+    "type": { "const": "spike" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "running", "completed", "abandoned"]
+    },
+    "owner": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/owner" },
+    "parent": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemIdOrNull" },
+    "dependencies": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "title": { "type": "string", "minLength": 1 },
+    "parent_rfc": { "$ref": "https://cloverleaf.dev/schemas/work-item.schema.json#/$defs/workItemId" },
+    "question": { "type": "string", "minLength": 1 },
+    "method": { "type": "string", "enum": ["research", "prototype", "benchmark"] },
+    "findings": { "type": "string" },
+    "recommendation": { "type": "string" },
+    "extensions": { "type": "object", "additionalProperties": true }
+  },
+  "additionalProperties": false
+}

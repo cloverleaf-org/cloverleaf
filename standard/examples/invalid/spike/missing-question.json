@@ -1,0 +1,9 @@
+{
+  "id": "spike-002",
+  "type": "spike",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "researcher" },
+  "title": "Untitled spike",
+  "parent_rfc": "rfc-001",
+  "method": "prototype"
+}
