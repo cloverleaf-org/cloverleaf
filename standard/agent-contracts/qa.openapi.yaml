@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Cloverleaf QA Agent Contract
+  version: 0.1.0
+  description: |
+    The QA Agent runs integration and end-to-end tests against an ephemeral
+    preview environment.
+servers:
+  - url: https://example.com/cloverleaf/qa
+    description: Implementation-defined; placeholder.
+paths:
+  /run-qa:
+    post:
+      summary: Run QA suite against a preview environment
+      operationId: runQa
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pr_uri, preview_uri, task]
+              properties:
+                pr_uri: { type: string, format: uri }
+                preview_uri: { type: string, format: uri }
+                task:
+                  $ref: 'https://cloverleaf.example/schemas/task.schema.json'
+      responses:
+        '200':
+          description: QA verdict + results
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verdict, results]
+                properties:
+                  verdict: { type: string, enum: [pass, bounce, escalate] }
+                  results:
+                    type: object
+                    required: [passed, failed, total]
+                    properties:
+                      passed: { type: integer, minimum: 0 }
+                      failed: { type: integer, minimum: 0 }
+                      total: { type: integer, minimum: 0 }
+                      report_uri: { type: string, format: uri }
+                  feedback: { type: string }
