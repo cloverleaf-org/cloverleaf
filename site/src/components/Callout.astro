@@ -1,0 +1,41 @@
+---
+interface Props {
+  title?: string;
+}
+const { title } = Astro.props;
+---
+<div class="callout">
+  <svg class="callout-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M 12 8 L 12 12 M 12 16 L 12 16"/>
+  </svg>
+  <div class="callout-body">
+    {title && <strong>{title}</strong>}
+    <slot />
+  </div>
+</div>
+
+<style>
+  .callout {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: var(--color-surface);
+    border-left: 3px solid var(--color-accent);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    margin: var(--space-4) 0;
+  }
+  .callout-icon { flex-shrink: 0; color: var(--color-accent); margin-top: 1px; }
+  .callout-body {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--color-text-body);
+  }
+  .callout-body strong {
+    color: var(--color-ink);
+    display: block;
+    margin-bottom: 2px;
+    font-weight: 600;
+  }
+</style>
