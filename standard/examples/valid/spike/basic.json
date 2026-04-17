@@ -1,14 +1,14 @@
 {
-  "id": "spike-001",
+  "id": "ACME-101",
   "type": "spike",
   "status": "completed",
   "owner": { "kind": "agent", "id": "researcher" },
-  "parent": "rfc-001",
-  "dependencies": [],
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-100" },
   "title": "Account merge policy",
-  "parent_rfc": "rfc-001",
+  "parent_rfc": { "project": "ACME", "id": "ACME-100" },
   "question": "How do we handle account merging when a user signs up with email then later with OAuth?",
   "method": "research",
-  "findings": "Surveyed 6 SaaS products; majority adopt 'manual confirmation' over automatic merging due to legal/PII risk. Documented in spike-001-findings.md.",
-  "recommendation": "Adopt manual-confirmation merge with email verification step. Update RFC solution to reflect."
+  "findings": "Surveyed 6 SaaS products; majority adopt 'manual confirmation' over automatic merging due to legal/PII risk.",
+  "recommendation": "Adopt manual-confirmation merge with email verification step."
 }
