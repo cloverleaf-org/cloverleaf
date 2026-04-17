@@ -11,17 +11,17 @@
     "occurred_at": { "type": "string", "format": "date-time" },
     "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "work_item_type": { "type": "string", "enum": ["rfc", "spike", "plan", "task"] },
-    "from_status": { "type": "string", "minLength": 1 },
-    "to_status": { "type": "string", "minLength": 1 },
-    "actor": {
-      "type": "object",
-      "required": ["kind", "id"],
-      "properties": {
-        "kind": { "type": "string", "enum": ["human", "agent", "system"] },
-        "id": { "type": "string", "minLength": 1 }
-      },
-      "additionalProperties": false
+    "from_status": {
+      "type": "string",
+      "minLength": 1,
+      "$comment": "Must be a valid status for the referenced work_item_type per its concrete schema. This invariant is enforced by consumers, not by this schema."
     },
+    "to_status": {
+      "type": "string",
+      "minLength": 1,
+      "$comment": "Must be a valid status for the referenced work_item_type per its concrete schema. This invariant is enforced by consumers, not by this schema."
+    },
+    "actor": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/actor" },
     "reason": { "type": "string" }
   },
   "additionalProperties": false

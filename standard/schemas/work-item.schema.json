@@ -44,10 +44,20 @@
     },
     "owner": {
       "type": "object",
-      "description": "Identifies who owns a Work Item — a human or an agent.",
+      "description": "Identifies who owns a Work Item — a human or an agent. A subset of `actor`: ownership is restricted to addressable parties (no `system`).",
       "required": ["kind", "id"],
       "properties": {
         "kind": { "type": "string", "enum": ["human", "agent"] },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "actor": {
+      "type": "object",
+      "description": "Identifies who triggered an action — a human, an agent, or the system itself (for automated transitions like timeouts, scheduled jobs, build outcomes). Used by event schemas. Superset of `owner` (`owner` is `actor` minus `system`).",
+      "required": ["kind", "id"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["human", "agent", "system"] },
         "id": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
