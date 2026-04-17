@@ -1,0 +1,6 @@
+node_modules/
+
+# Superpowers brainstorm sessions and any methodology specs/plans —
+# kept local-only; do not expose pre-publication design notes.
+.superpowers/
+docs/superpowers/
