@@ -27,9 +27,13 @@ paths:
                   type: array
                   items:
                     $ref: 'https://cloverleaf.example/schemas/spike.schema.json'
+                  description: Spike findings informing the breakdown. May be empty if the RFC required no spikes.
                 doc_context_uri:
                   type: string
                   format: uri
+                path_rules:
+                  $ref: 'https://cloverleaf.example/schemas/path-rules.schema.json'
+                  description: Optional project-defined path-glob → reviewer-role mappings used to emit the Plan's path_reviewer_map.
       responses:
         '200':
           description: Plan artifact
