@@ -3,9 +3,9 @@
   "$id": "https://cloverleaf.example/schemas/plan.schema.json",
   "title": "Plan",
   "description": "Output of Plan & Task Breakdown: finalized RFC + Task DAG + Tasks + path→reviewer mappings.",
-  "$comment": "Runtime invariant (not enforceable by schema): the set of tasks[].id MUST equal the set of task_dag.nodes. Tools should validate this separately.",
+  "$comment": "Runtime invariant (not enforceable by schema): the set of tasks[].id must equal the set of workItemRefs in task_dag.nodes. Tools should validate this separately (validator #2).",
   "type": "object",
-  "required": ["id", "type", "status", "owner", "parent_rfc", "task_dag", "tasks"],
+  "required": ["id", "type", "status", "owner", "project", "parent_rfc", "task_dag", "tasks"],
   "properties": {
     "id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "type": { "const": "plan" },
@@ -14,11 +14,24 @@
       "enum": ["drafting", "gate-pending", "approved", "rejected"]
     },
     "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
-    "parent": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemIdOrNull" },
-    "dependencies": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "project": { "type": "string", "minLength": 1 },
+    "parent": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRefOrNull" },
+    "relationships": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["type", "target"],
+        "properties": {
+          "type": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/relationshipType" },
+          "target": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef" }
+        },
+        "additionalProperties": false
+      }
+    },
     "parent_rfc": {
-      "description": "The RFC id this Plan implements.",
-      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId"
+      "description": "The RFC this Plan implements.",
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef"
     },
     "task_dag": { "$ref": "https://cloverleaf.example/schemas/dependency-dag.schema.json" },
     "tasks": {

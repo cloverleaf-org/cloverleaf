@@ -4,7 +4,7 @@
   "title": "Spike",
   "description": "A Cloverleaf Discovery research/de-risk task answering one specific question raised by an RFC.",
   "type": "object",
-  "required": ["id", "type", "status", "owner", "title", "parent_rfc", "question", "method"],
+  "required": ["id", "type", "status", "owner", "project", "title", "parent_rfc", "question", "method"],
   "properties": {
     "id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "type": { "const": "spike" },
@@ -13,15 +13,28 @@
       "enum": ["pending", "running", "completed", "abandoned"]
     },
     "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
+    "project": { "type": "string", "minLength": 1 },
     "parent": {
-      "description": "Generic Work Item parent link. For a Spike, this MUST equal parent_rfc when set; tools that don't understand the typed link can use this for tree-walking. Prefer parent_rfc as the authoritative reference.",
-      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemIdOrNull"
+      "description": "Generic Work Item parent link. For a Spike, tools should prefer parent_rfc as the authoritative reference.",
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRefOrNull"
     },
-    "dependencies": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/dependencyList" },
+    "relationships": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["type", "target"],
+        "properties": {
+          "type": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/relationshipType" },
+          "target": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef" }
+        },
+        "additionalProperties": false
+      }
+    },
     "title": { "type": "string", "minLength": 1 },
     "parent_rfc": {
-      "description": "The RFC id this Spike answers. Required and typed; this is the authoritative parent reference for Spikes.",
-      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId"
+      "description": "The RFC this Spike answers. Required and typed; authoritative parent reference for Spikes.",
+      "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef"
     },
     "question": { "type": "string", "minLength": 1 },
     "method": { "type": "string", "enum": ["research", "prototype", "benchmark"] },

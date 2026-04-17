@@ -3,6 +3,5 @@
   "type": "rfc",
   "status": "drafting",
   "owner": { "kind": "agent", "id": "researcher" },
-  "parent": null,
-  "dependencies": []
+  "parent": null
 }

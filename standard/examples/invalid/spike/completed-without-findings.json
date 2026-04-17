@@ -1,9 +1,10 @@
 {
-  "id": "spike-003",
+  "id": "ACME-103",
   "type": "spike",
   "status": "completed",
   "owner": { "kind": "agent", "id": "researcher" },
-  "parent_rfc": "rfc-001",
+  "project": "ACME",
+  "parent_rfc": { "project": "ACME", "id": "ACME-100" },
   "title": "Half-baked spike",
   "question": "Does this approach work?",
   "method": "prototype"

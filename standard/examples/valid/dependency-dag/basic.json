@@ -1,9 +1,14 @@
 {
-  "nodes": ["task-001", "task-002", "task-003", "task-004"],
+  "nodes": [
+    { "project": "ACME", "id": "ACME-200" },
+    { "project": "ACME", "id": "ACME-201" },
+    { "project": "ACME", "id": "ACME-202" },
+    { "project": "ACME", "id": "ACME-203" }
+  ],
   "edges": [
-    { "from": "task-001", "to": "task-002" },
-    { "from": "task-001", "to": "task-003" },
-    { "from": "task-002", "to": "task-004" },
-    { "from": "task-003", "to": "task-004" }
+    { "from": { "project": "ACME", "id": "ACME-200" }, "to": { "project": "ACME", "id": "ACME-201" } },
+    { "from": { "project": "ACME", "id": "ACME-200" }, "to": { "project": "ACME", "id": "ACME-202" } },
+    { "from": { "project": "ACME", "id": "ACME-201" }, "to": { "project": "ACME", "id": "ACME-203" } },
+    { "from": { "project": "ACME", "id": "ACME-202" }, "to": { "project": "ACME", "id": "ACME-203" } }
   ]
 }

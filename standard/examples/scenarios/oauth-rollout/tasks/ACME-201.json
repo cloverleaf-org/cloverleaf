@@ -1,0 +1,18 @@
+{
+  "id": "ACME-201",
+  "type": "task",
+  "status": "automated-gates",
+  "owner": { "kind": "agent", "id": "implementer" },
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-102" },
+  "title": "Add OAuth callback handler",
+  "context": {
+    "rfc": { "project": "ACME", "id": "ACME-100" }
+  },
+  "definition_of_done": ["GET /auth/oauth/callback exchanges code for token."],
+  "acceptance_criteria": ["Valid code returns the user session cookie."],
+  "risk_class": "high",
+  "relationships": [
+    { "type": "is_blocked_by", "target": { "project": "ACME", "id": "ACME-200" } }
+  ]
+}

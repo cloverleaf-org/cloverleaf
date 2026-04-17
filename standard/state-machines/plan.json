@@ -1,0 +1,14 @@
+{
+  "type": "plan",
+  "states": {
+    "initial": ["drafting"],
+    "terminal": ["approved", "rejected"],
+    "all": ["drafting", "gate-pending", "approved", "rejected"]
+  },
+  "transitions": [
+    { "from": "drafting", "to": "gate-pending", "allowed_actors": ["agent"], "gate": "task_batch_gate" },
+    { "from": "gate-pending", "to": "approved", "allowed_actors": ["human"], "gate": "task_batch_gate" },
+    { "from": "gate-pending", "to": "rejected", "allowed_actors": ["human"], "gate": "task_batch_gate" },
+    { "from": "rejected", "to": "drafting", "allowed_actors": ["agent", "human"], "description": "Re-decompose after rejection." }
+  ]
+}

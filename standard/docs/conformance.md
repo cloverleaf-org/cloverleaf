@@ -2,7 +2,7 @@
 
 How to validate that your tool conforms to the Cloverleaf Interoperability Standard.
 
-## Validating documents
+## Validating documents (schemas)
 
 Use any JSON Schema 2020-12 validator. The reference harness uses `ajv`:
 
@@ -22,11 +22,19 @@ if (!validate(myRfcDocument)) {
 
 ## Validating agent contracts
 
-Agent contracts are OpenAPI 3.1. Use any compliant tool (e.g., `@apidevtools/swagger-parser`):
+Agent contracts are OpenAPI 3.1. Use any compliant tool (e.g., `@apidevtools/swagger-parser`).
+
+## Validating runtime invariants (validators)
+
+Eight invariants cannot be expressed in JSON Schema alone. Use the reference TypeScript validators or implement equivalents per `docs/validators.md`:
 
 ```typescript
-import SwaggerParser from '@apidevtools/swagger-parser';
-const api = await SwaggerParser.validate('researcher.openapi.yaml');
+import { validateDagAcyclic, validatePlanTasksMatchDag } from '@cloverleaf/standard/validators';
+
+const result = validateDagAcyclic(plan.task_dag);
+if (!result.ok) {
+  console.error(result.violations);
+}
 ```
 
 ## Running the full conformance pack
@@ -35,8 +43,8 @@ const api = await SwaggerParser.validate('researcher.openapi.yaml');
 git clone <this repo>
 cd cloverleaf/standard
 npm install
-npm test                          # vitest test suite
-npm run validate:examples         # CLI runner: all examples + all contracts
+npm test                          # vitest test suite (schemas + contracts + validators)
+npm run validate:examples         # CLI runner: all examples + all contracts + all scenarios + all validators
 ```
 
 ## What "conformant" means
@@ -46,5 +54,6 @@ A tool is conformant if:
 2. Every event document it emits validates against the corresponding event schema.
 3. Every agent contract it implements matches the request/response shapes in the OpenAPI file.
 4. It honors the extensions namespace convention.
+5. It satisfies the eight runtime invariants (see `docs/validators.md`).
 
 There is no certification body. Conformance is self-attested and verifiable against this repo's conformance pack.

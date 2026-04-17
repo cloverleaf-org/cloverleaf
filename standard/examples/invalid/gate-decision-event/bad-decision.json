@@ -1,9 +1,9 @@
 {
-  "event_id": "evt-2026-04-16-101",
+  "event_id": "evt-2026-04-17-101",
   "event_type": "gate_decision",
-  "occurred_at": "2026-04-16T11:20:00Z",
+  "occurred_at": "2026-04-17T11:20:00Z",
   "gate": "final_approval_gate",
-  "work_item_id": "task-007",
+  "work_item_id": { "project": "ACME", "id": "ACME-200" },
   "decision": "maybe",
   "approver": { "kind": "human", "id": "bob" }
 }

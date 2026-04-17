@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.example/schemas/project.schema.json",
+  "title": "Project",
+  "description": "Per-project configuration for Cloverleaf. Defines the project key, name, and the ID pattern Work Items in the project must follow.",
+  "type": "object",
+  "required": ["key", "name"],
+  "properties": {
+    "key": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*$",
+      "description": "Short identifier used as ID prefix and reference target. Uppercase alphanumeric only."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable project name."
+    },
+    "description": {
+      "type": "string"
+    },
+    "id_pattern": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Regex Work Item ids must match. Default (applied by consumers when absent): '^{project_key}-\\\\d+$' with {project_key} substituted."
+    },
+    "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
+  },
+  "additionalProperties": false
+}

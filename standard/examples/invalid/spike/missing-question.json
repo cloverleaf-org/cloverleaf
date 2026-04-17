@@ -1,9 +1,10 @@
 {
-  "id": "spike-002",
+  "id": "ACME-102",
   "type": "spike",
   "status": "pending",
   "owner": { "kind": "agent", "id": "researcher" },
+  "project": "ACME",
   "title": "Untitled spike",
-  "parent_rfc": "rfc-001",
+  "parent_rfc": { "project": "ACME", "id": "ACME-100" },
   "method": "prototype"
 }

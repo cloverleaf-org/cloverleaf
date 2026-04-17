@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Cloverleaf Plan Agent Contract
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The Plan Agent takes an approved RFC + Spike findings and produces a Plan
     artifact (finalized RFC + Task DAG + Tasks + path→reviewer mappings).
@@ -41,3 +41,9 @@ paths:
             application/json:
               schema:
                 $ref: 'https://cloverleaf.example/schemas/plan.schema.json'
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'

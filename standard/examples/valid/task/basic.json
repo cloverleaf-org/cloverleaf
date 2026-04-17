@@ -1,14 +1,14 @@
 {
-  "id": "task-001",
+  "id": "ACME-200",
   "type": "task",
   "status": "pending",
   "owner": { "kind": "agent", "id": "implementer" },
-  "parent": "plan-001",
-  "dependencies": [],
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-102" },
   "title": "Add OAuth provider registration endpoint",
   "context": {
-    "rfc": "rfc-001",
-    "spikes": ["spike-001"]
+    "rfc": { "project": "ACME", "id": "ACME-100" },
+    "spikes": [{ "project": "ACME", "id": "ACME-101" }]
   },
   "definition_of_done": [
     "POST /auth/oauth/providers accepts a provider config and persists it.",

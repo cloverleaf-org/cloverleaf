@@ -1,0 +1,24 @@
+{
+  "type": "rfc",
+  "states": {
+    "initial": ["drafting"],
+    "terminal": ["approved", "rejected", "abandoned"],
+    "all": ["drafting", "spike-in-flight", "planning", "gate-pending", "approved", "rejected", "abandoned"]
+  },
+  "transitions": [
+    { "from": "drafting", "to": "spike-in-flight", "allowed_actors": ["agent", "human"], "description": "Unknowns identified; spikes required." },
+    { "from": "drafting", "to": "planning", "allowed_actors": ["agent", "human"], "description": "No unknowns; proceed directly to plan." },
+    { "from": "spike-in-flight", "to": "drafting", "allowed_actors": ["agent", "human"], "description": "Spike findings change the RFC; re-draft." },
+    { "from": "spike-in-flight", "to": "planning", "allowed_actors": ["agent", "human"], "description": "All spikes resolved; proceed to plan." },
+    { "from": "planning", "to": "gate-pending", "allowed_actors": ["agent"], "gate": "rfc_strategy_gate" },
+    { "from": "gate-pending", "to": "approved", "allowed_actors": ["human"], "gate": "rfc_strategy_gate" },
+    { "from": "gate-pending", "to": "rejected", "allowed_actors": ["human"], "gate": "rfc_strategy_gate" },
+    { "from": "gate-pending", "to": "drafting", "allowed_actors": ["human"], "gate": "rfc_strategy_gate", "description": "Revise decision — return to drafting." },
+    { "from": "rejected", "to": "drafting", "allowed_actors": ["agent", "human"], "description": "Revise and re-submit." },
+    { "from": "approved", "to": "abandoned", "allowed_actors": ["human"], "description": "Superseded by another RFC." },
+    { "from": "drafting", "to": "abandoned", "allowed_actors": ["human"] },
+    { "from": "spike-in-flight", "to": "abandoned", "allowed_actors": ["human"] },
+    { "from": "planning", "to": "abandoned", "allowed_actors": ["human"] },
+    { "from": "gate-pending", "to": "abandoned", "allowed_actors": ["human"] }
+  ]
+}

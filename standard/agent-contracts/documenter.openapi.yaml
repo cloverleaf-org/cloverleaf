@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Cloverleaf Documenter Agent Contract
-  version: 0.1.0
+  version: 0.2.0
   description: |
     The Documenter Agent consumes a PR diff and produces doc-only commits that
     update the AI-facing docs to reflect the change.
@@ -38,3 +38,9 @@ paths:
                     type: array
                     items: { type: string }
                   summary: { type: string }
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'

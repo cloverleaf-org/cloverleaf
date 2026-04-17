@@ -1,0 +1,14 @@
+{
+  "type": "spike",
+  "states": {
+    "initial": ["pending"],
+    "terminal": ["completed", "abandoned"],
+    "all": ["pending", "running", "completed", "abandoned"]
+  },
+  "transitions": [
+    { "from": "pending", "to": "running", "allowed_actors": ["agent"], "description": "Researcher picks up the spike." },
+    { "from": "running", "to": "completed", "allowed_actors": ["agent"], "description": "Spike produced findings + recommendation." },
+    { "from": "running", "to": "abandoned", "allowed_actors": ["human", "agent"], "description": "Abandoned mid-investigation." },
+    { "from": "pending", "to": "abandoned", "allowed_actors": ["human"] }
+  ]
+}

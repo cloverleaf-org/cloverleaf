@@ -18,8 +18,21 @@
       "description": "Lifecycle status. The set of valid statuses depends on the concrete type and is defined in per-type schemas."
     },
     "owner": { "$ref": "#/$defs/owner" },
-    "parent": { "$ref": "#/$defs/workItemIdOrNull" },
-    "dependencies": { "$ref": "#/$defs/dependencyList" },
+    "parent": { "$ref": "#/$defs/workItemRefOrNull" },
+    "relationships": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "required": ["type", "target"],
+        "properties": {
+          "type": { "$ref": "#/$defs/relationshipType" },
+          "target": { "$ref": "#/$defs/workItemRef" }
+        },
+        "additionalProperties": false
+      },
+      "description": "Typed links to other Work Items. Replaces the v0.1 dependencies[] field. The Plan's task_dag is compiled from relationships where type='blocks'."
+    },
     "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
   },
   "additionalProperties": true,
@@ -27,24 +40,39 @@
     "workItemId": {
       "type": "string",
       "minLength": 1,
-      "description": "A non-empty Work Item id."
+      "description": "A non-empty Work Item id (local to its project)."
     },
-    "workItemIdOrNull": {
-      "description": "A Work Item id, or null when no parent applies.",
+    "workItemRef": {
+      "type": "object",
+      "description": "Qualified reference to a Work Item in a known project.",
+      "required": ["project", "id"],
+      "properties": {
+        "project": { "type": "string", "minLength": 1 },
+        "id": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "workItemRefOrNull": {
+      "description": "A qualified Work Item reference, or null when no parent/link applies.",
       "anyOf": [
-        { "$ref": "#/$defs/workItemId" },
+        { "$ref": "#/$defs/workItemRef" },
         { "type": "null" }
       ]
     },
-    "dependencyList": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/workItemId" },
-      "uniqueItems": true,
-      "description": "Work Item ids this item depends on. Must be unique."
+    "relationshipType": {
+      "type": "string",
+      "enum": [
+        "blocks", "is_blocked_by",
+        "duplicates", "duplicate_of",
+        "supersedes", "superseded_by",
+        "split_from", "split_to",
+        "relates_to"
+      ],
+      "description": "Canonical relationship vocabulary. 9 values: 4 pairs of explicit inverses plus the symmetric relates_to. Teams may add custom types under extensions.team.relationship_type."
     },
     "owner": {
       "type": "object",
-      "description": "Identifies who owns a Work Item — a human or an agent. A subset of `actor`: ownership is restricted to addressable parties (no `system`).",
+      "description": "Identifies who owns a Work Item — a human or an agent. A subset of actor: ownership is restricted to addressable parties (no system).",
       "required": ["kind", "id"],
       "properties": {
         "kind": { "type": "string", "enum": ["human", "agent"] },
@@ -54,7 +82,7 @@
     },
     "actor": {
       "type": "object",
-      "description": "Identifies who triggered an action — a human, an agent, or the system itself (for automated transitions like timeouts, scheduled jobs, build outcomes). Used by event schemas. Superset of `owner` (`owner` is `actor` minus `system`).",
+      "description": "Identifies who triggered an action — a human, an agent, or the system itself (for automated transitions). Used by event schemas. Superset of owner.",
       "required": ["kind", "id"],
       "properties": {
         "kind": { "type": "string", "enum": ["human", "agent", "system"] },

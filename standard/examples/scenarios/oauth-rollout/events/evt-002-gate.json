@@ -1,0 +1,10 @@
+{
+  "event_id": "evt-2026-04-17-002",
+  "event_type": "gate_decision",
+  "occurred_at": "2026-04-17T08:00:00Z",
+  "gate": "rfc_strategy_gate",
+  "work_item_id": { "project": "ACME", "id": "ACME-100" },
+  "decision": "approve",
+  "approver": { "kind": "human", "id": "alice" },
+  "comment": "Strategy is sound; the spike findings resolve the account merge concern."
+}

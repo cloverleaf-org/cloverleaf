@@ -1,17 +1,22 @@
 {
-  "id": "plan-002",
+  "id": "ACME-103",
   "type": "plan",
   "status": "drafting",
   "owner": { "kind": "agent", "id": "plan" },
-  "task_dag": { "nodes": ["task-001"], "edges": [] },
+  "project": "ACME",
+  "task_dag": {
+    "nodes": [{ "project": "ACME", "id": "ACME-200" }],
+    "edges": []
+  },
   "tasks": [
     {
-      "id": "task-001",
+      "id": "ACME-200",
       "type": "task",
       "status": "pending",
       "owner": { "kind": "agent", "id": "implementer" },
+      "project": "ACME",
       "title": "Stub",
-      "context": { "rfc": "rfc-001" },
+      "context": { "rfc": { "project": "ACME", "id": "ACME-100" } },
       "definition_of_done": ["x"],
       "acceptance_criteria": ["y"],
       "risk_class": "low"
