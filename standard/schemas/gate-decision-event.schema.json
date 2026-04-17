@@ -22,10 +22,11 @@
     "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemId" },
     "decision": {
       "type": "string",
-      "enum": ["approve", "reject", "revise", "split", "escalate"]
+      "enum": ["approve", "reject", "revise", "split", "abandon", "escalate"],
+      "$comment": "Decision/gate consistency (e.g., split applies to task_batch_gate; abandon applies to rfc_strategy_gate) is enforced by consumers, not by this schema."
     },
     "approver": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/actor" },
-    "comment": { "type": "string" }
+    "comment": { "type": "string", "description": "Free-text rationale or feedback from the approver. Consumer policy may require it for certain decisions (e.g., reject)." }
   },
   "additionalProperties": false
 }
