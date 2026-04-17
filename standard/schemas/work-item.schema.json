@@ -7,11 +7,7 @@
   "type": "object",
   "required": ["id", "type", "status", "owner"],
   "properties": {
-    "id": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Globally unique identifier."
-    },
+    "id": { "$ref": "#/$defs/workItemId" },
     "type": {
       "type": "string",
       "enum": ["rfc", "spike", "plan", "task"]
@@ -22,15 +18,8 @@
       "description": "Lifecycle status. The set of valid statuses depends on the concrete type and is defined in per-type schemas."
     },
     "owner": { "$ref": "#/$defs/owner" },
-    "parent": {
-      "type": ["string", "null"],
-      "description": "Parent Work Item id, if any."
-    },
-    "dependencies": {
-      "type": "array",
-      "items": { "type": "string" },
-      "description": "Work Item ids this item depends on."
-    },
+    "parent": { "$ref": "#/$defs/workItemIdOrNull" },
+    "dependencies": { "$ref": "#/$defs/dependencyList" },
     "extensions": {
       "type": "object",
       "description": "Team-defined namespaced extensions; see extensions.schema.json.",
@@ -39,6 +28,24 @@
   },
   "additionalProperties": true,
   "$defs": {
+    "workItemId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "A non-empty Work Item id."
+    },
+    "workItemIdOrNull": {
+      "description": "A Work Item id, or null when no parent applies.",
+      "anyOf": [
+        { "$ref": "#/$defs/workItemId" },
+        { "type": "null" }
+      ]
+    },
+    "dependencyList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workItemId" },
+      "uniqueItems": true,
+      "description": "Work Item ids this item depends on. Must be unique."
+    },
     "owner": {
       "type": "object",
       "description": "Identifies who owns a Work Item — a human or an agent.",
