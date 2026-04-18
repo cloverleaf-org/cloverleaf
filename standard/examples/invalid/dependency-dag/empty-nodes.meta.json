@@ -1,0 +1,4 @@
+{
+  "levels": ["L2"],
+  "fixture_of": "dependency-dag.schema.json"
+}
