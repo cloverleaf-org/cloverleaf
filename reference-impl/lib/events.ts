@@ -20,7 +20,7 @@ export interface GateDecisionParams {
   workItemType: 'task' | 'rfc' | 'spike' | 'plan';
   workItemId: string;
   gate: string;
-  decision: string;
+  decision: 'approve' | 'reject' | 'revise' | 'split' | 'abandon' | 'escalate';
   actor: 'agent' | 'human' | 'system';
   reasoning?: string;
 }
@@ -38,11 +38,18 @@ function actorObject(kind: 'agent' | 'human' | 'system'): { kind: string; id: st
  * Returns the absolute path of the written file.
  */
 export function emitStatusTransition(repoRoot: string, params: StatusTransitionParams): string {
-  const { project, workItemType, workItemId, from, to, actor, gate } = params;
+  const { project, workItemType, workItemId, from, to, actor } = params;
   const seq = nextEventId(repoRoot, project);
   const seqStr = String(seq).padStart(3, '0');
   const filename = `${project}-${seqStr}-status.json`;
   const filePath = join(eventsDir(repoRoot), filename);
+
+  // Build reason from gate and/or path if provided (schema only allows reason, not gate/path at top level).
+  const { gate, path } = params;
+  const reasonParts: string[] = [];
+  if (gate !== undefined) reasonParts.push(`gate=${gate}`);
+  if (path !== undefined) reasonParts.push(`path=${path}`);
+  const reason = reasonParts.length > 0 ? reasonParts.join('; ') : undefined;
 
   const doc: Record<string, unknown> = {
     event_id: randomUUID(),
@@ -54,8 +61,8 @@ export function emitStatusTransition(repoRoot: string, params: StatusTransitionP
     to_status: to,
     actor: actorObject(actor),
   };
-  if (gate !== undefined) {
-    doc.reason = gate;
+  if (reason !== undefined) {
+    doc.reason = reason;
   }
 
   writeFileSync(filePath, JSON.stringify(doc, null, 2) + '\n');
@@ -69,7 +76,7 @@ export function emitStatusTransition(repoRoot: string, params: StatusTransitionP
  * Returns the absolute path of the written file.
  */
 export function emitGateDecision(repoRoot: string, params: GateDecisionParams): string {
-  const { project, workItemType, workItemId, gate, decision, actor, reasoning } = params;
+  const { project, workItemId, gate, decision, actor, reasoning } = params;
   const seq = nextEventId(repoRoot, project);
   const seqStr = String(seq).padStart(3, '0');
   const filename = `${project}-${seqStr}-gate.json`;
@@ -79,14 +86,13 @@ export function emitGateDecision(repoRoot: string, params: GateDecisionParams): 
     event_id: randomUUID(),
     event_type: 'gate_decision',
     occurred_at: new Date().toISOString(),
-    work_item_id: { project, id: workItemId },
-    work_item_type: workItemType,
     gate,
+    work_item_id: { project, id: workItemId },
     decision,
-    actor: actorObject(actor),
+    approver: actorObject(actor),
   };
   if (reasoning !== undefined) {
-    doc.reasoning = reasoning;
+    doc.comment = reasoning;
   }
 
   writeFileSync(filePath, JSON.stringify(doc, null, 2) + '\n');

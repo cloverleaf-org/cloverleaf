@@ -54,15 +54,15 @@ describe('events', () => {
       workItemType: 'task',
       workItemId: 'ACME-001',
       gate: 'human_merge',
-      decision: 'approved',
+      decision: 'approve',
       actor: 'human',
     });
     expect(path).toMatch(/ACME-001-gate\.json$/);
     const doc = JSON.parse(readFileSync(path, 'utf-8'));
     expect(doc.event_type).toBe('gate_decision');
     expect(doc.gate).toBe('human_merge');
-    expect(doc.decision).toBe('approved');
-    expect(doc.actor.kind).toBe('human');
+    expect(doc.decision).toBe('approve');
+    expect(doc.approver.kind).toBe('human');
   });
 
   it('isolates per-project counters', () => {
