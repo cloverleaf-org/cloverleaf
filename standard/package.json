@@ -3,10 +3,44 @@
   "version": "0.3.0",
   "description": "The Cloverleaf Interoperability Standard — schemas, agent contracts, and conformance pack.",
   "type": "module",
+  "license": "MIT",
+  "author": "Renato D'Arrigo <renato.darrigo@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renatodarrigo/cloverleaf.git",
+    "directory": "standard"
+  },
+  "homepage": "https://github.com/renatodarrigo/cloverleaf#readme",
+  "bugs": {
+    "url": "https://github.com/renatodarrigo/cloverleaf/issues"
+  },
+  "keywords": [
+    "cloverleaf",
+    "methodology",
+    "ai-first",
+    "rfc",
+    "conformance",
+    "json-schema",
+    "openapi"
+  ],
+  "files": [
+    "schemas",
+    "agent-contracts",
+    "state-machines",
+    "validators",
+    "conformance",
+    "docs",
+    "README.md",
+    "VERSION"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "validate:examples": "tsx conformance/runner.ts"
+    "validate:examples": "tsx conformance/runner.ts",
+    "prepublishOnly": "npm test && npm run validate:examples"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",
