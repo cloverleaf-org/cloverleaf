@@ -7,6 +7,7 @@ An AI-first software development methodology and its machine-readable interopera
 ## Repository layout
 
 - [`standard/`](./standard/) — the machine-readable specification: JSON Schemas, OpenAPI agent contracts, state machines, reference validators, and a conformance test pack. Published as `@cloverleaf/standard` on npm.
+- [`reference-impl/`](./reference-impl/) — reference implementation of the methodology as Claude Code skills. Published as `@cloverleaf/reference-impl` on npm.
 - [`site/`](./site/) — the methodology documentation site (Astro + MDX). Local-only during pre-publication.
 
 ## Quick start (Standard)

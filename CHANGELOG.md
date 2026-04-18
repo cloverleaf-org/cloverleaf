@@ -4,6 +4,24 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 
 ## [Unreleased]
 
+## [reference-impl 0.1.0] — 2026-04-XX
+
+First release of the Cloverleaf reference implementation package.
+
+### Added
+
+- `@cloverleaf/reference-impl@0.1.0` — Tight-Loop reference implementation (Implementer + Reviewer) as Claude Code skills.
+- Five skills: `/cloverleaf-new-task`, `/cloverleaf-implement`, `/cloverleaf-review`, `/cloverleaf-merge`, `/cloverleaf-run`.
+- `lib/` TypeScript library for state + events + feedback + ID allocation.
+- `install.sh` with user-level and project-local modes.
+- `examples/toy-repo/` end-to-end demo.
+- Targets L2 Exchange conformance of `@cloverleaf/standard@0.3.0`.
+
+### Known gaps
+
+- Documenter, UI Reviewer, QA, Researcher, Plan agents are stubbed (state transitions emitted, no work performed).
+- No HTTP endpoints; L3 conformance deferred.
+
 ## [0.3.0] — 2026-04-XX
 
 ### Added
