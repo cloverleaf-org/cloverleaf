@@ -10,20 +10,21 @@ function scaffold(repoRoot: string): void {
   mkdirSync(join(repoRoot, '.cloverleaf', 'events'), { recursive: true });
   writeFileSync(
     join(repoRoot, '.cloverleaf', 'projects', 'DEMO.json'),
-    JSON.stringify({ project: 'DEMO', id_pattern: '^DEMO-\\d+$' })
+    JSON.stringify({ key: 'DEMO', name: 'Demo Project' })
   );
   writeFileSync(
     join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
     JSON.stringify({
-      type: 'task',
-      project: 'DEMO',
       id: 'DEMO-001',
-      title: 'Add multiply function',
+      type: 'task',
       status: 'pending',
-      path: 'fast_lane',
+      owner: { kind: 'agent', id: 'unassigned' },
+      project: 'DEMO',
+      title: 'Add multiply function',
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-001' } },
       acceptance_criteria: ['function multiplies two numbers', 'unit test covers zero, positive, negative'],
-      definition_of_done: 'Branch pushed with code + tests passing.',
-      context: {},
+      definition_of_done: ['Branch pushed with code + tests passing.'],
+      risk_class: 'low',
     })
   );
 }
@@ -59,7 +60,7 @@ describe('state', () => {
 
   it('loads a project by ID', () => {
     const project = loadProject(repoRoot, 'DEMO');
-    expect(project.project).toBe('DEMO');
+    expect(project.key).toBe('DEMO');
   });
 
   describe('advanceStatus', () => {

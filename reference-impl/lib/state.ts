@@ -21,16 +21,17 @@ export interface TaskDoc {
   id: string;
   title: string;
   status: string;
-  path?: 'fast_lane' | 'full_pipeline';
+  risk_class: 'low' | 'high';
+  owner: { kind: 'agent' | 'human' | 'system'; id: string };
   acceptance_criteria: string[];
-  definition_of_done: string;
+  definition_of_done: string[];
   context: Record<string, unknown>;
   [key: string]: unknown;
 }
 
 export interface ProjectDoc {
-  project: string;
-  id_pattern?: string;
+  key: string;
+  name?: string;
   [key: string]: unknown;
 }
 
@@ -70,10 +71,13 @@ export function advanceStatus(
   const from = task.status;
   const sm = loadTaskStateMachine();
 
-  // Derive risk_class from task.path so the validator can match path-tagged transitions.
+  // Read risk_class directly from the task (defaulting to 'low' if absent).
   // The validator derives itemPath from workItem.risk_class: low → fast_lane, else full_pipeline.
-  const taskPath = options.path ?? task.path;
-  const riskClass: 'low' | 'high' = taskPath === 'fast_lane' ? 'low' : 'high';
+  // If caller passed options.path, translate it back to risk_class for the validator.
+  const riskClass: 'low' | 'high' =
+    options.path === 'fast_lane' ? 'low'
+    : options.path === 'full_pipeline' ? 'high'
+    : (task.risk_class ?? 'low');
 
   // Build a minimal Task-shaped object so the validator can resolve path-tagged transitions.
   const workItemForValidator: SMTask = {
@@ -83,9 +87,7 @@ export function advanceStatus(
     status: task.status,
     risk_class: riskClass,
     context: { rfc: { project: task.project, id: task.id } },
-    definition_of_done: Array.isArray(task.definition_of_done)
-      ? task.definition_of_done
-      : [task.definition_of_done],
+    definition_of_done: task.definition_of_done,
     acceptance_criteria: task.acceptance_criteria,
   };
 
