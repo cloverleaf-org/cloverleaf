@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { readdirSync } from 'node:fs';
+import { readdirSync, statSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   SCHEMA_LEVEL,
   VALIDATOR_LEVEL,
   CONTRACT_LEVEL,
   STATE_MACHINE_LEVEL,
+  SCENARIO_LEVELS,
   LEVELS,
   includesLevel,
   parseLevelArg,
@@ -44,10 +45,37 @@ describe('level-map coverage', () => {
     }
   });
 
+  it('assigns every validator to a level', () => {
+    const validatorDir = resolve(STANDARD_ROOT, 'validators');
+    const validatorFiles = readdirSync(validatorDir)
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => f.replace(/\.ts$/, ''))
+      .filter((name) => name !== 'index' && name !== 'types');
+    for (const name of validatorFiles) {
+      expect(VALIDATOR_LEVEL[name], `validator "${name}" missing from VALIDATOR_LEVEL`).toBeDefined();
+    }
+  });
+
+  it('assigns every scenario directory to level(s)', () => {
+    const scenariosDir = resolve(STANDARD_ROOT, 'examples', 'scenarios');
+    if (!existsSync(scenariosDir)) return;
+    const scenarioDirs = readdirSync(scenariosDir).filter((d) =>
+      statSync(resolve(scenariosDir, d)).isDirectory()
+    );
+    for (const name of scenarioDirs) {
+      expect(SCENARIO_LEVELS[name], `scenario "${name}" missing from SCENARIO_LEVELS`).toBeDefined();
+    }
+  });
+
   it('references only known level values', () => {
-    const maps = [SCHEMA_LEVEL, VALIDATOR_LEVEL, CONTRACT_LEVEL, STATE_MACHINE_LEVEL];
-    for (const m of maps) {
-      for (const [name, level] of Object.entries(m)) {
+    const flatMaps = [SCHEMA_LEVEL, VALIDATOR_LEVEL, CONTRACT_LEVEL, STATE_MACHINE_LEVEL];
+    for (const m of flatMaps) {
+      for (const [, level] of Object.entries(m)) {
+        expect(LEVELS).toContain(level);
+      }
+    }
+    for (const [, levels] of Object.entries(SCENARIO_LEVELS)) {
+      for (const level of levels) {
         expect(LEVELS).toContain(level);
       }
     }
