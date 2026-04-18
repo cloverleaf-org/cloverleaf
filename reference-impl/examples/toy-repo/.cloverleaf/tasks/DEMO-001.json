@@ -1,0 +1,20 @@
+{
+  "id": "DEMO-001",
+  "type": "task",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "unassigned" },
+  "project": "DEMO",
+  "title": "Add multiply function",
+  "context": {
+    "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" }
+  },
+  "acceptance_criteria": [
+    "Export a `multiply` function from src/calculator.ts",
+    "multiply(a, b) returns a * b",
+    "Add a unit test covering positive, negative, and zero inputs"
+  ],
+  "definition_of_done": [
+    "multiply function ships with passing unit tests in src/calculator.test.ts"
+  ],
+  "risk_class": "low"
+}
