@@ -5,6 +5,7 @@ import SwaggerParser from '@apidevtools/swagger-parser';
 import { makeAjv } from './helpers/ajv-instance.js';
 import {
   SCHEMA_LEVEL,
+  VALIDATOR_LEVEL,
   CONTRACT_LEVEL,
   SCENARIO_LEVELS,
   includesLevel,
@@ -74,6 +75,13 @@ function scenarioInLevel(scenarioName: string): boolean {
   const levels = SCENARIO_LEVELS[scenarioName];
   if (!levels) return false;
   return levels.some((l) => includesLevel(l, levelArg as Level));
+}
+
+function validatorInLevel(validatorName: string): boolean {
+  if (levelArg === 'all') return true;
+  const lvl = VALIDATOR_LEVEL[validatorName];
+  if (!lvl) return false;
+  return includesLevel(lvl, levelArg as Level);
 }
 
 function fail(msg: string): void {
@@ -215,6 +223,7 @@ async function runValidators(
 ): Promise<void> {
   for (const wi of workItems.values()) {
     if (wi.type !== 'plan') continue;
+    if (!validatorInLevel('dag-acyclic')) continue;
     checks += 1;
     const result = validateDagAcyclic((wi as Plan).task_dag);
     if (!result.ok) {
@@ -226,6 +235,7 @@ async function runValidators(
 
   for (const wi of workItems.values()) {
     if (wi.type !== 'plan') continue;
+    if (!validatorInLevel('plan-tasks-match-dag')) continue;
     checks += 1;
     const result = validatePlanTasksMatchDag(wi as Plan);
     if (!result.ok) {
@@ -236,6 +246,7 @@ async function runValidators(
   }
 
   for (const wi of workItems.values()) {
+    if (!validatorInLevel('status-by-type')) continue;
     checks += 1;
     const result = validateStatusByType(wi);
     if (!result.ok) {
@@ -247,6 +258,7 @@ async function runValidators(
 
   for (const wi of workItems.values()) {
     if (!wi.relationships || wi.relationships.length === 0) continue;
+    if (!validatorInLevel('relationship-mirror')) continue;
     checks += 1;
     const result = validateRelationshipMirror(wi, workItems);
     if (!result.ok) {
@@ -259,6 +271,7 @@ async function runValidators(
   for (const wi of workItems.values()) {
     const project = projects.find((p) => p.key === wi.project);
     if (!project) continue;
+    if (!validatorInLevel('id-pattern')) continue;
     checks += 1;
     const result = validateIdPattern(wi, project);
     if (!result.ok) {
@@ -270,6 +283,7 @@ async function runValidators(
 
   for (const wi of workItems.values()) {
     for (const rel of wi.relationships ?? []) {
+      if (!validatorInLevel('cross-project-ref')) continue;
       checks += 1;
       const result = validateCrossProjectRef(rel.target, projects);
       if (!result.ok) {
@@ -285,6 +299,7 @@ async function runValidators(
     for (const f of readdirSync(eventsDir).filter((x) => x.endsWith('.json'))) {
       const doc = JSON.parse(readFileSync(resolve(eventsDir, f), 'utf-8')) as { event_type: string };
       if (doc.event_type === 'gate_decision') {
+        if (!validatorInLevel('gate-decision-validity')) continue;
         checks += 1;
         const result = validateGateDecisionValidity(doc as GateDecisionEvent);
         if (!result.ok) {
@@ -293,6 +308,7 @@ async function runValidators(
           ok(`scenarios/${name} #7 gate-decision-validity ${f}`);
         }
       } else if (doc.event_type === 'status_transition') {
+        if (!validatorInLevel('status-transition-legality')) continue;
         const event = doc as StatusTransitionEvent;
         const machinePath = resolve(STATE_MACHINES, `${event.work_item_type}.json`);
         if (!existsSync(machinePath)) continue;
