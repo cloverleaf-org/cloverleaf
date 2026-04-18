@@ -1,59 +1,79 @@
-# Conformance Guide
+# Conformance
 
-How to validate that your tool conforms to the Cloverleaf Interoperability Standard.
+The Cloverleaf Interoperability Standard defines three levels of conformance. Levels are role-based and strict supersets: an L2 implementer is also L1-conformant; an L3 implementer is also L2-conformant.
 
-## Validating documents (schemas)
+## Levels
 
-Use any JSON Schema 2020-12 validator. The reference harness uses `ajv`:
+### L1 — Producer
 
-```typescript
-import Ajv from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
-import schema from '@cloverleaf/standard/schemas/rfc.schema.json';
+**Role:** emits valid Cloverleaf documents.
 
-const ajv = new Ajv({ strict: true });
-addFormats(ajv);
-const validate = ajv.compile(schema);
+An L1 implementer produces JSON that validates against the core Work Item schemas. Use this level if you are writing an adapter that exports Cloverleaf documents from another system (e.g. a Jira exporter, a static-site generator, a CLI stub).
 
-if (!validate(myRfcDocument)) {
-  console.error(validate.errors);
-}
-```
+**Scope:**
 
-## Validating agent contracts
+- Schemas: `project`, `work-item`, `rfc`, `spike`, `plan`, `task`
+- Validators: `id-pattern`
+- Agent contracts: none
+- State machines: none
 
-Agent contracts are OpenAPI 3.1. Use any compliant tool (e.g., `@apidevtools/swagger-parser`).
+### L2 — Exchange
 
-## Validating runtime invariants (validators)
+**Role:** L1 plus participation in workflow events, DAGs, and feedback roundtrips.
 
-Eight invariants cannot be expressed in JSON Schema alone. Use the reference TypeScript validators or implement equivalents per `docs/validators.md`:
+An L2 implementer can not only produce documents but also consume and emit status-transition events, build and validate dependency DAGs, roundtrip feedback envelopes, and track relationships across projects. Use this level for an IDE plugin, a tracker integration, or a review tool.
 
-```typescript
-import { validateDagAcyclic, validatePlanTasksMatchDag } from '@cloverleaf/standard/validators';
+**Scope (adds to L1):**
 
-const result = validateDagAcyclic(plan.task_dag);
-if (!result.ok) {
-  console.error(result.violations);
-}
-```
+- Schemas: `feedback`, `problem`, `status-transition-event`, `status-transitions`, `dependency-dag`
+- Validators: `cross-project-ref`, `dag-acyclic`, `plan-tasks-match-dag`, `relationship-mirror`, `status-by-type`, `status-transition-legality`
+- State machines: all four (`rfc`, `spike`, `plan`, `task`)
 
-## Running the full conformance pack
+### L3 — Host
+
+**Role:** L2 plus driving the full methodology end-to-end.
+
+An L3 implementer implements the agent contracts, handles gate decisions, and enforces path rules and risk classification. Use this level if you are building a full Cloverleaf orchestrator (e.g. a Claude Code integration, a SaaS runner).
+
+**Scope (adds to L2):**
+
+- Schemas: `gate-decision-event`, `extensions`, `path-rules`, `risk-classifier-rules`
+- Validators: `gate-decision-validity`
+- Agent contracts: all seven (`researcher`, `plan`, `implementer`, `documenter`, `reviewer`, `ui-reviewer`, `qa`)
+
+## Running the conformance suite
+
+From the `standard/` directory:
 
 ```bash
-git clone <this repo>
-cd cloverleaf/standard
 npm install
-npm test                          # vitest test suite (schemas + contracts + validators)
-npm run validate:examples         # CLI runner: all examples + all contracts + all scenarios + all validators
+npm run validate:examples                # full suite (equivalent to --level=3)
+npm run validate:examples -- --level=1   # L1 only
+npm run validate:examples -- --level=2   # L1 + L2
+npm run validate:examples -- --level=3   # L1 + L2 + L3 (same as default)
 ```
 
-## What "conformant" means
+A successful run exits 0 with a line count of passing checks. A failing run prints each failure and exits nonzero.
 
-A tool is conformant if:
-1. Every Work Item document it produces validates against the corresponding schema.
-2. Every event document it emits validates against the corresponding event schema.
-3. Every agent contract it implements matches the request/response shapes in the OpenAPI file.
-4. It honors the extensions namespace convention.
-5. It satisfies the eight runtime invariants (see `docs/validators.md`).
+## Declaring a level
 
-There is no certification body. Conformance is self-attested and verifiable against this repo's conformance pack.
+To claim a level for your implementation:
+
+1. Run the filtered suite (`npm run validate:examples -- --level=N`) against your fixtures.
+2. Add your own test suite that exercises your implementation against the level's schemas, validators, and contracts.
+3. Publish a conformance statement in your project's README citing the specific Cloverleaf Standard version and level — e.g. *"Implements Cloverleaf Standard 0.3.0 at L2."*
+
+There is no central registry or badge program in v0.3. Self-declaration is the mechanism; the filtered conformance suite is the evidence.
+
+## Adding a new schema, validator, contract, state machine, or scenario
+
+Every artifact must be assigned to a level in `conformance/level-map.ts`. Unassigned artifacts fail the level-map coverage test and block CI.
+
+When adding a new artifact:
+
+1. Pick the correct level (see the Level partition in each section above).
+2. Add it to the corresponding map in `conformance/level-map.ts` (`SCHEMA_LEVEL`, `VALIDATOR_LEVEL`, `CONTRACT_LEVEL`, `STATE_MACHINE_LEVEL`, or `SCENARIO_LEVELS`).
+3. For a schema: create `examples/valid/<name>/` and `examples/invalid/<name>/` as usual, plus `.meta.json` sidecars per fixture with `{ "levels": ["L_N"], "fixture_of": "<name>.schema.json" }`.
+4. Run `npm test` and `npm run validate:examples -- --level=N` to verify.
+
+Level changes between versions follow SemVer: see `docs/versioning.md`.
