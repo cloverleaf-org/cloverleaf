@@ -27,7 +27,7 @@ export function testSchema(name: string): void {
     const fixtureFiles = (root: string): string[] => {
       const dir = resolve(root, name);
       return existsSync(dir)
-        ? readdirSync(dir).filter((f) => f.endsWith('.json'))
+        ? readdirSync(dir).filter((f) => f.endsWith('.json') && !f.endsWith('.meta.json'))
         : [];
     };
 

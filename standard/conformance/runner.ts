@@ -4,6 +4,14 @@ import { fileURLToPath } from 'node:url';
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { makeAjv } from './helpers/ajv-instance.js';
 import {
+  SCHEMA_LEVEL,
+  CONTRACT_LEVEL,
+  SCENARIO_LEVELS,
+  includesLevel,
+  parseLevelArg,
+  type Level,
+} from './level-map.js';
+import {
   validateDagAcyclic,
   validatePlanTasksMatchDag,
   validateStatusByType,
@@ -32,6 +40,42 @@ let checks = 0;
 
 const ajv = makeAjv();
 
+const levelArg = (() => {
+  const raw = process.argv.find((a) => a.startsWith('--level='));
+  if (!raw) return 'all' as const;
+  const parsed = parseLevelArg(raw.slice('--level='.length));
+  if (parsed === null) {
+    console.error(`Invalid --level value. Use 1, 2, 3, or all.`);
+    process.exit(2);
+  }
+  return parsed;
+})();
+
+if (levelArg !== 'all') {
+  console.log(`Running conformance suite at level: ${levelArg}`);
+}
+
+function schemaInLevel(schemaName: string): boolean {
+  if (levelArg === 'all') return true;
+  const lvl = SCHEMA_LEVEL[schemaName];
+  if (!lvl) return false;
+  return includesLevel(lvl, levelArg as Level);
+}
+
+function contractInLevel(contractName: string): boolean {
+  if (levelArg === 'all') return true;
+  const lvl = CONTRACT_LEVEL[contractName];
+  if (!lvl) return false;
+  return includesLevel(lvl, levelArg as Level);
+}
+
+function scenarioInLevel(scenarioName: string): boolean {
+  if (levelArg === 'all') return true;
+  const levels = SCENARIO_LEVELS[scenarioName];
+  if (!levels) return false;
+  return levels.some((l) => includesLevel(l, levelArg as Level));
+}
+
 function fail(msg: string): void {
   console.error(`  FAIL: ${msg}`);
   failures += 1;
@@ -47,7 +91,7 @@ function walkExamples(root: string): Array<{ schemaName: string; filePath: strin
   for (const dir of readdirSync(root)) {
     const subdir = resolve(root, dir);
     if (!statSync(subdir).isDirectory()) continue;
-    for (const f of readdirSync(subdir).filter((f) => f.endsWith('.json'))) {
+    for (const f of readdirSync(subdir).filter((f) => f.endsWith('.json') && !f.endsWith('.meta.json'))) {
       out.push({ schemaName: dir, filePath: resolve(subdir, f) });
     }
   }
@@ -56,6 +100,7 @@ function walkExamples(root: string): Array<{ schemaName: string; filePath: strin
 
 console.log('Validating valid/ examples');
 for (const { schemaName, filePath } of walkExamples(VALID)) {
+  if (!schemaInLevel(schemaName)) continue;
   checks += 1;
   const id = `${SCHEMA_BASE}${schemaName}.schema.json`;
   const validate = ajv.getSchema(id);
@@ -69,6 +114,7 @@ for (const { schemaName, filePath } of walkExamples(VALID)) {
 
 console.log('Validating invalid/ examples (must reject)');
 for (const { schemaName, filePath } of walkExamples(INVALID)) {
+  if (!schemaInLevel(schemaName)) continue;
   checks += 1;
   const id = `${SCHEMA_BASE}${schemaName}.schema.json`;
   const validate = ajv.getSchema(id);
@@ -83,6 +129,8 @@ for (const { schemaName, filePath } of walkExamples(INVALID)) {
 console.log('Validating OpenAPI contracts');
 if (existsSync(CONTRACTS)) {
   for (const f of readdirSync(CONTRACTS).filter((f) => f.endsWith('.openapi.yaml'))) {
+    const contractName = f.replace(/\.openapi\.yaml$/, '');
+    if (!contractInLevel(contractName)) continue;
     checks += 1;
     try {
       // eslint-disable-next-line no-await-in-loop
@@ -103,6 +151,7 @@ if (existsSync(SCENARIOS)) {
   for (const scenario of readdirSync(SCENARIOS)) {
     const scenarioRoot = resolve(SCENARIOS, scenario);
     if (!statSync(scenarioRoot).isDirectory()) continue;
+    if (!scenarioInLevel(scenario)) continue;
     await validateScenario(scenarioRoot, scenario);
   }
 }
@@ -126,10 +175,9 @@ async function validateScenario(scenarioRoot: string, name: string): Promise<voi
   for (const subdir of Object.keys(subdirToSchema)) {
     const dir = resolve(scenarioRoot, subdir);
     if (!existsSync(dir)) continue;
-    for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
+    for (const f of readdirSync(dir).filter((x) => x.endsWith('.json') && !x.endsWith('.meta.json'))) {
       const path = resolve(dir, f);
       const rel = relative(ROOT, path);
-      checks += 1;
       const doc = JSON.parse(readFileSync(path, 'utf-8')) as unknown;
       let schemaName = subdirToSchema[subdir];
       if (subdir === 'rules') {
@@ -138,6 +186,8 @@ async function validateScenario(scenarioRoot: string, name: string): Promise<voi
         const d = doc as { event_type?: string };
         schemaName = d.event_type === 'gate_decision' ? 'gate-decision-event' : 'status-transition-event';
       }
+      if (schemaName && !schemaInLevel(schemaName)) continue;
+      checks += 1;
       const schemaId = `${SCHEMA_BASE}${schemaName}.schema.json`;
       const validate = ajv.getSchema(schemaId);
       if (!validate) { fail(`${rel}: schema not registered (${schemaId})`); continue; }
