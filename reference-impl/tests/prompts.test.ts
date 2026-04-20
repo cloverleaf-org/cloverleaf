@@ -16,6 +16,7 @@ describe('documenter prompt', () => {
     expect(body).toContain('{{diff}}');
     expect(body).toContain('{{repo_root}}');
     expect(body).toContain('{{branch}}');
+    expect(body).toContain('{{base_branch}}');
   });
 
   it('has no stale placeholders', () => {

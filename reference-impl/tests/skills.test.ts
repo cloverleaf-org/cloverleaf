@@ -52,6 +52,10 @@ describe('cloverleaf-document skill', () => {
     expect(body).toMatch(/status.*implementing/);
   });
 
+  it('enforces risk_class === "high" (full pipeline only)', () => {
+    expect(body).toMatch(/risk_class.*high|high.*risk_class/);
+  });
+
   it('advances state implementing → documenting → review after success', () => {
     expect(body).toContain('documenting');
     expect(body).toContain('review');
