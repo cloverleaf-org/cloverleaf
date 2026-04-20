@@ -1,11 +1,31 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Eyebrow from '../components/Eyebrow.astro';
+import Callout from '../components/Callout.astro';
+import Code from '../components/Code.astro';
+import FloatingLegend from '../components/FloatingLegend.astro';
+import FlowArrow from '../components/FlowArrow.astro';
+import Popover from '../components/Popover.astro';
+import SignatureLoop from '../components/SignatureLoop.astro';
+import StepArrow from '../components/StepArrow.astro';
+import StepIcon from '../components/StepIcon.astro';
+import StepRow from '../components/StepRow.astro';
+import TrackDiagram from '../components/TrackDiagram.astro';
 import { getCollection } from 'astro:content';
 
 const chapters = (await getCollection('guide')).sort(
   (a, b) => a.data.chapter - b.data.chapter
 );
+
+// Passing the components map to <Content /> registers them with the MDX
+// renderer so Astro includes their scoped CSS in this page's bundle.
+// Without this, components used only inside MDX (via per-chapter `import X
+// from …`) have their <style> blocks dropped at build time — markup renders
+// but layout breaks.
+const mdxComponents = {
+  Callout, Code, FloatingLegend, FlowArrow, Popover,
+  SignatureLoop, StepArrow, StepIcon, StepRow, TrackDiagram,
+};
 ---
 <Layout title="The Cloverleaf Guide">
   <article class="guide">
@@ -30,7 +50,7 @@ const chapters = (await getCollection('guide')).sort(
         <section id={`chapter-${c.data.chapter}`} class="chapter">
           <Eyebrow>§ {c.data.chapter} · {c.data.eyebrow}</Eyebrow>
           <h2>{c.data.title}</h2>
-          <Content />
+          <Content components={mdxComponents} />
         </section>
       );
     })}
