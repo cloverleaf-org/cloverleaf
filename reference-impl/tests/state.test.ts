@@ -136,8 +136,8 @@ describe('state', () => {
 
 describe('ProjectDoc type', () => {
   it('requires name field at TS compile time', () => {
-    // This test fails at compile if `name` is optional — assigning without it should error.
-    // We assert at runtime by reading the TS type via a test helper.
+    // Enforced by `tsc --noEmit` in npm test — the @ts-expect-error below fails CI
+    // if ProjectDoc ever allows missing `name`.
     const doc: ProjectDoc = { key: 'DEMO', name: 'Demo Project' };
     expect(doc.name).toBe('Demo Project');
     // @ts-expect-error — without name, should fail type-check
