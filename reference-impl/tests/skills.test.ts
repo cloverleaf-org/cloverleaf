@@ -65,3 +65,21 @@ describe('cloverleaf-document skill', () => {
     expect(body).toContain('commits_added');
   });
 });
+
+describe('cloverleaf-implement skill (v0.2 path-aware)', () => {
+  const body = readSkill('cloverleaf-implement');
+
+  it('reads risk_class after load-task', () => {
+    expect(body).toContain('risk_class');
+  });
+
+  it('stops at implementing for risk_class=high', () => {
+    expect(body).toMatch(/risk_class.*high|high.*risk_class/);
+    expect(body).toMatch(/stop.*implementing|state.*implementing|Next.*document/i);
+  });
+
+  it('batches to review for risk_class=low', () => {
+    expect(body).toMatch(/risk_class.*low|low.*fast|fast.*lane/i);
+    expect(body).toMatch(/review/);
+  });
+});
