@@ -112,9 +112,8 @@ export function advanceStatus(
     throw new Error(`Illegal transition ${from} → ${toStatus}: ${msgs}`);
   }
 
-  task.status = toStatus;
-  saveTask(repoRoot, task);
-  emitStatusTransition(repoRoot, {
+  // NEW: emit first, save second. validateStatusTransitionLegality stays above.
+  const emittedPath = emitStatusTransition(repoRoot, {
     project: task.project,
     workItemType: 'task',
     workItemId: task.id,
@@ -124,5 +123,15 @@ export function advanceStatus(
     gate: options.gate,
     path: options.path,
   });
-  return task;
+
+  const proposed = { ...task, status: toStatus };
+  try {
+    saveTask(repoRoot, proposed);
+  } catch (err) {
+    const inner = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `orphan event written to ${emittedPath} but task save failed: ${inner}`
+    );
+  }
+  return proposed;
 }

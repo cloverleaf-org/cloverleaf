@@ -85,4 +85,22 @@ describe('state', () => {
       ).not.toThrow();
     });
   });
+
+  describe('advanceStatus atomicity', () => {
+    it('does not persist task status if event emission fails', () => {
+      // Replace the events dir with a FILE to force mkdir to fail with ENOTDIR
+      const eventsDir = join(repoRoot, '.cloverleaf', 'events');
+      rmSync(eventsDir, { recursive: true, force: true });
+      writeFileSync(eventsDir, '');  // regular file where a dir should be
+
+      expect(() => advanceStatus(repoRoot, 'DEMO-001', 'tactical-plan', 'agent')).toThrow();
+
+      // Cleanup for afterEach's rmSync
+      rmSync(eventsDir);
+
+      // Task status must remain 'pending'
+      const task = loadTask(repoRoot, 'DEMO-001');
+      expect(task.status).toBe('pending');
+    });
+  });
 });
