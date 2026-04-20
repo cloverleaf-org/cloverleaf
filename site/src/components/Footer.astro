@@ -1,11 +1,17 @@
 ---
-const version = '0.2.0';
-const date = '2026-04-17';
+const standardVersion = '0.3.0';
+const date = '2026-04-20';
+const repoUrl = 'https://github.com/cloverleaf-org/cloverleaf';
+const licenseUrl = 'https://github.com/cloverleaf-org/cloverleaf/blob/main/LICENSE';
 ---
 <footer class="site-footer">
   <div class="inner">
-    <span>Cloverleaf v{version} &middot; {date}</span>
-    <span>Local development build</span>
+    <span>Cloverleaf Standard v{standardVersion} &middot; {date}</span>
+    <span class="links">
+      <a href={repoUrl} target="_blank" rel="noopener noreferrer">GitHub</a>
+      <span class="sep">&middot;</span>
+      <a href={licenseUrl} target="_blank" rel="noopener noreferrer">MIT</a>
+    </span>
   </div>
 </footer>
 
@@ -24,5 +30,16 @@ const date = '2026-04-17';
     font-size: 11px;
     color: var(--color-text-muted);
     letter-spacing: 0.04em;
+  }
+  .links a {
+    color: var(--color-text-muted);
+    text-decoration: none;
+  }
+  .links a:hover {
+    color: var(--color-ink);
+    text-decoration: underline;
+  }
+  .sep {
+    margin: 0 8px;
   }
 </style>
