@@ -5,7 +5,7 @@ export default defineConfig({
   integrations: [mdx()],
   site: 'https://cloverleaf-org.github.io',
   base: '/cloverleaf',
-  trailingSlash: 'never',
+  trailingSlash: 'always',
   build: {
     inlineStylesheets: 'auto'
   }
