@@ -55,3 +55,10 @@ echo "Skills available: $(ls "${INSTALL_ROOT}/skills" | wc -l | tr -d ' ')"
 echo ""
 echo "Add ${INSTALL_ROOT}/bin to your PATH if you want to invoke cloverleaf-cli directly,"
 echo "or reference it by absolute path from your skill calls."
+
+# Post-install: warn about Playwright chromium if not cached
+if [ ! -d "${HOME}/.cache/ms-playwright" ] || [ -z "$(ls -A "${HOME}/.cache/ms-playwright" 2>/dev/null)" ]; then
+  echo ""
+  echo "Note: UI Reviewer uses Playwright chromium. If you plan to run /cloverleaf-ui-review, install once with:"
+  echo "  npx playwright install chromium"
+fi
