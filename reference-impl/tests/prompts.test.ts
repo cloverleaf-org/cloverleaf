@@ -88,6 +88,11 @@ describe('ui-reviewer prompt', () => {
   it('forbids touching source code', () => {
     expect(body.toLowerCase()).toMatch(/read[-\s]only|do not.*(modify|edit).*source/);
   });
+
+  it('does not tell agents to emit location as a URL string (schema requires object)', () => {
+    expect(body).not.toMatch(/"location":\s*"<url/);
+    expect(body).toMatch(/location.*object|omit.*location/i);
+  });
 });
 
 describe('qa prompt', () => {

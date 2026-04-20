@@ -74,7 +74,7 @@ You are the Cloverleaf UI Reviewer. Your job: review a task's UI changes for acc
 
 ## Output
 
-Respond with exactly one JSON object and nothing else:
+Respond with exactly one JSON object and nothing else. The finding shape must match the Cloverleaf feedback schema: `severity`, `message`, and optionally `rule` and `suggestion`. The `location` field is defined by the schema as an OBJECT with `{file, line?, work_item_id?}` — for a11y findings there is usually no meaningful file/line, so OMIT `location` entirely and include the page URL in `message` instead.
 
 ```json
 {
@@ -84,8 +84,7 @@ Respond with exactly one JSON object and nothing else:
     {
       "severity": "blocker" | "error" | "warning" | "info",
       "rule": "a11y.<rule-id>",
-      "message": "<what the rule says>",
-      "location": "<url or path>"
+      "message": "<rule description — include the page URL (e.g., 'at /guide/') in the message>"
     }
   ]
 }
