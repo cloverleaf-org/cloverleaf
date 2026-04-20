@@ -1,7 +1,7 @@
 {
   "id": "CLV-005",
   "type": "task",
-  "status": "ui-review",
+  "status": "qa",
   "owner": {
     "kind": "agent",
     "id": "implementer"
