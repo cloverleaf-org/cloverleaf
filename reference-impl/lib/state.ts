@@ -12,6 +12,7 @@ import { emitStatusTransition, formatReason } from './events.js';
 // switch the specifier to '@cloverleaf/standard/validators/index.ts'.
 import { validateStatusTransitionLegality } from '@cloverleaf/standard/validators/index.js';
 import type { StatusTransitions, Task as SMTask } from '@cloverleaf/standard/validators/index.js';
+import { validateOrThrow } from './validate.js';
 
 const req = createRequire(import.meta.url);
 
@@ -42,6 +43,7 @@ export function loadTask(repoRoot: string, taskId: string): TaskDoc {
 }
 
 export function saveTask(repoRoot: string, task: TaskDoc): void {
+  validateOrThrow('https://cloverleaf.example/schemas/task.schema.json', task);
   const path = join(tasksDir(repoRoot), `${task.id}.json`);
   writeFileSync(path, JSON.stringify(task, null, 2) + '\n');
 }

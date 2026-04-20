@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { eventsDir } from './paths.js';
 import { nextEventId } from './ids.js';
+import { validateOrThrow } from './validate.js';
 
 export interface StatusTransitionParams {
   project: string;
@@ -69,6 +70,7 @@ export function emitStatusTransition(repoRoot: string, params: StatusTransitionP
   }
 
   mkdirSync(eventsDir(repoRoot), { recursive: true });
+  validateOrThrow('https://cloverleaf.example/schemas/status-transition-event.schema.json', doc);
   writeFileSync(filePath, JSON.stringify(doc, null, 2) + '\n');
   return filePath;
 }
@@ -100,6 +102,7 @@ export function emitGateDecision(repoRoot: string, params: GateDecisionParams): 
   }
 
   mkdirSync(eventsDir(repoRoot), { recursive: true });
+  validateOrThrow('https://cloverleaf.example/schemas/gate-decision-event.schema.json', doc);
   writeFileSync(filePath, JSON.stringify(doc, null, 2) + '\n');
   return filePath;
 }

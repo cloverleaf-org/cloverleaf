@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 
 import { join } from 'node:path';
 import { feedbackDir } from './paths.js';
 import { nextFeedbackIteration } from './ids.js';
+import { validateOrThrow } from './validate.js';
 
 export type Verdict = 'pass' | 'bounce' | 'escalate';
 export type FindingSeverity = 'info' | 'warning' | 'error' | 'blocker';
@@ -45,6 +46,7 @@ export function writeFeedback(repoRoot: string, params: WriteFeedbackParams): st
   const filename = `${params.taskId}-r${iteration}.json`;
   const path = join(feedbackDir(repoRoot), filename);
   mkdirSync(feedbackDir(repoRoot), { recursive: true });
+  validateOrThrow('https://cloverleaf.example/schemas/feedback.schema.json', params.envelope);
   writeFileSync(path, JSON.stringify(params.envelope, null, 2) + '\n');
   return path;
 }
