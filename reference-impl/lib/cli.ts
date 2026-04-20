@@ -85,10 +85,10 @@ try {
       const [repoRoot, taskId, toStatus, actorArg, gate, path] = rest;
       if (!repoRoot || !taskId || !toStatus || !actorArg)
         usage('advance-status requires <repoRoot> <taskId> <toStatus> <actor> [gate] [path]');
-      if (actorArg !== 'agent' && actorArg !== 'human' && actorArg !== 'system') {
-        die(`actor must be "agent", "human", or "system", got: ${actorArg}`);
+      if (actorArg !== 'agent' && actorArg !== 'human') {
+        die(`actor must be 'agent' or 'human' (got '${actorArg}')`, 2);
       }
-      const actor = actorArg as 'agent' | 'human';
+      const actor: 'agent' | 'human' = actorArg;
       const opts: { gate?: string; path?: 'fast_lane' | 'full_pipeline' } = {};
       if (gate) opts.gate = gate;
       if (path === 'fast_lane' || path === 'full_pipeline') opts.path = path;

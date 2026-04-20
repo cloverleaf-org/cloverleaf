@@ -87,4 +87,10 @@ describe('cli', () => {
     expect(exitCode).not.toBe(0);
     expect(stderr.toLowerCase()).toMatch(/illegal|not allowed/);
   });
+
+  it('advance-status rejects actor=system with exit code 2', () => {
+    const { exitCode, stderr } = run(['advance-status', repoRoot, 'DEMO-001', 'tactical-plan', 'system']);
+    expect(exitCode).toBe(2);
+    expect(stderr.toLowerCase()).toMatch(/actor.*agent.*human|agent.*or.*human/);
+  });
 });
