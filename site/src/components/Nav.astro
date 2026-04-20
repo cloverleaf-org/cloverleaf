@@ -1,9 +1,10 @@
 ---
 import Mark from './Mark.astro';
 const links = [
-  { href: '/guide', label: 'Guide' },
-  { href: '/start', label: 'Get started' },
-  { href: '/faq', label: 'FAQ' },
+  { href: '/guide', label: 'Guide', external: false },
+  { href: '/start', label: 'Get started', external: false },
+  { href: 'https://github.com/cloverleaf-org/cloverleaf/tree/main/standard', label: 'Standard', external: true },
+  { href: '/faq', label: 'FAQ', external: false },
 ];
 ---
 <nav class="site-nav">
@@ -12,7 +13,10 @@ const links = [
     <span class="brand-name">Cloverleaf</span>
   </a>
   <div class="nav-links">
-    {links.map(link => <a href={link.href}>{link.label}</a>)}
+    {links.map(link => link.external
+      ? <a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a>
+      : <a href={link.href}>{link.label}</a>
+    )}
   </div>
 </nav>
 
