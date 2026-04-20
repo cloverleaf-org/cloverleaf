@@ -32,7 +32,7 @@ export interface TaskDoc {
 
 export interface ProjectDoc {
   key: string;
-  name?: string;
+  name: string;
   [key: string]: unknown;
 }
 

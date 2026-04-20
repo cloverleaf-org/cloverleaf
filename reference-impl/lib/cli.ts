@@ -15,11 +15,13 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { loadTask } from './state.js';
 import { advanceStatus } from './state.js';
 import { emitGateDecision } from './events.js';
 import { writeFeedback, latestFeedback } from './feedback.js';
 import { nextTaskId, inferProject } from './ids.js';
+import { matchesUiPaths, loadDefaultPatterns } from './ui-paths.js';
 import type { FeedbackEnvelope } from './feedback.js';
 
 function die(msg: string, code = 1): never {
@@ -98,14 +100,18 @@ try {
     }
 
     case 'write-feedback': {
-      const [repoRoot, taskId, envelopeJsonPath] = rest;
+      const positional = rest.filter((a: string) => !a.startsWith('--'));
+      const flags = rest.filter((a: string) => a.startsWith('--'));
+      const [repoRoot, taskId, envelopeJsonPath] = positional;
       if (!repoRoot || !taskId || !envelopeJsonPath)
         usage('write-feedback requires <repoRoot> <taskId> <envelopeJsonPath>');
+      const prefixFlag = flags.find((f: string) => f.startsWith('--prefix='));
+      const prefix = prefixFlag ? prefixFlag.split('=')[1] : 'r';
       const envelope = JSON.parse(readFileSync(envelopeJsonPath, 'utf-8')) as FeedbackEnvelope;
       const match = taskId.match(/^(.+)-\d+$/);
       if (!match) die(`Invalid taskId format: ${taskId}`);
       const project = match[1];
-      const writtenPath = writeFeedback(repoRoot, { project, taskId, envelope });
+      const writtenPath = writeFeedback(repoRoot, { project, taskId, envelope, prefix });
       process.stdout.write(writtenPath + '\n');
       break;
     }
@@ -156,6 +162,33 @@ try {
       });
       process.stdout.write(writtenPath + '\n');
       break;
+    }
+
+    case 'detect-ui-paths': {
+      const [repoRoot, taskId] = rest;
+      if (!repoRoot || !taskId) {
+        console.error('usage: detect-ui-paths <repo_root> <task-id>');
+        process.exit(1);
+      }
+      const branch = `cloverleaf/${taskId}`;
+      let changed: string[];
+      try {
+        const out = execSync(`git diff --name-only main..${branch}`, {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        changed = out.split('\n').map((l) => l.trim()).filter(Boolean);
+      } catch (e: unknown) {
+        const err = e as { stderr?: Buffer | string; message?: string };
+        const stderrStr = typeof err.stderr === 'string' ? err.stderr : err.stderr?.toString() ?? '';
+        console.error(`branch ${branch} not found: ${stderrStr || err.message || 'unknown'}`);
+        process.exit(2);
+      }
+      const patterns = loadDefaultPatterns();
+      const result = matchesUiPaths(changed, patterns);
+      process.stdout.write(`${result}\n`);
+      process.exit(0);
     }
 
     default:

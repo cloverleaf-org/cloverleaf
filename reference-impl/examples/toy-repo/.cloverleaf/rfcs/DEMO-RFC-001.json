@@ -1,0 +1,13 @@
+{
+  "id": "DEMO-RFC-001",
+  "type": "rfc",
+  "project": "DEMO",
+  "status": "approved",
+  "owner": { "kind": "human", "id": "toy-demo-owner" },
+  "title": "Toy demo: seed RFC for reference-impl smoke examples",
+  "problem": "Toy-repo needs a parent RFC so Task.context.rfc references a real document rather than a phantom ID.",
+  "solution": "Provide a minimal approved RFC referenced by DEMO-001. Not a real methodology example — purely a structural placeholder.",
+  "unknowns": [],
+  "acceptance_criteria": ["DEMO-001 validates against task.schema.json with a real context.rfc target."],
+  "out_of_scope": ["This RFC is intentionally minimal and should not be used as a quality benchmark."]
+}

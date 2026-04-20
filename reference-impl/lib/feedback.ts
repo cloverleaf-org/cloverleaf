@@ -32,6 +32,9 @@ export interface WriteFeedbackParams {
   project: string;
   taskId: string; // e.g. "ACME-001"
   envelope: FeedbackEnvelope;
+  /** Prefix letter for the feedback file counter. Defaults to 'r' (Reviewer).
+   *  Use 'u' for UI Reviewer, 'q' for QA. */
+  prefix?: string;
 }
 
 export function writeFeedback(repoRoot: string, params: WriteFeedbackParams): string {
@@ -42,8 +45,9 @@ export function writeFeedback(repoRoot: string, params: WriteFeedbackParams): st
   if (project !== params.project) {
     throw new Error(`project mismatch: taskId=${params.taskId} vs project=${params.project}`);
   }
-  const iteration = nextFeedbackIteration(repoRoot, project, taskNum);
-  const filename = `${params.taskId}-r${iteration}.json`;
+  const prefix = params.prefix ?? 'r';
+  const iteration = nextFeedbackIteration(repoRoot, project, taskNum, prefix);
+  const filename = `${params.taskId}-${prefix}${iteration}.json`;
   const path = join(feedbackDir(repoRoot), filename);
   mkdirSync(feedbackDir(repoRoot), { recursive: true });
   validateOrThrow('https://cloverleaf.example/schemas/feedback.schema.json', params.envelope);

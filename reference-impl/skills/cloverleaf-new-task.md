@@ -53,4 +53,12 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
 ## Rules
 
 - Do not guess at acceptance criteria. If the brief is too vague (e.g., "make it faster" with no target), ask the user a clarifying question before writing the file.
-- If the user's brief hints at complex/risky work (UI changes, breaking API, cross-project), set `risk_class: "high"` and mention it. Default is `"low"` for simple tasks.
+- **risk_class inference:** `risk_class` determines the Delivery pipeline (`"low"` → fast lane; `"high"` → full pipeline). Rules:
+  1. If the user passed `--risk=high` or `--risk=low` as a flag on the skill invocation, honor it.
+  2. Otherwise, set `risk_class: "high"` when the brief OR any acceptance criterion matches (case-insensitive) any of these keywords:
+     `site/`, `UI`, `page`, `component`, `style`, `visual`, `layout`, `render`, `display`, `accessibility`, `a11y`, `responsive`, `.astro`, `.css`, `.html`
+  3. Also set `risk_class: "high"` for breaking APIs or cross-project work (v0.1.1 behavior, retained).
+  4. Default: `risk_class: "low"`.
+- After writing the task, report the chosen risk_class and how it was determined, e.g.:
+  > "Risk class: `high` → full pipeline (matched keyword `component` in acceptance criterion). Override with `--risk=low` if desired."
+- Users can manually edit `risk_class` in the task JSON before running `/cloverleaf-run`.

@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync as realWriteFileSync, rmSync, rea
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadTask, saveTask, advanceStatus, loadProject } from '../lib/state.js';
+import type { ProjectDoc } from '../lib/state.js';
 
 function scaffold(repoRoot: string): void {
   mkdirSync(join(repoRoot, '.cloverleaf', 'projects'), { recursive: true });
@@ -130,5 +131,130 @@ describe('state', () => {
       // so the file's content is whatever was written by the beforeEach scaffolding.
       expect(loadTask(repoRoot, 'DEMO-001').status).toBe('pending');
     });
+  });
+});
+
+describe('full_pipeline transitions', () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-state-full-'));
+    mkdirSync(join(repoRoot, '.cloverleaf', 'projects'), { recursive: true });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'tasks'), { recursive: true });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'events'), { recursive: true });
+    realWriteFileSync(
+      join(repoRoot, '.cloverleaf', 'projects', 'DEMO.json'),
+      JSON.stringify({ key: 'DEMO', name: 'Demo' })
+    );
+    const task = {
+      id: 'DEMO-001',
+      type: 'task',
+      status: 'implementing',
+      risk_class: 'high',
+      owner: { kind: 'agent', id: 'implementer' },
+      project: 'DEMO',
+      title: 'demo',
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-001' } },
+      acceptance_criteria: ['a'],
+      definition_of_done: ['d'],
+    };
+    realWriteFileSync(
+      join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
+      JSON.stringify(task)
+    );
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('implementing → documenting is legal', () => {
+    expect(() => advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent')).not.toThrow();
+  });
+
+  it('documenting → review is legal', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    expect(() => advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent')).not.toThrow();
+  });
+
+  it('automated-gates → ui-review is legal with full_pipeline path', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    expect(() =>
+      advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' })
+    ).not.toThrow();
+  });
+
+  it('automated-gates → qa is legal with full_pipeline path', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    expect(() =>
+      advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' })
+    ).not.toThrow();
+  });
+
+  it('ui-review → qa is legal', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' });
+    expect(() =>
+      advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' })
+    ).not.toThrow();
+  });
+
+  it('qa → final-gate is legal', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' });
+    expect(() =>
+      advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent', { path: 'full_pipeline' })
+    ).not.toThrow();
+  });
+
+  it('final-gate → merged requires human and final_approval_gate', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' });
+    advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent', { path: 'full_pipeline' });
+    expect(() =>
+      advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'final_approval_gate', path: 'full_pipeline' })
+    ).not.toThrow();
+  });
+
+  it('ui-review → implementing (bounce) is legal', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' });
+    expect(() =>
+      advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent', { path: 'full_pipeline' })
+    ).not.toThrow();
+  });
+
+  it('qa → implementing (bounce) is legal', () => {
+    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' });
+    expect(() =>
+      advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent', { path: 'full_pipeline' })
+    ).not.toThrow();
+  });
+});
+
+describe('ProjectDoc type', () => {
+  it('requires name field at TS compile time', () => {
+    // Enforced by `tsc --noEmit` in npm test — the @ts-expect-error below fails CI
+    // if ProjectDoc ever allows missing `name`.
+    const doc: ProjectDoc = { key: 'DEMO', name: 'Demo Project' };
+    expect(doc.name).toBe('Demo Project');
+    // @ts-expect-error — without name, should fail type-check
+    const bad: ProjectDoc = { key: 'DEMO' };
+    expect(bad.key).toBe('DEMO');
   });
 });

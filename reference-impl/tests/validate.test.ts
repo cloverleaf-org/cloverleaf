@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { validateOrThrow } from '../lib/validate.js';
 
 const TASK_SCHEMA = 'https://cloverleaf.example/schemas/task.schema.json';
@@ -47,5 +49,22 @@ describe('validateOrThrow', () => {
       decision: 'approved', approver: { kind: 'human', id: 'u' },
     };
     expect(() => validateOrThrow(GATE_EVENT_SCHEMA, bad)).toThrow();
+  });
+});
+
+describe('toy-repo DEMO-RFC-001', () => {
+  const rfcPath = resolve(__dirname, '..', 'examples', 'toy-repo', '.cloverleaf', 'rfcs', 'DEMO-RFC-001.json');
+
+  it('exists on disk', () => {
+    expect(existsSync(rfcPath)).toBe(true);
+  });
+
+  it('has required RFC fields', () => {
+    const doc = JSON.parse(readFileSync(rfcPath, 'utf-8'));
+    expect(doc.id).toBe('DEMO-RFC-001');
+    expect(doc.type).toBe('rfc');
+    expect(doc.project).toBe('DEMO');
+    expect(doc.status).toBe('approved');
+    expect(typeof doc.title).toBe('string');
   });
 });
