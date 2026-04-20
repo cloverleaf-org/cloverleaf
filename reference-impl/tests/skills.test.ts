@@ -144,3 +144,24 @@ describe('cloverleaf-qa skill', () => {
     expect(body).toMatch(/qa_rules|qa-rules\.json/);
   });
 });
+
+describe('cloverleaf-merge skill (v0.2 state-aware)', () => {
+  const body = readSkill('cloverleaf-merge');
+
+  it('accepts both automated-gates and final-gate states', () => {
+    expect(body).toContain('automated-gates');
+    expect(body).toContain('final-gate');
+  });
+
+  it('uses human_merge gate for automated-gates state', () => {
+    expect(body).toContain('human_merge');
+  });
+
+  it('uses final_approval_gate for final-gate state', () => {
+    expect(body).toContain('final_approval_gate');
+  });
+
+  it('shows richer summary at final-gate', () => {
+    expect(body.toLowerCase()).toMatch(/ui.review|qa|summary/);
+  });
+});
