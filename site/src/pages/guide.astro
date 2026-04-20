@@ -7,6 +7,7 @@ import FloatingLegend from '../components/FloatingLegend.astro';
 import FlowArrow from '../components/FlowArrow.astro';
 import Popover from '../components/Popover.astro';
 import SignatureLoop from '../components/SignatureLoop.astro';
+import SingleTrack from '../components/SingleTrack.astro';
 import StepArrow from '../components/StepArrow.astro';
 import StepIcon from '../components/StepIcon.astro';
 import StepRow from '../components/StepRow.astro';
@@ -24,7 +25,7 @@ const chapters = (await getCollection('guide')).sort(
 // but layout breaks.
 const mdxComponents = {
   Callout, Code, FloatingLegend, FlowArrow, Popover,
-  SignatureLoop, StepArrow, StepIcon, StepRow, TrackDiagram,
+  SignatureLoop, SingleTrack, StepArrow, StepIcon, StepRow, TrackDiagram,
 };
 ---
 <Layout title="The Cloverleaf Guide">

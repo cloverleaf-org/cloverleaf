@@ -1,0 +1,45 @@
+---
+import FloatingLegend from './FloatingLegend.astro';
+
+interface Props {
+  label: string;
+}
+const { label } = Astro.props;
+---
+<div class="single-track-wrap">
+  <FloatingLegend />
+  <div class="single-track">
+    <div class="track-header">
+      <span class="track-label">{label}</span>
+      <slot name="popover" />
+    </div>
+    <slot />
+  </div>
+</div>
+
+<style>
+  .single-track-wrap { position: relative; margin: 0 0 36px; }
+  .single-track {
+    max-width: 360px;
+    margin: 0 auto;
+    padding: 24px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+  .track-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 16px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--color-border);
+  }
+  .track-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--color-accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+</style>

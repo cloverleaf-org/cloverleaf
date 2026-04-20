@@ -6,8 +6,23 @@ title: 'Delivery'
 
 import Callout from '../../components/Callout.astro';
 import Code from '../../components/Code.astro';
+import SingleTrack from '../../components/SingleTrack.astro';
+import StepRow from '../../components/StepRow.astro';
+import StepArrow from '../../components/StepArrow.astro';
 
 The Delivery Track executes Tasks through one of two lanes based on deterministic risk classification.
+
+<SingleTrack label="Delivery">
+  <StepRow variant="agent" label="Pickup" />
+  <StepArrow />
+  <StepRow variant="agent" label="Risk Classifier" />
+  <StepArrow />
+  <StepRow variant="agent" label="Fast Lane / Full Pipeline" meta="branches" />
+  <StepArrow />
+  <StepRow variant="gate" label="Final Approval" />
+  <StepArrow />
+  <StepRow variant="agent" label="Merge & Deploy" />
+</SingleTrack>
 
 ### Stages
 

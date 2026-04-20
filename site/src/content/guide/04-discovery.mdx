@@ -5,8 +5,23 @@ title: 'Discovery'
 ---
 
 import Callout from '../../components/Callout.astro';
+import SingleTrack from '../../components/SingleTrack.astro';
+import StepRow from '../../components/StepRow.astro';
+import StepArrow from '../../components/StepArrow.astro';
 
 The Discovery Track converts an idea into a ratified plan with well-formed Tasks.
+
+<SingleTrack label="Discovery">
+  <StepRow variant="agent" label="RFC" />
+  <StepArrow />
+  <StepRow variant="agent" label="Spike(s)" meta="optional" />
+  <StepArrow />
+  <StepRow variant="gate" label="Strategy Gate" />
+  <StepArrow />
+  <StepRow variant="agent" label="Plan & Breakdown" />
+  <StepArrow />
+  <StepRow variant="gate" label="Task Batch Gate" />
+</SingleTrack>
 
 ### Stages
 
