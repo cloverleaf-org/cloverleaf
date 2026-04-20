@@ -1,7 +1,7 @@
 {
   "id": "CLV-002",
   "type": "task",
-  "status": "review",
+  "status": "automated-gates",
   "owner": {
     "kind": "agent",
     "id": "implementer"
