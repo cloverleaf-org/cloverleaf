@@ -1,0 +1,21 @@
+{
+  "verdict": "bounce",
+  "summary": "3 pre-existing accessibility violations found across 4 pages; none introduced by CLV-003 (diff is limited to 3 OG meta tags in Layout.astro with no style changes), but the scoring rules require bounce for any error-severity findings regardless of origin.",
+  "findings": [
+    {
+      "severity": "error",
+      "rule": "a11y.color-contrast",
+      "message": "WCAG 2 AA color-contrast violation at /guide/ — foreground/background contrast below threshold."
+    },
+    {
+      "severity": "error",
+      "rule": "a11y.color-contrast",
+      "message": "WCAG 2 AA color-contrast violation at /start/ — foreground/background contrast below threshold."
+    },
+    {
+      "severity": "error",
+      "rule": "a11y.link-in-text-block",
+      "message": "WCAG link-in-text-block violation at /start/ — links in body text not distinguished from surrounding text without color."
+    }
+  ]
+}
