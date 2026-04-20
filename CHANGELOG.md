@@ -4,6 +4,28 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 
 ## [Unreleased]
 
+## [reference-impl 0.1.1] — 2026-04-17
+
+Bug-fix release addressing issues surfaced by the v0.1.0 end-to-end demo and final code review.
+
+### Fixed
+
+- Auto-create `.cloverleaf/events/` and `.cloverleaf/feedback/` on first write (previously crashed with ENOENT in fresh consumer repos).
+- `advanceStatus` is now atomic: the status event is emitted before the task file is saved, so a failed emit leaves the task unchanged. A failed save after a successful emit produces a clear "orphan event" error.
+- Every write path now validates against the corresponding `@cloverleaf/standard` schema via the new `lib/validate.ts` (AJV). `saveTask`, `writeFeedback`, `emitStatusTransition`, and `emitGateDecision` throw on invalid input.
+- Shared `formatReason` helper eliminates drift between the validator-input `reason` and the persisted `reason` on status-transition events.
+- CLI `advance-status` now rejects `actor=system` with exit code 2 (previously silently cast to `agent`). `system` is not a valid actor for task transitions in the Standard's state machine.
+- `tests/cli.test.ts` fixtures aligned with the real task + project schemas so they double as teaching examples.
+
+### Changed
+
+- **Branch topology:** state commits now land on `main`; feature branches (`cloverleaf/<task-id>`) carry only code. Skills handle the `git checkout main` transitions. The Reviewer never `git checkout`s — uses `git show` and `git worktree add` instead. See README "Branch topology".
+
+### Added
+
+- `reference-impl/lib/validate.ts` — shared AJV `validateOrThrow` helper loading all `@cloverleaf/standard` schemas once.
+- `reference-impl/README.md` gains a "Branch topology" section.
+
 ## [reference-impl 0.1.0] — 2026-04-XX
 
 First release of the Cloverleaf reference implementation package.
