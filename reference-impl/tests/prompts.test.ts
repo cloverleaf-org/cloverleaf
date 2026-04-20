@@ -89,3 +89,49 @@ describe('ui-reviewer prompt', () => {
     expect(body.toLowerCase()).toMatch(/read[-\s]only|do not.*(modify|edit).*source/);
   });
 });
+
+describe('qa prompt', () => {
+  const body = readPrompt('qa');
+
+  it('has required placeholders', () => {
+    expect(body).toContain('{{task}}');
+    expect(body).toContain('{{diff}}');
+    expect(body).toContain('{{branch}}');
+    expect(body).toContain('{{repo_root}}');
+    expect(body).toContain('{{qa_rules}}');
+    expect(body).toContain('{{base_branch}}');
+  });
+
+  it('has no stale placeholders', () => {
+    expect(body).not.toMatch(/\{\{[^}]*TODO[^}]*\}\}/);
+    expect(body).not.toMatch(/XXX|TBD/);
+  });
+
+  it('specifies no-browser / test-runner mode', () => {
+    expect(body.toLowerCase()).toMatch(/no.*browser|test.*runner|vitest|npm test/);
+  });
+
+  it('specifies sentinel preview_uri', () => {
+    expect(body).toMatch(/about:blank|sentinel/);
+  });
+
+  it('specifies pass|bounce|escalate verdicts', () => {
+    expect(body).toContain('pass');
+    expect(body).toContain('bounce');
+    expect(body).toContain('escalate');
+  });
+
+  it('specifies results aggregation shape', () => {
+    expect(body).toContain('passed');
+    expect(body).toContain('failed');
+    expect(body).toContain('total');
+  });
+
+  it('explains git worktree discipline', () => {
+    expect(body.toLowerCase()).toMatch(/git worktree/);
+  });
+
+  it('explains nothing-testable case', () => {
+    expect(body.toLowerCase()).toMatch(/nothing.*testable|skip|no match/);
+  });
+});
