@@ -1,12 +1,18 @@
 {
   "id": "CLV-001",
   "type": "task",
-  "status": "pending",
-  "owner": { "kind": "agent", "id": "implementer" },
+  "status": "review",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
   "project": "CLV",
   "title": "Glob schemas dynamically in lib/validate.ts",
   "context": {
-    "rfc": { "project": "CLV", "id": "CLV-RFC-001" }
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-RFC-001"
+    }
   },
   "acceptance_criteria": [
     "reference-impl/lib/validate.ts no longer hardcodes SCHEMA_FILES as a string array",
