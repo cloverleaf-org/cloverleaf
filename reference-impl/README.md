@@ -15,7 +15,7 @@ npm install            # pulls @cloverleaf/standard + deps
 ./install.sh --project # local install into ./.claude/plugins/cloverleaf/
 ```
 
-## Scope (v0.2)
+## Scope (v0.3)
 
 v0.2 implements both paths of the Delivery track:
 
@@ -29,7 +29,7 @@ v0.2 implements both paths of the Delivery track:
 | Implementer | Real | Subagent, code + tests on feature branch |
 | Documenter | Real (v0.2) | Subagent, doc-only commits per file-path rules |
 | Reviewer | Real | Subagent, read-only review of diff |
-| UI Reviewer | Real (v0.2) | Playwright + axe-core, single viewport, a11y only |
+| UI Reviewer | Real (v0.3) | Playwright + axe-core, diff-scoped to affected routes, single viewport, a11y only |
 | QA | Real (v0.2) | Per-package test runner via `git worktree` |
 | Plan | Stub | Deferred to v0.3 |
 | Researcher | Stub | Deferred to v0.3 |
@@ -54,10 +54,18 @@ Two JSON config files in `config/` (overridable per consumer project):
 
 ### Known limitations
 
-- Playwright installs ~300MB into each `git worktree` (v0.3 will cache).
 - Concurrent `/cloverleaf-run` on the same repo may race on preview ports.
-- UI Reviewer visual diff + multi-viewport deferred to v0.3.
+- UI Reviewer visual diff + multi-viewport deferred to v0.4.
 - QA does not produce HTML reports (no `report_uri`).
+- Astro `base` path is parsed best-effort; if misdetected, UI Reviewer may return escalate.
+
+### Prerequisites for UI Reviewer
+
+Run once per machine:
+
+    npx playwright install chromium
+
+This installs chromium into `~/.cache/ms-playwright/` (the default `PLAYWRIGHT_BROWSERS_PATH`). Subsequent `/cloverleaf-ui-review` invocations reuse this cache — no ~300 MB re-download per run.
 
 ## Quick start — toy repo
 
