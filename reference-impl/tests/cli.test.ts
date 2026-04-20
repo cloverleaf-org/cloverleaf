@@ -93,4 +93,42 @@ describe('cli', () => {
     expect(exitCode).toBe(2);
     expect(stderr.toLowerCase()).toMatch(/actor.*agent.*human|agent.*or.*human/);
   });
+
+  describe('detect-ui-paths', () => {
+    beforeEach(() => {
+      // Create a git repo + feature branch for diff inspection
+      execSync('git init -q -b main', { cwd: repoRoot });
+      execSync('git config user.email test@test', { cwd: repoRoot });
+      execSync('git config user.name test', { cwd: repoRoot });
+      writeFileSync(join(repoRoot, 'README.md'), 'initial\n');
+      execSync('git add . && git commit -q -m initial', { cwd: repoRoot });
+      execSync('git checkout -q -b cloverleaf/DEMO-001', { cwd: repoRoot });
+    });
+
+    it('returns true when site/** paths changed', () => {
+      mkdirSync(join(repoRoot, 'site', 'src'), { recursive: true });
+      writeFileSync(join(repoRoot, 'site', 'src', 'page.astro'), '<p>hi</p>');
+      execSync('git add . && git commit -q -m "add page"', { cwd: repoRoot });
+      const { stdout, exitCode } = run(['detect-ui-paths', repoRoot, 'DEMO-001']);
+      expect(exitCode).toBe(0);
+      expect(stdout.trim()).toBe('true');
+    });
+
+    it('returns false when no UI paths changed', () => {
+      mkdirSync(join(repoRoot, 'standard', 'src'), { recursive: true });
+      writeFileSync(join(repoRoot, 'standard', 'src', 'index.ts'), 'export {};\n');
+      execSync('git add . && git commit -q -m "add standard"', { cwd: repoRoot });
+      const { stdout, exitCode } = run(['detect-ui-paths', repoRoot, 'DEMO-001']);
+      expect(exitCode).toBe(0);
+      expect(stdout.trim()).toBe('false');
+    });
+
+    it('returns error when feature branch missing', () => {
+      execSync('git checkout -q main', { cwd: repoRoot });
+      execSync('git branch -D cloverleaf/DEMO-001', { cwd: repoRoot });
+      const { exitCode, stderr } = run(['detect-ui-paths', repoRoot, 'DEMO-001']);
+      expect(exitCode).not.toBe(0);
+      expect(stderr).toMatch(/branch|not found/i);
+    });
+  });
 });
