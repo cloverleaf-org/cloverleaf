@@ -34,20 +34,21 @@ describe('cli', () => {
     mkdirSync(join(repoRoot, '.cloverleaf', 'feedback'), { recursive: true });
     writeFileSync(
       join(repoRoot, '.cloverleaf', 'projects', 'DEMO.json'),
-      JSON.stringify({ project: 'DEMO', id_pattern: '^DEMO-\\d+$' })
+      JSON.stringify({ key: 'DEMO', name: 'Demo' })
     );
     writeFileSync(
       join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
       JSON.stringify({
-        type: 'task',
-        project: 'DEMO',
         id: 'DEMO-001',
-        title: 'demo',
+        type: 'task',
         status: 'pending',
-        path: 'fast_lane',
+        owner: { kind: 'agent', id: 'unassigned' },
+        project: 'DEMO',
+        title: 'demo',
+        context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-001' } },
         acceptance_criteria: ['a'],
-        definition_of_done: 'd',
-        context: {},
+        definition_of_done: ['d'],
+        risk_class: 'low',
       })
     );
   });
