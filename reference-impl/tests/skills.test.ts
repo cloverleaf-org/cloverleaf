@@ -33,3 +33,31 @@ describe('cloverleaf-new-task skill', () => {
     expect(body).toMatch(/override/i);
   });
 });
+
+describe('cloverleaf-document skill', () => {
+  const body = readSkill('cloverleaf-document');
+
+  it('has valid frontmatter with name and description', () => {
+    expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-document[\s\S]*?---/);
+    expect(body).toMatch(/description:.*Documenter/);
+  });
+
+  it('dispatches subagent with documenter prompt', () => {
+    expect(body).toMatch(/prompts\/documenter\.md/);
+    expect(body).toMatch(/subagent_type.*general-purpose/);
+    expect(body).toMatch(/model.*sonnet/);
+  });
+
+  it('verifies task state is implementing', () => {
+    expect(body).toMatch(/status.*implementing/);
+  });
+
+  it('advances state implementing → documenting → review after success', () => {
+    expect(body).toContain('documenting');
+    expect(body).toContain('review');
+  });
+
+  it('expects JSON response with commits_added', () => {
+    expect(body).toContain('commits_added');
+  });
+});
