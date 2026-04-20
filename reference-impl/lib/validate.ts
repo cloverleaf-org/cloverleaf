@@ -1,28 +1,10 @@
 import Ajv, { type ValidateFunction } from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const req = createRequire(import.meta.url);
 const pkgDir = req.resolve('@cloverleaf/standard/package.json').replace(/\/package\.json$/, '');
-
-const SCHEMA_FILES = [
-  'work-item.schema.json',
-  'project.schema.json',
-  'task.schema.json',
-  'rfc.schema.json',
-  'spike.schema.json',
-  'plan.schema.json',
-  'feedback.schema.json',
-  'problem.schema.json',
-  'status-transition-event.schema.json',
-  'gate-decision-event.schema.json',
-  'status-transitions.schema.json',
-  'dependency-dag.schema.json',
-  'extensions.schema.json',
-  'path-rules.schema.json',
-  'risk-classifier-rules.schema.json',
-];
 
 let ajvInstance: Ajv | null = null;
 const compiledCache = new Map<string, ValidateFunction>();
@@ -31,7 +13,8 @@ function getAjv(): Ajv {
   if (ajvInstance) return ajvInstance;
   const ajv = new Ajv({ strict: false, validateFormats: true, allErrors: true });
   addFormats(ajv);
-  for (const file of SCHEMA_FILES) {
+  const schemaFiles = readdirSync(`${pkgDir}/schemas`).filter(f => f.endsWith('.schema.json'));
+  for (const file of schemaFiles) {
     const schema = JSON.parse(readFileSync(`${pkgDir}/schemas/${file}`, 'utf-8'));
     ajv.addSchema(schema);
   }
