@@ -114,3 +114,33 @@ describe('cloverleaf-ui-review skill', () => {
     expect(body).toMatch(/<TASK-ID>-u\d|u<N>|prefix=u/);
   });
 });
+
+describe('cloverleaf-qa skill', () => {
+  const body = readSkill('cloverleaf-qa');
+
+  it('has valid frontmatter', () => {
+    expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-qa[\s\S]*?---/);
+  });
+
+  it('dispatches subagent with qa prompt', () => {
+    expect(body).toMatch(/prompts\/qa\.md/);
+    expect(body).toMatch(/subagent_type.*general-purpose/);
+  });
+
+  it('verifies task state is qa', () => {
+    expect(body).toMatch(/status.*['"]qa['"]|['"]qa['"].*status/);
+  });
+
+  it('advances qa → final-gate on pass', () => {
+    expect(body).toContain('final-gate');
+  });
+
+  it('handles bounce by looping back to implementing with q prefix', () => {
+    expect(body).toContain('implementing');
+    expect(body).toMatch(/prefix=q|-q\d|<TASK-ID>-q/);
+  });
+
+  it('passes qa_rules to the subagent prompt', () => {
+    expect(body).toMatch(/qa_rules|qa-rules\.json/);
+  });
+});
