@@ -1,6 +1,6 @@
 # @cloverleaf/reference-impl
 
-Reference implementation of the Cloverleaf methodology as a set of Claude Code skills. This package implements the **Tight Loop** — Implementer + Reviewer — letting a user drive a Task from `pending` to `merged` with state, events, and feedback recorded in the repo under `.cloverleaf/`.
+Reference implementation of the Cloverleaf methodology as a set of Claude Code skills. Lets a user drive a Task from `pending` to `merged` with state, events, and feedback recorded in the repo under `.cloverleaf/`.
 
 Implements [Cloverleaf Standard](../standard/) v0.3.0 at L2 (Exchange) conformance.
 
@@ -15,15 +15,49 @@ npm install            # pulls @cloverleaf/standard + deps
 ./install.sh --project # local install into ./.claude/plugins/cloverleaf/
 ```
 
-## Skills provided
+## Scope (v0.2)
 
-| Slash command | Role |
-|---|---|
-| `/cloverleaf-new-task "<brief>"` | Scaffold a new Task JSON from a prose brief. |
-| `/cloverleaf-implement <TASK-ID>` | Dispatch Implementer subagent; advances pending → review. |
-| `/cloverleaf-review <TASK-ID>` | Dispatch Reviewer subagent; pass → automated-gates, bounce → implementing. |
-| `/cloverleaf-merge <TASK-ID>` | Human gate; confirm and transition automated-gates → merged. |
-| `/cloverleaf-run <TASK-ID>` | Orchestrator: loops implement → review with up to 3 bounces, pauses at the human merge gate. |
+v0.2 implements both paths of the Delivery track:
+
+- **Fast Lane** (`risk_class: "low"`): Implementer → Reviewer → Human Merge
+- **Full Pipeline** (`risk_class: "high"`): Implementer → Documenter → Reviewer → (UI Reviewer if `site/**` changed) → QA → Final Approval
+
+### Agents
+
+| Agent | Status | Mechanism |
+|---|---|---|
+| Implementer | Real | Subagent, code + tests on feature branch |
+| Documenter | Real (v0.2) | Subagent, doc-only commits per file-path rules |
+| Reviewer | Real | Subagent, read-only review of diff |
+| UI Reviewer | Real (v0.2) | Playwright + axe-core, single viewport, a11y only |
+| QA | Real (v0.2) | Per-package test runner via `git worktree` |
+| Plan | Stub | Deferred to v0.3 |
+| Researcher | Stub | Deferred to v0.3 |
+
+### Skills
+
+- `/cloverleaf-new-task` — scaffold a Task (auto-sets `risk_class`)
+- `/cloverleaf-implement` — run Implementer
+- `/cloverleaf-document` — run Documenter *(new in v0.2)*
+- `/cloverleaf-review` — run Reviewer
+- `/cloverleaf-ui-review` — run UI Reviewer *(new in v0.2)*
+- `/cloverleaf-qa` — run QA *(new in v0.2)*
+- `/cloverleaf-merge` — human gate (branches on state)
+- `/cloverleaf-run` — orchestrator (dispatches by `risk_class`)
+
+### Configuration
+
+Two JSON config files in `config/` (overridable per consumer project):
+
+- `config/ui-paths.json` — glob patterns that trigger UI Reviewer (default: `site/**`)
+- `config/qa-rules.json` — per-package test commands
+
+### Known limitations
+
+- Playwright installs ~300MB into each `git worktree` (v0.3 will cache).
+- Concurrent `/cloverleaf-run` on the same repo may race on preview ports.
+- UI Reviewer visual diff + multi-viewport deferred to v0.3.
+- QA does not produce HTML reports (no `report_uri`).
 
 ## Quick start — toy repo
 
@@ -41,21 +75,7 @@ In a Claude Code session in that directory:
 
 Watch it walk the state machine, produce a branch `cloverleaf/DEMO-001` with a `multiply` function + tests, and pause at the merge gate.
 
-## What's in v0.1.0
-
-- Implementer + Reviewer agents (wired as subagents).
-- Full state machine transitions from `pending` to `merged` (fast-lane path), with stub transitions through `documenting` and `automated-gates`.
-- Per-project committed audit trail under `.cloverleaf/`.
-- Max 3 bounces before `escalated`.
-
-## What's NOT in v0.1.0
-
-- Researcher, Plan, Documenter, UI Reviewer, QA agents (stub transitions only).
-- HTTP endpoints for the agent OpenAPI contracts — skills are markdown-driven, not servers. L3 conformance deferred.
-- `git push` / PR creation — branch stays local; user handles remote.
-- Path-rules or risk-classifier-rules enforcement — fast-lane is hardcoded.
-
-See [upcoming releases](../CHANGELOG.md) for the roadmap.
+See [CHANGELOG](../CHANGELOG.md) for the full release history and roadmap.
 
 ## Branch topology
 
