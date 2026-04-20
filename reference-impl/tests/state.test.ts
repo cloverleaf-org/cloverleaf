@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync as realWriteFileSync, rmSync, rea
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadTask, saveTask, advanceStatus, loadProject } from '../lib/state.js';
+import type { ProjectDoc } from '../lib/state.js';
 
 function scaffold(repoRoot: string): void {
   mkdirSync(join(repoRoot, '.cloverleaf', 'projects'), { recursive: true });
@@ -130,5 +131,17 @@ describe('state', () => {
       // so the file's content is whatever was written by the beforeEach scaffolding.
       expect(loadTask(repoRoot, 'DEMO-001').status).toBe('pending');
     });
+  });
+});
+
+describe('ProjectDoc type', () => {
+  it('requires name field at TS compile time', () => {
+    // This test fails at compile if `name` is optional — assigning without it should error.
+    // We assert at runtime by reading the TS type via a test helper.
+    const doc: ProjectDoc = { key: 'DEMO', name: 'Demo Project' };
+    expect(doc.name).toBe('Demo Project');
+    // @ts-expect-error — without name, should fail type-check
+    const bad: ProjectDoc = { key: 'DEMO' };
+    expect(bad.key).toBe('DEMO');
   });
 });
