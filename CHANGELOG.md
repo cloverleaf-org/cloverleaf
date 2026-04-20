@@ -4,7 +4,7 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 
 ## [Unreleased]
 
-## [reference-impl 0.1.1] — 2026-04-17
+## [reference-impl 0.1.1] — 2026-04-20
 
 Bug-fix release addressing issues surfaced by the v0.1.0 end-to-end demo and final code review.
 
@@ -26,7 +26,7 @@ Bug-fix release addressing issues surfaced by the v0.1.0 end-to-end demo and fin
 - `reference-impl/lib/validate.ts` — shared AJV `validateOrThrow` helper loading all `@cloverleaf/standard` schemas once.
 - `reference-impl/README.md` gains a "Branch topology" section.
 
-## [reference-impl 0.1.0] — 2026-04-XX
+## [reference-impl 0.1.0] — 2026-04-20
 
 First release of the Cloverleaf reference implementation package.
 
@@ -44,7 +44,7 @@ First release of the Cloverleaf reference implementation package.
 - Documenter, UI Reviewer, QA, Researcher, Plan agents are stubbed (state transitions emitted, no work performed).
 - No HTTP endpoints; L3 conformance deferred.
 
-## [0.3.0] — 2026-04-XX
+## [0.3.0] — 2026-04-20
 
 ### Added
 

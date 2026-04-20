@@ -7,12 +7,12 @@
   "author": "Renato D'Arrigo <renato.darrigo@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/renatodarrigo/cloverleaf.git",
+    "url": "git+https://github.com/cloverleaf-org/cloverleaf.git",
     "directory": "reference-impl"
   },
-  "homepage": "https://github.com/renatodarrigo/cloverleaf#readme",
+  "homepage": "https://github.com/cloverleaf-org/cloverleaf#readme",
   "bugs": {
-    "url": "https://github.com/renatodarrigo/cloverleaf/issues"
+    "url": "https://github.com/cloverleaf-org/cloverleaf/issues"
   },
   "keywords": [
     "cloverleaf",
