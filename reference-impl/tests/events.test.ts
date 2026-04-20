@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { emitStatusTransition, emitGateDecision } from '../lib/events.js';
+import { emitStatusTransition, emitGateDecision, formatReason } from '../lib/events.js';
 
 describe('events', () => {
   let repoRoot: string;
@@ -84,5 +84,12 @@ describe('events', () => {
       from: 'pending', to: 'tactical-plan', actor: 'agent',
     });
     expect(existsSync(path)).toBe(true);
+  });
+
+  it('formatReason handles all combinations', () => {
+    expect(formatReason({})).toBeUndefined();
+    expect(formatReason({ gate: 'human_merge' })).toBe('gate=human_merge');
+    expect(formatReason({ path: 'fast_lane' })).toBe('path=fast_lane');
+    expect(formatReason({ gate: 'human_merge', path: 'fast_lane' })).toBe('gate=human_merge; path=fast_lane');
   });
 });

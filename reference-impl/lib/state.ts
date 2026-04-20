@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { tasksDir, projectsDir } from './paths.js';
-import { emitStatusTransition } from './events.js';
+import { emitStatusTransition, formatReason } from './events.js';
 
 // Import validator from @cloverleaf/standard.
 // The standard package ships TypeScript source only with no exports map.
@@ -91,6 +91,7 @@ export function advanceStatus(
     acceptance_criteria: task.acceptance_criteria,
   };
 
+  const reason = formatReason({ gate: options.gate, path: options.path });
   const event = {
     event_id: randomUUID(),
     event_type: 'status_transition' as const,
@@ -100,7 +101,7 @@ export function advanceStatus(
     from_status: from,
     to_status: toStatus,
     actor: { kind: actor, id: actor },
-    ...(options.gate ? { reason: options.gate } : {}),
+    ...(reason ? { reason } : {}),
   };
 
   const result = validateStatusTransitionLegality(event, sm, workItemForValidator);

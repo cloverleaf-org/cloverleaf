@@ -30,6 +30,13 @@ function actorObject(kind: 'agent' | 'human' | 'system'): { kind: string; id: st
   return { kind, id };
 }
 
+export function formatReason(opts: { gate?: string; path?: string }): string | undefined {
+  const parts: string[] = [];
+  if (opts.gate) parts.push(`gate=${opts.gate}`);
+  if (opts.path) parts.push(`path=${opts.path}`);
+  return parts.length > 0 ? parts.join('; ') : undefined;
+}
+
 /**
  * Emits a status-transition event to `.cloverleaf/events/`.
  * File name: `<PROJECT>-<NNN>-status.json` where NNN is the next per-project
@@ -45,11 +52,7 @@ export function emitStatusTransition(repoRoot: string, params: StatusTransitionP
   const filePath = join(eventsDir(repoRoot), filename);
 
   // Build reason from gate and/or path if provided (schema only allows reason, not gate/path at top level).
-  const { gate, path } = params;
-  const reasonParts: string[] = [];
-  if (gate !== undefined) reasonParts.push(`gate=${gate}`);
-  if (path !== undefined) reasonParts.push(`path=${path}`);
-  const reason = reasonParts.length > 0 ? reasonParts.join('; ') : undefined;
+  const reason = formatReason({ gate: params.gate, path: params.path });
 
   const doc: Record<string, unknown> = {
     event_id: randomUUID(),
