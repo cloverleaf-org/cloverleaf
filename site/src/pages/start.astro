@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Eyebrow from '../components/Eyebrow.astro';
 import Code from '../components/Code.astro';
+import { url } from '../lib/url.js';
 ---
 <Layout title="Start — Cloverleaf">
   <article class="page">
@@ -11,7 +12,7 @@ import Code from '../components/Code.astro';
     <p class="lede">A practical walkthrough for setting up a Cloverleaf-shaped team. Adapt liberally — the methodology binds at phase contracts, not at staffing.</p>
 
     <h2>1. Pick the agents</h2>
-    <p>The 7 default agents are a recommended split, not a mandate. A solo developer can run all 7 in a single Claude session by switching personas; a 50-person engineering org can map them to teams. Start by reading <a href="/guide#chapter-7">Chapter 7 of the guide</a>.</p>
+    <p>The 7 default agents are a recommended split, not a mandate. A solo developer can run all 7 in a single Claude session by switching personas; a 50-person engineering org can map them to teams. Start by reading <a href={url('/guide') + '#chapter-7'}>Chapter 7 of the guide</a>.</p>
 
     <h2>2. Define the gates</h2>
     <p>For each gate (Strategy, Task Batch, Final Approval), decide who staffs it. Use path → reviewer mappings (e.g., changes under <Code>auth/</Code> request a Security Reviewer) to route Tasks automatically.</p>

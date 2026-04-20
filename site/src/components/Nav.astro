@@ -1,5 +1,6 @@
 ---
 import Mark from './Mark.astro';
+import { url } from '../lib/url.js';
 const links = [
   { href: '/guide', label: 'Guide', external: false },
   { href: '/start', label: 'Get started', external: false },
@@ -8,14 +9,14 @@ const links = [
 ];
 ---
 <nav class="site-nav">
-  <a href="/" class="brand">
+  <a href={url('/')} class="brand">
     <Mark size={20} />
     <span class="brand-name">Cloverleaf</span>
   </a>
   <div class="nav-links">
     {links.map(link => link.external
       ? <a href={link.href} target="_blank" rel="noopener noreferrer">{link.label}</a>
-      : <a href={link.href}>{link.label}</a>
+      : <a href={url(link.href)}>{link.label}</a>
     )}
   </div>
 </nav>
