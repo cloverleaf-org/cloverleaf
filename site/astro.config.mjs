@@ -3,7 +3,8 @@ import mdx from '@astrojs/mdx';
 
 export default defineConfig({
   integrations: [mdx()],
-  base: '/',
+  site: 'https://cloverleaf-org.github.io',
+  base: '/cloverleaf',
   trailingSlash: 'never',
   build: {
     inlineStylesheets: 'auto'
