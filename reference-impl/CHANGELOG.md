@@ -36,6 +36,11 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 - Added: `playwright@^1.47.0`, `axe-core@^4.10.0`
 - Unchanged: `@cloverleaf/standard@^0.3.0`
 
+### Known limitations (surfaced by dogfood run)
+
+- UI Reviewer runs axe-core against the full rendered site, not the PR diff. Pre-existing accessibility violations on unrelated pages will bounce PRs that don't touch them. Workaround: the orchestrator operator can override the bounce when the findings are outside the diff (the feedback is still written to `.cloverleaf/feedback/<TASK-ID>-u<N>.json` for traceability). A diff-scoped UI Reviewer is planned for v0.3.
+- Playwright's ~300MB browser install runs once per machine but is not cached across `git worktree`s — each UI Reviewer invocation runs `npm ci` inside the worktree which picks up the globally-installed browsers from `~/.cache/ms-playwright/`. Cache-aware install deferred to v0.3.
+
 ## [0.1.1] — 2026-04-20
 
 Bug-fix release addressing issues surfaced by the v0.1.0 end-to-end demo and final code review.
