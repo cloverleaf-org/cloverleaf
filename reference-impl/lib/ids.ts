@@ -24,11 +24,12 @@ export function nextEventId(repoRoot: string, project: string): number {
   return nums.length === 0 ? 1 : Math.max(...nums) + 1;
 }
 
-export function nextFeedbackIteration(repoRoot: string, project: string, taskNum: number): number {
+export function nextFeedbackIteration(repoRoot: string, project: string, taskNum: number, prefix = 'r'): number {
   const dir = feedbackDir(repoRoot);
   if (!existsSync(dir)) return 1;
   const suffix = String(taskNum).padStart(3, '0');
-  const re = new RegExp(`^${escapeRegex(project)}-${suffix}-r(\\d+)\\.json$`);
+  const escapedPrefix = escapeRegex(prefix);
+  const re = new RegExp(`^${escapeRegex(project)}-${suffix}-${escapedPrefix}(\\d+)\\.json$`);
   const nums = readdirSync(dir)
     .map((f) => f.match(re))
     .filter((m): m is RegExpMatchArray => !!m)

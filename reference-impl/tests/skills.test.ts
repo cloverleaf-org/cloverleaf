@@ -83,3 +83,34 @@ describe('cloverleaf-implement skill (v0.2 path-aware)', () => {
     expect(body).toMatch(/review/);
   });
 });
+
+describe('cloverleaf-ui-review skill', () => {
+  const body = readSkill('cloverleaf-ui-review');
+
+  it('has valid frontmatter with name and description', () => {
+    expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-ui-review[\s\S]*?---/);
+    expect(body).toMatch(/description:.*UI/i);
+  });
+
+  it('dispatches subagent with ui-reviewer prompt', () => {
+    expect(body).toMatch(/prompts\/ui-reviewer\.md/);
+    expect(body).toMatch(/subagent_type.*general-purpose/);
+  });
+
+  it('reads preview port from getFreePort CLI or ports lib', () => {
+    expect(body).toMatch(/preview_port|free.*port|getFreePort/);
+  });
+
+  it('verifies task state is ui-review', () => {
+    expect(body).toMatch(/status.*ui-review|ui-review.*status/);
+  });
+
+  it('handles bounce by looping back to implementing', () => {
+    expect(body).toContain('implementing');
+    expect(body).toContain('bounce');
+  });
+
+  it('writes feedback envelope with u<N> prefix', () => {
+    expect(body).toMatch(/<TASK-ID>-u\d|u<N>|prefix=u/);
+  });
+});

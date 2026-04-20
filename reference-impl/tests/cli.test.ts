@@ -131,4 +131,12 @@ describe('cli', () => {
       expect(stderr).toMatch(/branch|not found/i);
     });
   });
+
+  it('write-feedback --prefix=u writes file with u prefix', () => {
+    const fbFile = join(repoRoot, 'tmp-fb.json');
+    writeFileSync(fbFile, JSON.stringify({ verdict: 'bounce', summary: 's', findings: [{ severity: 'error', message: 'm' }] }));
+    const { exitCode, stdout } = run(['write-feedback', repoRoot, 'DEMO-001', fbFile, '--prefix=u']);
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toMatch(/DEMO-001-u1\.json/);
+  });
 });

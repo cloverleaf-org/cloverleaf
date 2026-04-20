@@ -100,14 +100,18 @@ try {
     }
 
     case 'write-feedback': {
-      const [repoRoot, taskId, envelopeJsonPath] = rest;
+      const positional = rest.filter((a: string) => !a.startsWith('--'));
+      const flags = rest.filter((a: string) => a.startsWith('--'));
+      const [repoRoot, taskId, envelopeJsonPath] = positional;
       if (!repoRoot || !taskId || !envelopeJsonPath)
         usage('write-feedback requires <repoRoot> <taskId> <envelopeJsonPath>');
+      const prefixFlag = flags.find((f: string) => f.startsWith('--prefix='));
+      const prefix = prefixFlag ? prefixFlag.split('=')[1] : 'r';
       const envelope = JSON.parse(readFileSync(envelopeJsonPath, 'utf-8')) as FeedbackEnvelope;
       const match = taskId.match(/^(.+)-\d+$/);
       if (!match) die(`Invalid taskId format: ${taskId}`);
       const project = match[1];
-      const writtenPath = writeFeedback(repoRoot, { project, taskId, envelope });
+      const writtenPath = writeFeedback(repoRoot, { project, taskId, envelope, prefix });
       process.stdout.write(writtenPath + '\n');
       break;
     }
