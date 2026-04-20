@@ -26,21 +26,24 @@
     "skills",
     "lib",
     "prompts",
+    "config",
     "install.sh",
     "README.md",
-    "VERSION"
+    "VERSION",
+    "dist"
   ],
   "publishConfig": {
     "access": "public"
   },
   "bin": {
-    "cloverleaf-cli": "./lib/cli.ts"
+    "cloverleaf-cli": "./dist/cli.mjs"
   },
   "scripts": {
     "test": "tsc --noEmit && vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm test"
+    "build": "tsc -p tsconfig.build.json && node scripts/rename-to-mjs.mjs",
+    "prepublishOnly": "npm test && npm run build"
   },
   "dependencies": {
     "@cloverleaf/standard": "^0.3.0",
