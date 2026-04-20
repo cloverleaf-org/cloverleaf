@@ -93,6 +93,23 @@ describe('ui-reviewer prompt', () => {
     expect(body).not.toMatch(/"location":\s*"<url/);
     expect(body).toMatch(/location.*object|omit.*location/i);
   });
+
+  it('documents the {{affected_routes}} placeholder', () => {
+    expect(body).toContain('{{affected_routes}}');
+  });
+
+  it('documents empty-set early-exit behavior', () => {
+    expect(body.toLowerCase()).toMatch(/no renderable routes affected|skipping axe/);
+  });
+
+  it('documents "all" sentinel crawl fallback', () => {
+    expect(body).toMatch(/"all"/);
+    expect(body.toLowerCase()).toMatch(/v0\.2.*(behavior|crawl)|crawl.*up to 20/);
+  });
+
+  it('notes PLAYWRIGHT_BROWSERS_PATH cache resolution', () => {
+    expect(body).toContain('PLAYWRIGHT_BROWSERS_PATH');
+  });
 });
 
 describe('qa prompt', () => {

@@ -113,6 +113,23 @@ describe('cloverleaf-ui-review skill', () => {
   it('writes feedback envelope with u<N> prefix', () => {
     expect(body).toMatch(/<TASK-ID>-u\d|u<N>|prefix=u/);
   });
+
+  it('calls affected-routes CLI before dispatching subagent', () => {
+    expect(body).toContain('affected-routes');
+  });
+
+  it('handles empty-set early-exit by advancing to qa without subagent', () => {
+    expect(body).toMatch(/\[\]|empty.*set|no.*renderable.*routes/i);
+    expect(body).toMatch(/advance-status.*qa|→ qa/);
+  });
+
+  it('sets PLAYWRIGHT_BROWSERS_PATH before subagent dispatch', () => {
+    expect(body).toContain('PLAYWRIGHT_BROWSERS_PATH');
+  });
+
+  it('passes affected_routes to subagent prompt', () => {
+    expect(body).toContain('{{affected_routes}}');
+  });
 });
 
 describe('cloverleaf-qa skill', () => {

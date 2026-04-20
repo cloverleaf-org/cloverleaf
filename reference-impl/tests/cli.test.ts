@@ -139,4 +139,51 @@ describe('cli', () => {
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toMatch(/DEMO-001-u1\.json/);
   });
+
+  describe('affected-routes', () => {
+    beforeEach(() => {
+      execSync('git init -q -b main', { cwd: repoRoot });
+      execSync('git config user.email test@test', { cwd: repoRoot });
+      execSync('git config user.name test', { cwd: repoRoot });
+      writeFileSync(join(repoRoot, 'README.md'), 'initial\n');
+      execSync('git add . && git commit -q -m initial', { cwd: repoRoot });
+      execSync('git checkout -q -b cloverleaf/DEMO-001', { cwd: repoRoot });
+    });
+
+    it('returns route list for a specific page change', () => {
+      mkdirSync(join(repoRoot, 'site', 'src', 'pages'), { recursive: true });
+      writeFileSync(join(repoRoot, 'site', 'src', 'pages', 'faq.astro'), '<p>faq</p>');
+      execSync('git add . && git commit -q -m "add faq"', { cwd: repoRoot });
+      const { stdout, exitCode } = run(['affected-routes', repoRoot, 'DEMO-001']);
+      expect(exitCode).toBe(0);
+      const parsed = JSON.parse(stdout.trim());
+      expect(parsed).toEqual(['/faq/']);
+    });
+
+    it('returns "all" string for layout changes', () => {
+      mkdirSync(join(repoRoot, 'site', 'src', 'layouts'), { recursive: true });
+      writeFileSync(join(repoRoot, 'site', 'src', 'layouts', 'Base.astro'), 'layout');
+      execSync('git add . && git commit -q -m "layout"', { cwd: repoRoot });
+      const { stdout, exitCode } = run(['affected-routes', repoRoot, 'DEMO-001']);
+      expect(exitCode).toBe(0);
+      expect(stdout.trim()).toBe('"all"');
+    });
+
+    it('returns [] for non-site changes', () => {
+      mkdirSync(join(repoRoot, 'standard', 'src'), { recursive: true });
+      writeFileSync(join(repoRoot, 'standard', 'src', 'foo.ts'), 'export {};');
+      execSync('git add . && git commit -q -m "standard"', { cwd: repoRoot });
+      const { stdout, exitCode } = run(['affected-routes', repoRoot, 'DEMO-001']);
+      expect(exitCode).toBe(0);
+      expect(JSON.parse(stdout.trim())).toEqual([]);
+    });
+
+    it('returns error when feature branch missing', () => {
+      execSync('git checkout -q main', { cwd: repoRoot });
+      execSync('git branch -D cloverleaf/DEMO-001', { cwd: repoRoot });
+      const { exitCode, stderr } = run(['affected-routes', repoRoot, 'DEMO-001']);
+      expect(exitCode).not.toBe(0);
+      expect(stderr).toMatch(/branch|not found/i);
+    });
+  });
 });

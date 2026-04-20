@@ -22,6 +22,7 @@ import { emitGateDecision } from './events.js';
 import { writeFeedback, latestFeedback } from './feedback.js';
 import { nextTaskId, inferProject } from './ids.js';
 import { matchesUiPaths, loadDefaultPatterns } from './ui-paths.js';
+import { computeAffectedRoutes, loadDefaultConfig } from './affected-routes.js';
 import type { FeedbackEnvelope } from './feedback.js';
 
 function die(msg: string, code = 1): never {
@@ -188,6 +189,33 @@ try {
       const patterns = loadDefaultPatterns();
       const result = matchesUiPaths(changed, patterns);
       process.stdout.write(`${result}\n`);
+      process.exit(0);
+    }
+
+    case 'affected-routes': {
+      const [repoRoot, taskId] = rest;
+      if (!repoRoot || !taskId) {
+        console.error('usage: affected-routes <repo_root> <task-id>');
+        process.exit(1);
+      }
+      const branch = `cloverleaf/${taskId}`;
+      let changed: string[];
+      try {
+        const out = execSync(`git diff --name-only main..${branch}`, {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        changed = out.split('\n').map((l) => l.trim()).filter(Boolean);
+      } catch (e: unknown) {
+        const err = e as { stderr?: Buffer | string; message?: string };
+        const stderrStr = typeof err.stderr === 'string' ? err.stderr : err.stderr?.toString() ?? '';
+        console.error(`branch ${branch} not found: ${stderrStr || err.message || 'unknown'}`);
+        process.exit(2);
+      }
+      const config = loadDefaultConfig();
+      const result = computeAffectedRoutes(changed, config);
+      process.stdout.write(`${JSON.stringify(result)}\n`);
       process.exit(0);
     }
 
