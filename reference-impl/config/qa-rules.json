@@ -1,0 +1,19 @@
+{
+  "rules": [
+    {
+      "cwd": "standard",
+      "match": ["standard/**"],
+      "command": "npm ci && npm test"
+    },
+    {
+      "cwd": "reference-impl",
+      "match": ["reference-impl/**"],
+      "command": "npm ci && npm test"
+    },
+    {
+      "cwd": "site",
+      "match": ["site/**"],
+      "command": "npm ci && npm run build"
+    }
+  ]
+}
