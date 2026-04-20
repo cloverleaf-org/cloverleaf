@@ -36,7 +36,16 @@ The user has invoked this skill with a TASK-ID (e.g., `DEMO-001`).
 
 6. On `blocked`: report the reason and stop. Do NOT advance status.
 
-7. On `done`: walk the state machine. Run each of these CLI calls in sequence:
+7. On `done`: walk the state machine. First, switch back to main:
+
+   ```bash
+   cd <repo_root>
+   git checkout main
+   ```
+
+   If this fails (uncommitted changes on main, detached HEAD, etc.), report the error and stop without advancing state.
+
+8. Run each of these CLI calls in sequence:
 
    If the current task status is `pending`:
    ```
@@ -52,17 +61,18 @@ The user has invoked this skill with a TASK-ID (e.g., `DEMO-001`).
    cloverleaf-cli advance-status <repo_root> <TASK-ID> review agent
    ```
 
-8. Commit the state changes:
+9. Commit the state changes:
    ```
    cd <repo_root>
    git add .cloverleaf/
    git commit -m "cloverleaf: <TASK-ID> → review"
    ```
 
-9. Report:
-   - "✓ Implementer done. Branch `<branch>`. State → review."
-   - "Files changed: <comma-separated>."
-   - "Next: `/cloverleaf-review <TASK-ID>`."
+10. Report:
+    - "✓ Implementer done. Branch `<branch>`. State → review."
+    - "Files changed: <comma-separated>."
+    - "Currently on: `main`."
+    - "Next: `/cloverleaf-review <TASK-ID>`."
 
 ## Rules
 

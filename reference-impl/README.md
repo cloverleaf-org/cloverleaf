@@ -57,6 +57,17 @@ Watch it walk the state machine, produce a branch `cloverleaf/DEMO-001` with a `
 
 See [upcoming releases](../CHANGELOG.md) for the roadmap.
 
+## Branch topology
+
+State commits (`.cloverleaf/**`) always land on `main`. Code commits land on a per-task feature branch named `cloverleaf/<task-id>`.
+
+- `main`: canonical audit trail. Every status-transition event, gate decision, and feedback envelope is committed here, in order.
+- `cloverleaf/<task-id>`: code for one task. Branched from main; the Implementer agent lives here.
+
+The skills handle the branch switching for you. After `/cloverleaf-implement <TASK-ID>` runs, you are back on main with the state updates committed; the `cloverleaf/<task-id>` branch holds the code ready for review. After `/cloverleaf-merge`, the audit trail reflects the merged state, and you push the code branch manually.
+
+The Reviewer never switches branches. It reads files via `git show` and runs tests in a `git worktree add` sidecar to avoid clobbering main's `.cloverleaf/`.
+
 ## Package layout
 
 - `lib/` — TypeScript library used by the CLI. State, events, feedback, IDs, paths.

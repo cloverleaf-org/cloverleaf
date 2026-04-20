@@ -5,6 +5,10 @@ description: End-to-end orchestrator. Loops implement → review → (bounce ↻
 
 # Cloverleaf — run (orchestrator)
 
+## Branch discipline
+
+The orchestrator runs each sub-skill with the assumption that the working tree starts on `main`. Between steps, confirm the branch is main before proceeding. The Implementer step leaves the user on main after its internal `git checkout main`; the Reviewer and Merge steps start on main.
+
 ## Steps
 
 1. Capture the TASK-ID.

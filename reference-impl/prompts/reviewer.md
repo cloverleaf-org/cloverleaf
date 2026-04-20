@@ -41,5 +41,16 @@ A `pass` verdict MAY have an empty `findings` array or omit it. A `bounce` verdi
 - You are a fresh pair of eyes. Do not rubber-stamp. If you have substantive doubts, bounce.
 - Check that tests actually cover the AC; a passing test suite with no AC coverage is a bounce.
 - Do NOT modify any files. You are read-only.
+- Do NOT use `git checkout` or `git switch`. Read files via `git show <branch>:<path>`. If you need a live checkout to run tests, use a worktree:
+
+  ```bash
+  git worktree add /tmp/cl-review-<task-id> cloverleaf/<task-id>
+  cd /tmp/cl-review-<task-id>
+  npm install && npm test
+  cd -
+  git worktree remove /tmp/cl-review-<task-id>
+  ```
+
+  This keeps `.cloverleaf/` on main intact.
 - Severities (per the Cloverleaf feedback schema): `blocker` = wrong behavior / missing AC / broken tests; `error` = notable defect that should be fixed but doesn't break AC; `warning` = should fix; `info` = nit / style. Use `blocker` and `error` for bounces.
 - If a criterion is subjective, lean toward pass — the task author chose those words deliberately.

@@ -7,6 +7,16 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
 
 ## Steps
 
+0. Ensure you are on `main`. State is authoritative on main. Run:
+
+   ```bash
+   cd <repo_root>
+   current=$(git rev-parse --abbrev-ref HEAD)
+   if [ "$current" != "main" ]; then git checkout main; fi
+   ```
+
+   If main has uncommitted changes, stop and report — the user must clean up first.
+
 1. Capture the TASK-ID argument.
 
 2. Load the task:
@@ -15,16 +25,22 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
    ```
    Verify `status === "review"`. If not, report the current status and stop.
 
-3. The Implementer's branch is `cloverleaf/<TASK-ID>`. Confirm it exists: `git rev-parse --verify cloverleaf/<TASK-ID>`. If missing, report the discrepancy and stop.
+3. The Implementer's branch is `cloverleaf/<TASK-ID>`. Confirm it exists: `git rev-parse --verify cloverleaf/<TASK-ID>`. If missing, report the discrepancy and stop. Do NOT check out this branch; stay on main.
 
-4. Dispatch the Reviewer subagent via the Task tool:
+4. Compute the diff without checking out:
+   ```bash
+   git diff main..cloverleaf/<TASK-ID>
+   ```
+   Capture this output for the subagent.
+
+5. Dispatch the Reviewer subagent via the Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: `sonnet`
    - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/reviewer.md` with substitutions for `{{task}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{diff}}`.
 
-5. Parse the subagent's response. Expect a feedback envelope JSON of the form `{"verdict": "pass"|"bounce", "summary": "...", "findings": [...]}`. Validate shape: verdict must be `pass` or `bounce`; if `bounce`, findings must have at least one entry with `severity` (one of `blocker|error|warning|info`) and `message`.
+6. Parse the subagent's response. Expect a feedback envelope JSON of the form `{"verdict": "pass"|"bounce", "summary": "...", "findings": [...]}`. Validate shape: verdict must be `pass` or `bounce`; if `bounce`, findings must have at least one entry with `severity` (one of `blocker|error|warning|info`) and `message`.
 
-6. Branch on verdict:
+7. Branch on verdict:
 
    **Pass:**
    ```
