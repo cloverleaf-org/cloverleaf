@@ -51,8 +51,16 @@ describe('computeAffectedRoutes', () => {
     ).toBe('all');
   });
 
-  it('falls back to "all" for unrecognized site paths', () => {
-    expect(computeAffectedRoutes(['site/weird/unknown.xyz'], DEFAULT)).toBe('all');
+  it('falls back to "all" for unrecognized paths inside routeScope', () => {
+    // site/src/weird.xyz is inside routeScope (site/src/**) but matches no specific rule
+    expect(computeAffectedRoutes(['site/src/weird.xyz'], DEFAULT)).toBe('all');
+  });
+
+  it('returns [] for site project-meta files outside routeScope', () => {
+    // site/README.md, package.json, tsconfig.json etc. don't affect rendered routes
+    expect(computeAffectedRoutes(['site/README.md'], DEFAULT)).toEqual([]);
+    expect(computeAffectedRoutes(['site/package.json'], DEFAULT)).toEqual([]);
+    expect(computeAffectedRoutes(['site/tsconfig.json'], DEFAULT)).toEqual([]);
   });
 
   it('short-circuits to "all" on any global match', () => {
@@ -88,6 +96,6 @@ describe('loadDefaultConfig', () => {
     const cfg = loadDefaultConfig();
     expect(cfg.pageRoots).toContain('site/src/pages/');
     expect(cfg.globalPatterns.length).toBeGreaterThanOrEqual(5);
-    expect(cfg.routeScope).toContain('site/**');
+    expect(cfg.routeScope).toContain('site/src/**');
   });
 });
