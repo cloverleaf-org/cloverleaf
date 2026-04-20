@@ -141,4 +141,33 @@ describe('full_pipeline orchestration (CLI-level)', () => {
     );
     expect(merged.status).toBe('merged');
   });
+
+  it('skips ui-review when affected-routes is empty, advances to qa', () => {
+    seedTask('high');
+
+    const warmup: string[][] = [
+      ['advance-status', repoRoot, 'DEMO-001', 'tactical-plan', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'implementing', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'documenting', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'review', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'automated-gates', 'agent'],
+    ];
+    for (const args of warmup) {
+      const { exitCode } = run(args);
+      expect(exitCode).toBe(0);
+    }
+
+    // The real skill would invoke `affected-routes`; here we simulate the empty-set
+    // outcome by advancing automated-gates → qa directly with path=full_pipeline,
+    // matching the skill's step-5 skip-path.
+    const skip = run([
+      'advance-status', repoRoot, 'DEMO-001', 'qa', 'agent', '', 'full_pipeline',
+    ]);
+    expect(skip.exitCode, `cli skip failed: ${skip.stderr}`).toBe(0);
+
+    const task = JSON.parse(
+      readFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'), 'utf-8')
+    );
+    expect(task.status).toBe('qa');
+  });
 });
