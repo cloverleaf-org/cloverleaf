@@ -28,6 +28,9 @@ fi
 
 mkdir -p "${INSTALL_ROOT}/skills" "${INSTALL_ROOT}/prompts" "${INSTALL_ROOT}/bin"
 
+# Symlink config directory
+ln -sf "${SCRIPT_DIR}/config" "${INSTALL_ROOT}/config"
+
 # Symlink skills
 for f in "${SCRIPT_DIR}/skills/"*.md; do
   name="$(basename "$f")"
