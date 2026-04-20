@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { emitStatusTransition, emitGateDecision } from '../lib/events.js';
@@ -75,5 +75,14 @@ describe('events', () => {
       from: 'pending', to: 'tactical-plan', actor: 'agent',
     });
     expect(path).toMatch(/FOO-001-status\.json$/);
+  });
+
+  it('creates events directory if it does not exist', () => {
+    rmSync(join(repoRoot, '.cloverleaf', 'events'), { recursive: true, force: true });
+    const path = emitStatusTransition(repoRoot, {
+      project: 'ACME', workItemType: 'task', workItemId: 'ACME-001',
+      from: 'pending', to: 'tactical-plan', actor: 'agent',
+    });
+    expect(existsSync(path)).toBe(true);
   });
 });

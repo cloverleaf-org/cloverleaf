@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFeedback, latestFeedback, allFeedback, type FeedbackEnvelope } from '../lib/feedback.js';
@@ -64,5 +64,15 @@ describe('feedback', () => {
     writeFeedback(repoRoot, { project: 'ACME', taskId: 'ACME-001', envelope: envelope('pass', 'r3') });
     const items = allFeedback(repoRoot, 'ACME-001');
     expect(items.map((f) => f.summary)).toEqual(['r1', 'r2', 'r3']);
+  });
+
+  it('creates feedback directory if it does not exist', () => {
+    rmSync(join(repoRoot, '.cloverleaf', 'feedback'), { recursive: true, force: true });
+    const path = writeFeedback(repoRoot, {
+      project: 'ACME',
+      taskId: 'ACME-001',
+      envelope: { verdict: 'pass', findings: [] },
+    });
+    expect(existsSync(path)).toBe(true);
   });
 });

@@ -1,4 +1,4 @@
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { eventsDir } from './paths.js';
@@ -65,6 +65,7 @@ export function emitStatusTransition(repoRoot: string, params: StatusTransitionP
     doc.reason = reason;
   }
 
+  mkdirSync(eventsDir(repoRoot), { recursive: true });
   writeFileSync(filePath, JSON.stringify(doc, null, 2) + '\n');
   return filePath;
 }
@@ -95,6 +96,7 @@ export function emitGateDecision(repoRoot: string, params: GateDecisionParams): 
     doc.comment = reasoning;
   }
 
+  mkdirSync(eventsDir(repoRoot), { recursive: true });
   writeFileSync(filePath, JSON.stringify(doc, null, 2) + '\n');
   return filePath;
 }

@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { feedbackDir } from './paths.js';
 import { nextFeedbackIteration } from './ids.js';
@@ -44,6 +44,7 @@ export function writeFeedback(repoRoot: string, params: WriteFeedbackParams): st
   const iteration = nextFeedbackIteration(repoRoot, project, taskNum);
   const filename = `${params.taskId}-r${iteration}.json`;
   const path = join(feedbackDir(repoRoot), filename);
+  mkdirSync(feedbackDir(repoRoot), { recursive: true });
   writeFileSync(path, JSON.stringify(params.envelope, null, 2) + '\n');
   return path;
 }
