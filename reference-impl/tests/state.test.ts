@@ -1,12 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync as realWriteFileSync, rmSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync as realWriteFileSync, rmSync, readdirSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { vi } from 'vitest';
 import { loadTask, saveTask, advanceStatus, loadProject } from '../lib/state.js';
-
-// Original fs.writeFileSync for restoration
-const originalWriteFileSync = realWriteFileSync;
 
 function scaffold(repoRoot: string): void {
   mkdirSync(join(repoRoot, '.cloverleaf', 'projects'), { recursive: true });
@@ -108,28 +104,31 @@ describe('state', () => {
     });
 
     it('throws with orphan-event prefix and preserves task when save fails after emit', () => {
-      // Verifies atomicity when emit succeeds but task save fails.
-      // Error message should start with "orphan event written to ... but task save failed:"
-      // and task status should remain unchanged (no silent drift).
-      //
-      // Implementation in state.ts lines 115-135:
-      //   emitStatusTransition(repoRoot, ...) -> emittedPath
-      //   try {
-      //     saveTask(repoRoot, proposed)
-      //   } catch (err) {
-      //     throw Error(`orphan event written to ${emittedPath} but task save failed: ${inner}`)
-      //   }
-      //
-      // Test approach note:
-      // vi.spyOn(fs, 'writeFileSync') fails in ESM because fs exports are read-only.
-      // Fallback: vi.mock('node:fs', ...) but requires hoisting at module level,
-      // which cannot be applied after state.ts is already imported.
-      // Workaround: verify structure via code inspection and cover scenario via CLI test.
+      const tasksDir = join(repoRoot, '.cloverleaf', 'tasks');
+      const taskPath = join(tasksDir, 'DEMO-001.json');
+      const eventsDir = join(repoRoot, '.cloverleaf', 'events');
+      // Pre-create events dir so emit succeeds (otherwise Fix #1 auto-mkdirs anyway).
+      mkdirSync(eventsDir, { recursive: true });
 
-      // Verify the error message structure exists in the source
-      const source = advanceStatus.toString();
-      expect(source).toContain('orphan event written to');
-      expect(source).toContain('task save failed');
+      // Make task file read-only so saveTask's writeFileSync fails with EACCES.
+      // On Linux/macOS, 0o444 = r--r--r-- prevents any writes.
+      chmodSync(taskPath, 0o444);
+      try {
+        expect(() => advanceStatus(repoRoot, 'DEMO-001', 'tactical-plan', 'agent')).toThrow(
+          /^orphan event written to .+ but task save failed:/
+        );
+
+        // Event file exists (proving emit succeeded before save was attempted).
+        const evts = readdirSync(eventsDir);
+        expect(evts.some((f) => f.endsWith('-status.json'))).toBe(true);
+      } finally {
+        // Restore perms so afterEach can cleanup
+        chmodSync(taskPath, 0o644);
+      }
+
+      // Task file on disk unchanged — original status was 'pending' and save failed
+      // so the file's content is whatever was written by the beforeEach scaffolding.
+      expect(loadTask(repoRoot, 'DEMO-001').status).toBe('pending');
     });
   });
 });
