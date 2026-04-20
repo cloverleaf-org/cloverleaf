@@ -165,3 +165,37 @@ describe('cloverleaf-merge skill (v0.2 state-aware)', () => {
     expect(body.toLowerCase()).toMatch(/ui.review|qa|summary/);
   });
 });
+
+describe('cloverleaf-run skill (v0.2 path-aware)', () => {
+  const body = readSkill('cloverleaf-run');
+
+  it('reads risk_class to select path', () => {
+    expect(body).toContain('risk_class');
+    expect(body).toMatch(/fast.lane|full.pipeline/);
+  });
+
+  it('fast lane calls implement → review → merge', () => {
+    expect(body).toMatch(/cloverleaf-implement[\s\S]*cloverleaf-review[\s\S]*cloverleaf-merge/);
+  });
+
+  it('full pipeline calls implement → document → review → [ui-review?] → qa → merge', () => {
+    expect(body).toContain('cloverleaf-document');
+    expect(body).toContain('cloverleaf-qa');
+    expect(body).toContain('cloverleaf-ui-review');
+  });
+
+  it('has per-agent bounce counters with max 3 each', () => {
+    expect(body).toContain('reviewer_bounces');
+    expect(body).toContain('ui_reviewer_bounces');
+    expect(body).toContain('qa_bounces');
+    expect(body).toMatch(/MAX.*3|max.*3|= 3/);
+  });
+
+  it('uses detect-ui-paths to decide ui-review conditional', () => {
+    expect(body).toContain('detect-ui-paths');
+  });
+
+  it('escalates when any per-agent counter hits cap', () => {
+    expect(body).toMatch(/escalate/i);
+  });
+});
