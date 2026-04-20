@@ -4,3 +4,5 @@ node_modules/
 # kept local-only; do not expose pre-publication design notes.
 .superpowers/
 docs/superpowers/
+
+.claude/plugins/
