@@ -12,6 +12,7 @@
   },
   "axe": {
     "viewports": ["desktop"],
-    "dedupeBy": ["ruleId", "target"]
+    "dedupeBy": ["ruleId", "target"],
+    "ignored": []
   }
 }
