@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const SKILLS_DIR = resolve(__dirname, '..', 'skills');
@@ -256,4 +256,18 @@ describe('cloverleaf-new-task skill (v0.4)', () => {
     expect(body).toContain('.gitignore');
     expect(body).toMatch(/\.cloverleaf\/runs\/?/);
   });
+});
+
+describe('no hardcoded plugin paths in skills (v0.4.1 #7)', () => {
+  const SKILLS_DIR = resolve(__dirname, '..', 'skills');
+  const names = readdirSync(SKILLS_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.startsWith('cloverleaf-'))
+    .map((e) => e.name);
+
+  for (const name of names) {
+    it(`skills/${name}/SKILL.md contains no literal ~/.claude/plugins/cloverleaf/`, () => {
+      const body = readFileSync(resolve(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
+      expect(body).not.toContain('~/.claude/plugins/cloverleaf/');
+    });
+  }
 });
