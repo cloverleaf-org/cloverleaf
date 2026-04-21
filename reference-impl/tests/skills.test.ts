@@ -258,6 +258,19 @@ describe('cloverleaf-new-task skill (v0.4)', () => {
   });
 });
 
+describe('cloverleaf-merge skill (v0.4.1 #1)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-merge', 'SKILL.md'), 'utf-8');
+
+  it('performs a real git merge --no-ff of the feature branch', () => {
+    expect(body).toContain('git merge --no-ff cloverleaf/');
+  });
+
+  it('documents conflict handling via git merge --abort + escalate', () => {
+    expect(body).toContain('git merge --abort');
+    expect(body.toLowerCase()).toMatch(/escalate/);
+  });
+});
+
 describe('no hardcoded plugin paths in skills (v0.4.1 #7)', () => {
   const SKILLS_DIR = resolve(__dirname, '..', 'skills');
   const names = readdirSync(SKILLS_DIR, { withFileTypes: true })
