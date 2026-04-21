@@ -20,6 +20,21 @@ function globToRegex(pattern: string): RegExp {
   return new RegExp(`^${regex}$`);
 }
 
+export function loadUiPathsConfig(repoRoot: string): { patterns: string[] } {
+  const consumerPath = join(repoRoot, '.cloverleaf', 'config', 'ui-paths.json');
+  if (existsSync(consumerPath)) {
+    try {
+      const doc = JSON.parse(readFileSync(consumerPath, 'utf-8')) as { patterns?: string[] };
+      if (Array.isArray(doc.patterns)) {
+        return { patterns: doc.patterns };
+      }
+    } catch {
+      // fall through to package default
+    }
+  }
+  return { patterns: loadDefaultPatterns() };
+}
+
 export function matchesUiPaths(changedFiles: string[], patterns: string[]): boolean {
   if (changedFiles.length === 0) return false;
   const regexes = patterns.map(globToRegex);
