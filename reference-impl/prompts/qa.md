@@ -57,6 +57,27 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 - Use `git worktree`: do NOT `git checkout` in the main working directory.
 - Always teardown the worktree, even on error.
 
+## QA Report (v0.4)
+
+After executing all matched QA rules, write an HTML report summarizing each run to `<repoRoot>/.cloverleaf/runs/{taskId}/qa/report.html` (substitute `{taskId}` with the `id` field from the task input, e.g., `{{task.id}}`).
+
+Use `renderQaReport(runs)` from `lib/qa-report.ts` to produce the HTML. Ensure the directory exists first (`mkdir -p`).
+
+In the feedback you emit, include the report as an attachment on a single info-level finding (or on whichever summary finding you already emit):
+
+```json
+{
+  "severity": "info",
+  "rule": "qa-report",
+  "message": "QA report written",
+  "attachments": [
+    { "label": "report", "path": ".cloverleaf/runs/{taskId}/qa/report.html" }
+  ]
+}
+```
+
+This lets humans at final-gate inspect the full QA detail without grovelling through logs.
+
 ## Output
 
 Respond with exactly one JSON object and nothing else:

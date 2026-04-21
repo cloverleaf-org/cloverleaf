@@ -185,4 +185,14 @@ describe('qa prompt', () => {
   it('explains nothing-testable case', () => {
     expect(body.toLowerCase()).toMatch(/nothing.*testable|skip|no match/);
   });
+
+  it('documents writing a QA HTML report under .cloverleaf/runs/{taskId}/qa/', () => {
+    expect(body).toContain('.cloverleaf/runs');
+    expect(body).toContain('qa/report.html');
+  });
+
+  it('documents attaching the report via finding.attachments', () => {
+    expect(body.toLowerCase()).toMatch(/attachment/);
+    expect(body).toContain('report');
+  });
 });
