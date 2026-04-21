@@ -7,7 +7,7 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
 
 ## Steps
 
-0. Ensure you are on `main`. State is authoritative on main. Run:
+0. Pre-flight: ensure you are on `main` and clean stale feedback temp files from previous runs (prevents /tmp leakage between tasks):
 
    ```bash
    cd <repo_root>
@@ -16,6 +16,10 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
    ```
 
    If main has uncommitted changes, stop and report — the user must clean up first.
+
+   ```bash
+   rm -f /tmp/cloverleaf-fb-r.json /tmp/cloverleaf-fb-u.json /tmp/cloverleaf-fb-q.json
+   ```
 
 1. Capture the TASK-ID argument.
 
@@ -50,11 +54,17 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
    Report: "✓ Review passed. State → automated-gates. Next: `/cloverleaf-merge <TASK-ID>`."
 
    **Bounce:**
-   1. Write the feedback envelope to a temp file: `echo '<envelope-json>' > /tmp/cloverleaf-fb.json`.
-   2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb.json` — captures the path like `.cloverleaf/feedback/<TASK-ID>-r<N>.json`.
-   3. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent` — loops back.
-   4. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> review bounced → implementing"`.
-   5. Report: "✗ Review bounced. Findings: <summarize findings by severity>. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
+   1. Write the feedback envelope to a temp file: `echo '<envelope-json>' > /tmp/cloverleaf-fb-r.json`.
+   2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-r.json` — captures the path like `.cloverleaf/feedback/<TASK-ID>-r<N>.json`.
+   3. Commit the persisted feedback file (was missing pre-v0.4.1 — bug #3):
+      ```bash
+      cd <repo_root>
+      git add .cloverleaf/feedback/
+      git commit -m "cloverleaf: <TASK-ID> review feedback"
+      ```
+   4. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent` — loops back.
+   5. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> review bounced → implementing"`.
+   6. Report: "✗ Review bounced. Findings: <summarize findings by severity>. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
 
 ## Rules
 

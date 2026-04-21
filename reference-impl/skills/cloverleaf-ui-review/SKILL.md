@@ -7,7 +7,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
 ## Steps
 
-0. Ensure you are on `main`. State is authoritative on main. Run:
+0. Pre-flight: ensure you are on `main` and clean stale feedback temp files from previous runs (prevents /tmp leakage between tasks):
 
    ```bash
    cd <repo_root>
@@ -16,6 +16,10 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
    ```
 
    If main has uncommitted changes, stop and report.
+
+   ```bash
+   rm -f /tmp/cloverleaf-fb-r.json /tmp/cloverleaf-fb-u.json /tmp/cloverleaf-fb-q.json
+   ```
 
 1. Capture the TASK-ID argument.
 
@@ -82,9 +86,15 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
     **Bounce:**
     1. Write feedback: `echo '<envelope-json>' > /tmp/cloverleaf-fb-u.json`
     2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-u.json --prefix=u`
-    3. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent '' full_pipeline`
-    4. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review bounced → implementing"`.
-    5. Report: "✗ UI Review bounced. Findings: <summary by severity>. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
+    3. Commit the persisted feedback file (was missing pre-v0.4.1 — bug #3):
+       ```bash
+       cd <repo_root>
+       git add .cloverleaf/feedback/
+       git commit -m "cloverleaf: <TASK-ID> ui-review feedback"
+       ```
+    4. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent '' full_pipeline`
+    5. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review bounced → implementing"`.
+    6. Report: "✗ UI Review bounced. Findings: <summary by severity>. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
 
     **Escalate:**
     1. `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`

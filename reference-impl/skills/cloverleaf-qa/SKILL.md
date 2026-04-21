@@ -7,7 +7,11 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
 
 ## Steps
 
-0. Ensure you are on `main`. If not, `git checkout main`. If main has uncommitted changes, stop and report.
+0. Pre-flight: ensure you are on `main` and clean stale feedback temp files from previous runs (prevents /tmp leakage between tasks). If not on main, `git checkout main`. If main has uncommitted changes, stop and report.
+
+   ```bash
+   rm -f /tmp/cloverleaf-fb-r.json /tmp/cloverleaf-fb-u.json /tmp/cloverleaf-fb-q.json
+   ```
 
 1. Capture the TASK-ID argument.
 
@@ -59,9 +63,15 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
    **Bounce:**
    1. Write feedback envelope: `echo '<json>' > /tmp/cloverleaf-fb-q.json`
    2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-q.json --prefix=q`
-   3. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent --path=full_pipeline`
-   4. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> qa bounced → implementing"`.
-   5. Report: "✗ QA bounced. `<failed>/<total>` tests failed. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
+   3. Commit the persisted feedback file (was missing pre-v0.4.1 — bug #3):
+      ```bash
+      cd <repo_root>
+      git add .cloverleaf/feedback/
+      git commit -m "cloverleaf: <TASK-ID> qa feedback"
+      ```
+   4. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent --path=full_pipeline`
+   5. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> qa bounced → implementing"`.
+   6. Report: "✗ QA bounced. `<failed>/<total>` tests failed. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
 
    **Escalate:**
    1. `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`

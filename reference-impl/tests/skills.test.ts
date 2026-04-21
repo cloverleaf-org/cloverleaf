@@ -284,3 +284,25 @@ describe('no hardcoded plugin paths in skills (v0.4.1 #7)', () => {
     });
   }
 });
+
+describe('reviewer skills /tmp cleanup + feedback commit (v0.4.1 #3, #5)', () => {
+  const REVIEWERS = ['cloverleaf-review', 'cloverleaf-ui-review', 'cloverleaf-qa'] as const;
+
+  for (const name of REVIEWERS) {
+    describe(name, () => {
+      const body = readFileSync(resolve(__dirname, '..', 'skills', name, 'SKILL.md'), 'utf-8');
+
+      it('cleans /tmp/cloverleaf-fb-*.json at step 0', () => {
+        expect(body).toMatch(/rm\s+-f\s+\/tmp\/cloverleaf-fb-r\.json/);
+        expect(body).toContain('/tmp/cloverleaf-fb-u.json');
+        expect(body).toContain('/tmp/cloverleaf-fb-q.json');
+      });
+
+      it('commits feedback after write-feedback', () => {
+        expect(body).toContain('cloverleaf-cli write-feedback');
+        expect(body).toContain('git add .cloverleaf/feedback/');
+        expect(body).toContain('git commit -m');
+      });
+    });
+  }
+});
