@@ -27,6 +27,7 @@ The rationale: baselines on `{{repo_root}}/.cloverleaf/baselines/` get picked up
 ## Scope (v0.4)
 
 - **Accessibility (axe-core):** run at the viewports listed in `{{ui_review_config}}.axe.viewports`.
+  Apply the allowlist in `{{ui_review_config}}.axe.ignored` to drop pre-existing violations that the consumer has accepted (e.g., a11y debt being tracked separately).
   Dedupe findings across viewports by the `{{ui_review_config}}.axe.dedupeBy` composite key (default `["ruleId", "target"]`).
   Emit one finding per (ruleId, target) pair, with a `metadata.viewports` array aggregating the viewports where the violation was detected.
 - **Visual diff (pixelmatch):** when `{{ui_review_config}}.visualDiff.enabled` is true, screenshot each route at each viewport in `{{ui_review_config}}.viewports`, compare to `.cloverleaf/baselines/{route-slug}-{viewport}.png`, emit `severity: "info"` findings with baseline/candidate/diff attachments when the diff ratio exceeds `maxDiffRatio`.
@@ -98,7 +99,7 @@ The `PLAYWRIGHT_BROWSERS_PATH` environment variable is set to `~/.cache/ms-playw
        ```
      - Collect each violation as a raw tuple: `{ viewport, ruleId, target, impact, message, helpUrl }` (from `axe.run` output).
 
-8. Dedupe raw axe findings via `dedupeAxeFindings(raws, {{ui_review_config}}.axe.dedupeBy)` (from `lib/axe-dedupe.ts`). Emit the returned `Finding[]`.
+8. Dedupe raw axe findings via `dedupeAxeFindings(raws, {{ui_review_config}}.axe.dedupeBy, {{ui_review_config}}.axe.ignored)` (from `lib/axe-dedupe.ts`). The `ignored` parameter drops any finding whose `(ruleId, target)` exactly matches an allowlist entry BEFORE dedupe/grouping. Emit the returned `Finding[]`.
 
 9. Severity mapping (preserved from v0.3 via `dedupeAxeFindings`):
    - axe `impact: "critical"` → `severity: "blocker"`

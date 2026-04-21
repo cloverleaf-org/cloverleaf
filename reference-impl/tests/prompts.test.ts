@@ -149,6 +149,11 @@ describe('ui-reviewer prompt', () => {
   it('roots compareVisual paths at {{repo_root}}, not worktree', () => {
     expect(body).toMatch(/baselinePath\s*=\s*\{\{repo_root\}\}\/\.cloverleaf\/baselines/);
   });
+
+  it('documents the axe.ignored allowlist (v0.4.1 #6)', () => {
+    expect(body).toContain('axe.ignored');
+    expect(body.toLowerCase()).toMatch(/allowlist|ignored/);
+  });
 });
 
 describe('qa prompt', () => {
