@@ -1,0 +1,75 @@
+{
+  "verdict": "bounce",
+  "summary": "3 pre-existing color-contrast (serious) violations found on /guide/ at desktop viewport; these are pre-existing site-wide issues not introduced by the CLV-008 copy tweak, but bounce is required by scoring rules for any error-severity finding. 3 new baselines established (mobile, tablet, desktop).",
+  "findings": [
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "new baseline established for /guide/ @ mobile",
+      "metadata": {
+        "route": "/guide/",
+        "viewport": "mobile",
+        "status": "new-baseline"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "new baseline established for /guide/ @ tablet",
+      "metadata": {
+        "route": "/guide/",
+        "viewport": "tablet",
+        "status": "new-baseline"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "new baseline established for /guide/ @ desktop",
+      "metadata": {
+        "route": "/guide/",
+        "viewport": "desktop",
+        "status": "new-baseline"
+      }
+    },
+    {
+      "severity": "error",
+      "message": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "rule": "color-contrast",
+      "metadata": {
+        "target": ".track[data-astro-cid-id7pm74t=\"\"]:nth-child(1) > .track-step[data-astro-cid-jptz7ure=\"\"]:nth-child(4) > .step-meta[data-astro-cid-jptz7ure=\"\"]",
+        "impact": "serious",
+        "viewports": [
+          "desktop"
+        ],
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI"
+      }
+    },
+    {
+      "severity": "error",
+      "message": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "rule": "color-contrast",
+      "metadata": {
+        "target": ".single-track[data-astro-cid-5feoreo4=\"\"] > .track-step[data-astro-cid-jptz7ure=\"\"]:nth-child(4) > .step-meta[data-astro-cid-jptz7ure=\"\"]",
+        "impact": "serious",
+        "viewports": [
+          "desktop"
+        ],
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI"
+      }
+    },
+    {
+      "severity": "error",
+      "message": "Fix any of the following:\n  Element has insufficient color contrast of 2.56 (foreground color: #94a3b8, background color: #ffffff, font size: 6.8pt (9px), font weight: normal). Expected contrast ratio of 4.5:1",
+      "rule": "color-contrast",
+      "metadata": {
+        "target": ".track-step[data-astro-cid-jptz7ure=\"\"]:nth-child(6) > .step-meta[data-astro-cid-jptz7ure=\"\"]",
+        "impact": "serious",
+        "viewports": [
+          "desktop"
+        ],
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=axeAPI"
+      }
+    }
+  ]
+}
