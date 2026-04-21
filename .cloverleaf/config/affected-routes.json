@@ -1,0 +1,14 @@
+{
+  "pageRoots": ["site/src/pages/"],
+  "globalPatterns": [
+    "site/src/layouts/**",
+    "site/src/components/**",
+    "site/src/styles/**",
+    "site/public/**",
+    "site/astro.config.*"
+  ],
+  "routeScope": ["site/src/**", "site/public/**"],
+  "contentRoutes": {
+    "site/src/content/guide/**": "/guide/"
+  }
+}
