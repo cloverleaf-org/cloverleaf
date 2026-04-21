@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { computeAffectedRoutes, loadDefaultConfig } from '../lib/affected-routes.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { computeAffectedRoutes, loadDefaultConfig, loadAffectedRoutesConfig } from '../lib/affected-routes.js';
 
 const DEFAULT = loadDefaultConfig();
 
@@ -97,5 +100,113 @@ describe('loadDefaultConfig', () => {
     expect(cfg.pageRoots).toContain('site/src/pages/');
     expect(cfg.globalPatterns.length).toBeGreaterThanOrEqual(5);
     expect(cfg.routeScope).toContain('site/src/**');
+  });
+
+  it('includes empty contentRoutes on package default', () => {
+    const cfg = loadDefaultConfig();
+    expect(cfg.contentRoutes).toEqual({});
+  });
+});
+
+describe('loadAffectedRoutesConfig', () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-affected-routes-'));
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('returns package default when consumer override is absent', () => {
+    const cfg = loadAffectedRoutesConfig(repoRoot);
+    expect(cfg.pageRoots).toContain('site/src/pages/');
+    expect(cfg.contentRoutes).toEqual({});
+  });
+
+  it('returns consumer override when present', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(
+      join(overrideDir, 'affected-routes.json'),
+      JSON.stringify({
+        pageRoots: ['custom/pages/'],
+        globalPatterns: [],
+        routeScope: ['custom/**'],
+        contentRoutes: { 'custom/content/blog/**': '/blog/' }
+      })
+    );
+    const cfg = loadAffectedRoutesConfig(repoRoot);
+    expect(cfg.pageRoots).toEqual(['custom/pages/']);
+    expect(cfg.contentRoutes).toEqual({ 'custom/content/blog/**': '/blog/' });
+  });
+
+  it('defaults contentRoutes to empty object when consumer override omits it', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(
+      join(overrideDir, 'affected-routes.json'),
+      JSON.stringify({
+        pageRoots: ['x/'],
+        globalPatterns: [],
+        routeScope: ['x/**']
+      })
+    );
+    const cfg = loadAffectedRoutesConfig(repoRoot);
+    expect(cfg.contentRoutes).toEqual({});
+  });
+});
+
+describe('computeAffectedRoutes with contentRoutes', () => {
+  it('maps a content file to its configured route', () => {
+    const cfg = {
+      pageRoots: ['site/src/pages/'],
+      globalPatterns: [],
+      routeScope: ['site/src/**'],
+      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+    };
+    expect(
+      computeAffectedRoutes(['site/src/content/guide/01-intro.mdx'], cfg)
+    ).toEqual(['/guide/']);
+  });
+
+  it('contentRoutes evaluated after globalPatterns short-circuit', () => {
+    const cfg = {
+      pageRoots: [],
+      globalPatterns: ['site/src/content/**'],
+      routeScope: ['site/src/**'],
+      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+    };
+    expect(
+      computeAffectedRoutes(['site/src/content/guide/01.mdx'], cfg)
+    ).toBe('all');
+  });
+
+  it('contentRoutes evaluated before routeScope fallback', () => {
+    const cfg = {
+      pageRoots: [],
+      globalPatterns: [],
+      routeScope: ['site/src/**'],
+      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+    };
+    expect(
+      computeAffectedRoutes(['site/src/content/guide/01.mdx'], cfg)
+    ).toEqual(['/guide/']);
+  });
+
+  it('dedupes content-route results across multiple files mapping to same route', () => {
+    const cfg = {
+      pageRoots: [],
+      globalPatterns: [],
+      routeScope: ['site/src/**'],
+      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+    };
+    expect(
+      computeAffectedRoutes(
+        ['site/src/content/guide/01.mdx', 'site/src/content/guide/02.mdx'],
+        cfg
+      )
+    ).toEqual(['/guide/']);
   });
 });

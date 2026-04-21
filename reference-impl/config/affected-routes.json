@@ -8,5 +8,6 @@
     "site/astro.config.*",
     "site/src/content/**"
   ],
-  "routeScope": ["site/src/**", "site/public/**"]
+  "routeScope": ["site/src/**", "site/public/**"],
+  "contentRoutes": {}
 }
