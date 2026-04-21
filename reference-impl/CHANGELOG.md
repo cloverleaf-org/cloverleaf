@@ -2,6 +2,27 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.0] — Unreleased
+
+### Added
+- Visual regression diffs via pixelmatch; baselines at `.cloverleaf/baselines/{route-slug}-{viewport}.png`, committed to git and updated on merge.
+- Multi-viewport screenshot pass (mobile/tablet/desktop defaults, consumer-overridable).
+- `config/ui-review.json` — new consumer-overridable config shipped as package default.
+- `loadUiReviewConfig(repoRoot)` loader + `cloverleaf-cli ui-review-config` subcommand for prompt substitution.
+- Configurable axe viewport coverage with `(ruleId, target)` dedupe; findings aggregate viewports into `metadata.viewports`.
+- QA HTML report at `.cloverleaf/runs/{taskId}/qa/report.html`; report path surfaced via `finding.attachments`.
+- `Finding.attachments` and `Finding.metadata` typed fields (requires `@cloverleaf/standard@^0.4.0`).
+
+### Changed
+- Package config defaults in `reference-impl/config/*.json` are now framework-generic. Cloverleaf's own site continues to work via `.cloverleaf/config/` consumer overrides (populated in v0.3.1).
+- `@cloverleaf/standard` peer dep bumped from `^0.3.0` to `^0.4.0`.
+
+### Breaking
+- Removed deprecated loaders (already superseded in v0.3.1 by `loadXConfig(repoRoot)` equivalents):
+  - `loadDefaultPatterns` → use `loadUiPathsConfig(repoRoot).patterns`
+  - `loadDefaultRules` → use `loadQaRulesConfig(repoRoot)`
+  - `loadDefaultConfig` → use `loadAffectedRoutesConfig(repoRoot)`
+
 ## [0.3.1] — 2026-04-20
 
 ### Added
