@@ -1,0 +1,23 @@
+{
+  "id": "CLV-007",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Cosmetic /faq/ CSS tweak to exercise v0.4 visual-diff and establish multi-viewport baselines",
+  "context": {},
+  "acceptance_criteria": [
+    "site/src/pages/faq.astro (or a style it pulls in) gains a small, visually obvious cosmetic change — e.g. a heading color, accent background, border, or spacing bump — large enough to be unambiguously detectable in a PNG diff.",
+    "No content/copy on /faq/ is changed; the edit is style-only.",
+    "`npm run build` in site/ succeeds after the change.",
+    "New baseline PNGs exist at .cloverleaf/baselines/faq-mobile.png, .cloverleaf/baselines/faq-tablet.png, and .cloverleaf/baselines/faq-desktop.png, each captured from the post-change /faq/ route at the corresponding viewport.",
+    "The merge commit to main contains the CSS/markup change and all three baseline PNGs together as a single atomic changeset."
+  ],
+  "definition_of_done": [
+    "The /faq/ cosmetic style change and the three new .cloverleaf/baselines/faq-{mobile,tablet,desktop}.png baseline PNGs are merged to main in one commit; the site build passes; only the /faq/ route's baselines are new/modified."
+  ],
+  "risk_class": "high"
+}
