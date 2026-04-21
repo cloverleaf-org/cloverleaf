@@ -12,6 +12,7 @@
  *   write-feedback <repoRoot> <taskId> <envelopeJsonPath>
  *   latest-feedback <repoRoot> <taskId>
  *   emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]
+ *   ui-review-config --repo-root <repoRoot>
  */
 
 import { readFileSync } from 'node:fs';
@@ -25,6 +26,7 @@ import { matchesUiPaths } from './ui-paths.js';
 import { loadUiPathsConfig } from './ui-paths.js';
 import { computeAffectedRoutes } from './affected-routes.js';
 import { loadAffectedRoutesConfig } from './affected-routes.js';
+import { loadUiReviewConfig } from './ui-review-config.js';
 import type { FeedbackEnvelope } from './feedback.js';
 
 function die(msg: string, code = 1): never {
@@ -43,7 +45,8 @@ function usage(msg?: string): never {
       '  advance-status <repoRoot> <taskId> <toStatus> <actor> [gate] [path]\n' +
       '  write-feedback <repoRoot> <taskId> <envelopeJsonPath>\n' +
       '  latest-feedback <repoRoot> <taskId>\n' +
-      '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n'
+      '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n' +
+      '  ui-review-config --repo-root <repoRoot>\n'
   );
   process.exit(2);
 }
@@ -218,6 +221,26 @@ try {
       const config = loadAffectedRoutesConfig(repoRoot);
       const result = computeAffectedRoutes(changed, config);
       process.stdout.write(`${JSON.stringify(result)}\n`);
+      process.exit(0);
+    }
+
+    case 'ui-review-config': {
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const repoRootFlag = flags.find((f) => f.startsWith('--repo-root=') || f === '--repo-root');
+      let repoRoot: string | undefined;
+      if (repoRootFlag === '--repo-root') {
+        repoRoot = rest[rest.indexOf('--repo-root') + 1];
+      } else if (repoRootFlag) {
+        repoRoot = repoRootFlag.replace('--repo-root=', '');
+      } else {
+        repoRoot = rest.filter((a) => !a.startsWith('--'))[0];
+      }
+      if (!repoRoot) {
+        console.error('usage: ui-review-config --repo-root <repoRoot>');
+        process.exit(1);
+      }
+      const config = loadUiReviewConfig(repoRoot);
+      process.stdout.write(JSON.stringify(config, null, 2));
       process.exit(0);
     }
 

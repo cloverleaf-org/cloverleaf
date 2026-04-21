@@ -230,4 +230,32 @@ describe('cli', () => {
       expect(JSON.parse(stdout.trim())).toEqual(['/guide/']);
     });
   });
+
+  describe('cli: ui-review-config', () => {
+    it('prints the resolved UiReviewConfig as JSON (package default)', () => {
+      const { stdout, exitCode } = run(['ui-review-config', '--repo-root', repoRoot]);
+      expect(exitCode).toBe(0);
+      const doc = JSON.parse(stdout);
+      expect(doc.viewports.desktop).toEqual({ width: 1280, height: 800 });
+      expect(doc.visualDiff.enabled).toBe(true);
+      expect(doc.axe.viewports).toEqual(['desktop']);
+    });
+
+    it('honors consumer override', () => {
+      mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'config', 'ui-review.json'),
+        JSON.stringify({
+          viewports: { desktop: { width: 1440, height: 900 } },
+          visualDiff: { enabled: false, threshold: 0.2, maxDiffRatio: 0.02, mask: [] },
+          axe: { viewports: ['desktop'], dedupeBy: ['ruleId', 'target'] },
+        }),
+      );
+      const { stdout, exitCode } = run(['ui-review-config', '--repo-root', repoRoot]);
+      expect(exitCode).toBe(0);
+      const doc = JSON.parse(stdout);
+      expect(doc.viewports.desktop.width).toBe(1440);
+      expect(doc.visualDiff.enabled).toBe(false);
+    });
+  });
 });
