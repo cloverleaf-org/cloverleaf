@@ -19,7 +19,12 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
 
 3. Confirm feature branch exists: `git rev-parse --verify cloverleaf/<TASK-ID>`.
 
-4. Load QA rules JSON:
+4. Ensure required directories exist:
+   ```bash
+   mkdir -p <repo_root>/.cloverleaf/runs/<TASK-ID>/qa
+   ```
+
+5. Load QA rules JSON:
    ```bash
    # Consumer override takes precedence over the package default.
    if [ -f "<repo_root>/.cloverleaf/config/qa-rules.json" ]; then
@@ -30,19 +35,19 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
    ```
    Capture for the subagent as `qa_rules`.
 
-5. Compute diff:
+6. Compute diff:
    ```bash
    git diff main..cloverleaf/<TASK-ID>
    ```
 
-6. Dispatch the QA subagent via the Task tool:
+7. Dispatch the QA subagent via the Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: `sonnet`
-   - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/qa.md` with substitutions for `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{qa_rules}}` (the JSON loaded in step 4).
+   - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/qa.md` with substitutions for `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{qa_rules}}` (the JSON loaded in step 5).
 
-7. Parse response: expect `{"verdict": "pass"|"bounce"|"escalate", "summary", "findings", "results"}`.
+8. Parse response: expect `{"verdict": "pass"|"bounce"|"escalate", "summary", "findings", "results"}`.
 
-8. Branch on verdict:
+9. Branch on verdict:
 
    **Pass:**
    ```

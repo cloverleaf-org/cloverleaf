@@ -221,3 +221,25 @@ describe('cloverleaf-run skill (v0.2 path-aware)', () => {
     expect(body).toMatch(/escalate/i);
   });
 });
+
+describe('cloverleaf-ui-review skill (v0.4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review.md'), 'utf-8');
+
+  it('references {{ui_review_config}} placeholder for prompt substitution', () => {
+    expect(body).toContain('{{ui_review_config}}');
+  });
+
+  it('mkdirs the .cloverleaf/baselines and runs/<taskId>/ui-review paths', () => {
+    expect(body).toContain('.cloverleaf/baselines');
+    expect(body).toContain('ui-review');
+  });
+});
+
+describe('cloverleaf-qa skill (v0.4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-qa.md'), 'utf-8');
+
+  it('mkdirs the .cloverleaf/runs/<taskId>/qa path', () => {
+    expect(body).toContain('.cloverleaf/runs');
+    expect(body).toContain('qa');
+  });
+});
