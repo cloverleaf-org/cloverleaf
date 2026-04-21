@@ -1,0 +1,20 @@
+{
+  "name": "cloverleaf-local",
+  "owner": {
+    "name": "Renato D'Arrigo",
+    "email": "renato.darrigo@gmail.com"
+  },
+  "metadata": {
+    "description": "Cloverleaf methodology ecosystem — ships the reference implementation as a Claude Code plugin."
+  },
+  "plugins": [
+    {
+      "name": "cloverleaf",
+      "description": "Cloverleaf reference implementation — Claude Code skills for task scaffolding and the Delivery pipeline (implement, document, review, UI review with multi-viewport visual diff, QA with HTML reports, merge).",
+      "source": "./reference-impl",
+      "category": "development",
+      "homepage": "https://github.com/cloverleaf-org/cloverleaf",
+      "version": "0.4.0"
+    }
+  ]
+}

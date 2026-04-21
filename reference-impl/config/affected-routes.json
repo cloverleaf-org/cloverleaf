@@ -1,13 +1,11 @@
 {
-  "pageRoots": ["site/src/pages/"],
+  "pageRoots": ["src/pages/"],
   "globalPatterns": [
-    "site/src/layouts/**",
-    "site/src/components/**",
-    "site/src/styles/**",
-    "site/public/**",
-    "site/astro.config.*",
-    "site/src/content/**"
+    "src/layouts/**",
+    "src/components/**",
+    "src/styles/**",
+    "public/**"
   ],
-  "routeScope": ["site/src/**", "site/public/**"],
+  "routeScope": ["src/**", "public/**"],
   "contentRoutes": {}
 }

@@ -1,0 +1,18 @@
+{
+  "name": "cloverleaf",
+  "description": "Cloverleaf reference implementation — Claude Code skills for task scaffolding and the Delivery pipeline (implementer, documenter, reviewer, UI reviewer with multi-viewport visual diff, QA, merge).",
+  "version": "0.4.0",
+  "author": {
+    "name": "Renato D'Arrigo",
+    "email": "renato.darrigo@gmail.com"
+  },
+  "homepage": "https://github.com/cloverleaf-org/cloverleaf",
+  "repository": "https://github.com/cloverleaf-org/cloverleaf",
+  "license": "MIT",
+  "keywords": [
+    "cloverleaf",
+    "methodology",
+    "ai-first",
+    "reference-implementation"
+  ]
+}

@@ -6,3 +6,6 @@ node_modules/
 docs/superpowers/
 
 .claude/plugins/
+
+# Cloverleaf v0.4: baselines/ is tracked, runs/ is ephemeral per-task artifacts
+.cloverleaf/runs/

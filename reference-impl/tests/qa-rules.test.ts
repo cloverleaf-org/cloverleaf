@@ -1,53 +1,61 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { selectTestCommands, loadDefaultRules, loadQaRulesConfig } from '../lib/qa-rules.js';
+import { selectTestCommands, loadQaRulesConfig } from '../lib/qa-rules.js';
 
 describe('selectTestCommands', () => {
-  const defaultRules = loadDefaultRules();
+  let defaultRules: ReturnType<typeof loadQaRulesConfig>;
+  let _tmpRoot: string;
 
-  it('selects standard/ test command when standard paths changed', () => {
-    const cmds = selectTestCommands(['standard/src/foo.ts'], defaultRules);
+  beforeAll(() => {
+    _tmpRoot = mkdtempSync(join(tmpdir(), 'clv-qa-rules-default-'));
+    defaultRules = loadQaRulesConfig(_tmpRoot);
+  });
+
+  afterAll(() => {
+    rmSync(_tmpRoot, { recursive: true, force: true });
+  });
+
+  it('selects the root test command when a .ts file changes', () => {
+    const cmds = selectTestCommands(['src/lib/foo.ts'], defaultRules);
     expect(cmds).toContainEqual(
-      expect.objectContaining({ cwd: 'standard', command: expect.stringMatching(/npm test|vitest/) })
+      expect.objectContaining({ cwd: '.', command: expect.stringMatching(/npm test|vitest/) })
     );
   });
 
-  it('selects reference-impl/ test command when reference-impl paths changed', () => {
-    const cmds = selectTestCommands(['reference-impl/lib/cli.ts'], defaultRules);
+  it('selects the root test command when a .js file changes', () => {
+    const cmds = selectTestCommands(['lib/cli.js'], defaultRules);
     expect(cmds).toContainEqual(
-      expect.objectContaining({ cwd: 'reference-impl', command: expect.stringMatching(/npm test|vitest/) })
+      expect.objectContaining({ cwd: '.', command: expect.stringMatching(/npm test|vitest/) })
     );
   });
 
-  it('selects site/ build command when site paths changed', () => {
-    const cmds = selectTestCommands(['site/src/index.astro'], defaultRules);
+  it('selects the root test command when a .json file changes', () => {
+    const cmds = selectTestCommands(['config/qa-rules.json'], defaultRules);
     expect(cmds).toContainEqual(
-      expect.objectContaining({ cwd: 'site', command: expect.stringMatching(/build/) })
+      expect.objectContaining({ cwd: '.', command: expect.stringMatching(/npm test|vitest/) })
     );
   });
 
-  it('selects multiple commands for multi-package diffs', () => {
+  it('returns no duplicate commands for multi-file diffs matching the same rule', () => {
     const cmds = selectTestCommands(
-      ['standard/src/a.ts', 'reference-impl/lib/b.ts'],
+      ['src/a.ts', 'src/b.ts', 'lib/c.js'],
       defaultRules
     );
-    expect(cmds.length).toBe(2);
-    expect(cmds.map((c) => c.cwd).sort()).toEqual(['reference-impl', 'standard']);
+    // All match the single default rule — deduped to 1
+    expect(cmds.length).toBe(1);
+    expect(cmds[0].cwd).toBe('.');
   });
 
   it('returns empty array for non-testable changes', () => {
-    const cmds = selectTestCommands(['.cloverleaf/events/x.json'], defaultRules);
+    // .md and .yaml files don't match the default rule's match patterns
+    const cmds = selectTestCommands(['.cloverleaf/events/x.md', 'docs/README.md'], defaultRules);
     expect(cmds).toEqual([]);
   });
 
-  it('default rules include the three packages', () => {
-    expect(defaultRules.length).toBeGreaterThanOrEqual(3);
-    const cwds = defaultRules.map((r) => r.cwd);
-    expect(cwds).toContain('standard');
-    expect(cwds).toContain('reference-impl');
-    expect(cwds).toContain('site');
+  it('default rules include at least one rule', () => {
+    expect(defaultRules.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -64,10 +72,9 @@ describe('loadQaRulesConfig', () => {
 
   it('returns package default when consumer override is absent', () => {
     const rules = loadQaRulesConfig(repoRoot);
+    expect(rules.length).toBeGreaterThanOrEqual(1);
     const cwds = rules.map((r) => r.cwd);
-    expect(cwds).toContain('standard');
-    expect(cwds).toContain('reference-impl');
-    expect(cwds).toContain('site');
+    expect(cwds).toContain('.');
   });
 
   it('returns consumer override when present', () => {
@@ -92,7 +99,7 @@ describe('loadQaRulesConfig', () => {
     mkdirSync(overrideDir, { recursive: true });
     writeFileSync(join(overrideDir, 'qa-rules.json'), JSON.stringify({ foo: 'bar' }));
     const rules = loadQaRulesConfig(repoRoot);
-    expect(rules.length).toBeGreaterThanOrEqual(3);
+    expect(rules.length).toBeGreaterThanOrEqual(1);
   });
 
   it('ignores consumer override with invalid JSON', () => {
@@ -100,6 +107,6 @@ describe('loadQaRulesConfig', () => {
     mkdirSync(overrideDir, { recursive: true });
     writeFileSync(join(overrideDir, 'qa-rules.json'), 'not json');
     const rules = loadQaRulesConfig(repoRoot);
-    expect(rules.length).toBeGreaterThanOrEqual(3);
+    expect(rules.length).toBeGreaterThanOrEqual(1);
   });
 });

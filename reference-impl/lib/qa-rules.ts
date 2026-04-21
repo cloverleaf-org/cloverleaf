@@ -12,7 +12,7 @@ export interface QaRule {
   command: string;
 }
 
-export function loadDefaultRules(): QaRule[] {
+function loadDefaultRules(): QaRule[] {
   if (!existsSync(DEFAULT_CONFIG)) return [];
   const doc = JSON.parse(readFileSync(DEFAULT_CONFIG, 'utf-8')) as { rules?: QaRule[] };
   return Array.isArray(doc.rules) ? doc.rules : [];

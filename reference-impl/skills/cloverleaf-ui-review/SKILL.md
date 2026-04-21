@@ -27,12 +27,18 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
 3. Confirm feature branch exists: `git rev-parse --verify cloverleaf/<TASK-ID>`. If missing, report and stop.
 
-4. Compute affected routes:
+4. Ensure required directories exist:
+   ```bash
+   mkdir -p <repo_root>/.cloverleaf/baselines
+   mkdir -p <repo_root>/.cloverleaf/runs/<TASK-ID>/ui-review
+   ```
+
+5. Compute affected routes:
    ```bash
    AFFECTED=$(~/.claude/plugins/cloverleaf/bin/cloverleaf-cli affected-routes <repo_root> <TASK-ID>)
    ```
 
-5. **Empty-set early-exit.** If `AFFECTED` is `[]`, skip the subagent entirely:
+6. **Empty-set early-exit.** If `AFFECTED` is `[]`, skip the subagent entirely:
    ```bash
    cloverleaf-cli advance-status <repo_root> <TASK-ID> qa agent '' full_pipeline
    cd <repo_root>
@@ -42,28 +48,29 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
    Report: "✓ UI Review skipped (no renderable routes affected). State → qa. Next: `/cloverleaf-qa <TASK-ID>`."
    Stop here.
 
-6. Allocate a free preview port:
+7. Allocate a free preview port:
    ```bash
    PREVIEW_PORT=$(node -e "const net=require('net');const s=net.createServer();s.listen(0,()=>{console.log(s.address().port);s.close()})")
    ```
 
-7. Compute diff:
+8. Compute diff:
    ```bash
    git diff main..cloverleaf/<TASK-ID>
    ```
 
-8. **Browser cache env var.** Before the Task-tool dispatch, ensure `PLAYWRIGHT_BROWSERS_PATH=~/.cache/ms-playwright` is exported so the subagent inherits it. This keeps Playwright from re-downloading ~300 MB of browser binaries inside the worktree.
+9. **Browser cache env var.** Before the Task-tool dispatch, ensure `PLAYWRIGHT_BROWSERS_PATH=~/.cache/ms-playwright` is exported so the subagent inherits it. This keeps Playwright from re-downloading ~300 MB of browser binaries inside the worktree.
 
-9. Dispatch the UI Reviewer subagent via the Task tool:
-   - `subagent_type`: `general-purpose`
-   - `model`: `sonnet`
-   - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/ui-reviewer.md` with substitutions:
-     - `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{preview_port}}`
-     - `{{affected_routes}}` → the value of `$AFFECTED` (verbatim — may be `"all"`, a JSON array, or `[]` but step 5 handled `[]` already)
+10. Dispatch the UI Reviewer subagent via the Task tool:
+    - `subagent_type`: `general-purpose`
+    - `model`: `sonnet`
+    - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/ui-reviewer.md` with substitutions:
+      - `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{preview_port}}`
+      - `{{affected_routes}}` → the value of `$AFFECTED` (verbatim — may be `"all"`, a JSON array, or `[]` but step 6 handled `[]` already)
+      - `{{ui_review_config}}` → JSON-stringified result of `cloverleaf-cli ui-review-config <repo_root>` (used by the subagent to scope viewport sizes, thresholds, and axe rule overrides)
 
-10. Parse the subagent's response. Expect `{"verdict": "pass"|"bounce"|"escalate", "summary": "...", "findings": [...]}`.
+11. Parse the subagent's response. Expect `{"verdict": "pass"|"bounce"|"escalate", "summary": "...", "findings": [...]}`.
 
-11. Branch on verdict:
+12. Branch on verdict:
 
     **Pass:**
     ```
@@ -89,5 +96,5 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 - Never push.
 - Do not modify source code — UI Reviewer is read-only.
 - Always teardown preview server + worktree on error.
-- Empty-set early-exit (step 5) skips the browser entirely — no Playwright invocation, no worktree.
+- Empty-set early-exit (step 6) skips the browser entirely — no Playwright invocation, no worktree.
 - On illegal state transition, report and stop without partial commits.

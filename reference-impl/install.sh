@@ -2,59 +2,45 @@
 set -euo pipefail
 
 # Cloverleaf Reference Impl installer.
-# Default: installs skills + CLI shim into ~/.claude/plugins/cloverleaf/.
-# --project: installs locally into ./.claude/plugins/cloverleaf/.
+#
+# As of v0.4.0, cloverleaf installs as a proper Claude Code plugin via the
+# `claude plugin` CLI. Point Claude Code at the cloverleaf repo root (where
+# .claude-plugin/marketplace.json lives), then install the plugin from the
+# resulting marketplace.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MODE="user"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --project) MODE="project"; shift ;;
-    --help|-h)
-      echo "Usage: ./install.sh [--project]"
-      echo "  --project: install locally in .claude/plugins/cloverleaf/"
-      echo "  (default): install at ~/.claude/plugins/cloverleaf/"
-      exit 0 ;;
-    *) echo "Unknown arg: $1"; exit 2 ;;
-  esac
-done
-
-if [[ "$MODE" == "user" ]]; then
-  INSTALL_ROOT="${HOME}/.claude/plugins/cloverleaf"
-else
-  INSTALL_ROOT="$(pwd)/.claude/plugins/cloverleaf"
+if ! command -v claude >/dev/null 2>&1; then
+  echo "error: 'claude' CLI not found on PATH."
+  echo "Install Claude Code first: https://docs.claude.com/claude-code"
+  exit 1
 fi
 
-mkdir -p "${INSTALL_ROOT}/skills" "${INSTALL_ROOT}/prompts" "${INSTALL_ROOT}/bin"
+if [ ! -f "${REPO_ROOT}/.claude-plugin/marketplace.json" ]; then
+  echo "error: ${REPO_ROOT}/.claude-plugin/marketplace.json not found."
+  echo "This script expects to be run from inside a cloverleaf checkout."
+  exit 1
+fi
 
-# Symlink config directory
-ln -sf "${SCRIPT_DIR}/config" "${INSTALL_ROOT}/config"
+echo "Registering cloverleaf marketplace from ${REPO_ROOT}..."
+claude plugin marketplace add "${REPO_ROOT}"
 
-# Symlink skills
-for f in "${SCRIPT_DIR}/skills/"*.md; do
-  name="$(basename "$f")"
-  ln -sf "$f" "${INSTALL_ROOT}/skills/${name}"
-done
+echo "Installing cloverleaf plugin..."
+claude plugin install cloverleaf@cloverleaf-local
 
-# Symlink prompts
-for f in "${SCRIPT_DIR}/prompts/"*.md; do
-  name="$(basename "$f")"
-  ln -sf "$f" "${INSTALL_ROOT}/prompts/${name}"
-done
-
-# Write the CLI shim
-cat > "${INSTALL_ROOT}/bin/cloverleaf-cli" <<EOF
-#!/usr/bin/env bash
-exec npx --yes tsx "${SCRIPT_DIR}/lib/cli.ts" "\$@"
-EOF
-chmod +x "${INSTALL_ROOT}/bin/cloverleaf-cli"
-
-echo "Cloverleaf reference impl installed at: ${INSTALL_ROOT}"
-echo "Skills available: $(ls "${INSTALL_ROOT}/skills" | wc -l | tr -d ' ')"
 echo ""
-echo "Add ${INSTALL_ROOT}/bin to your PATH if you want to invoke cloverleaf-cli directly,"
-echo "or reference it by absolute path from your skill calls."
+echo "Cloverleaf installed. Slash commands:"
+echo "  /cloverleaf-new-task   — scaffold a Task from a brief"
+echo "  /cloverleaf-run        — full pipeline orchestrator"
+echo "  /cloverleaf-implement  — run Implementer"
+echo "  /cloverleaf-document   — run Documenter"
+echo "  /cloverleaf-review     — run Reviewer"
+echo "  /cloverleaf-ui-review  — run UI Reviewer (visual diff + multi-viewport + axe)"
+echo "  /cloverleaf-qa         — run QA"
+echo "  /cloverleaf-merge      — merge gate"
+echo ""
+echo "Restart any open Claude Code sessions to pick up the new skills."
 
 # Post-install: warn about Playwright chromium if not cached
 if [ ! -d "${HOME}/.cache/ms-playwright" ] || [ -z "$(ls -A "${HOME}/.cache/ms-playwright" 2>/dev/null)" ]; then

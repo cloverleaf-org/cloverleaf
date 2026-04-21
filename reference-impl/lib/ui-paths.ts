@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CONFIG = join(here, '..', 'config', 'ui-paths.json');
 
-export function loadDefaultPatterns(): string[] {
+function loadDefaultPatterns(): string[] {
   if (!existsSync(DEFAULT_CONFIG)) return ['site/**'];
   const doc = JSON.parse(readFileSync(DEFAULT_CONFIG, 'utf-8')) as { patterns?: string[] };
   return Array.isArray(doc.patterns) ? doc.patterns : ['site/**'];

@@ -80,9 +80,28 @@ describe('ui-reviewer prompt', () => {
     expect(body).toMatch(/pass|bounce|escalate/);
   });
 
-  it('documents the 20-page cap and single viewport', () => {
-    expect(body).toMatch(/20.*pages?|cap.*20/);
-    expect(body).toMatch(/1280.*800/);
+  it('documents the {{ui_review_config}} placeholder', () => {
+    expect(body).toContain('{{ui_review_config}}');
+  });
+
+  it('references multi-viewport screenshotting', () => {
+    expect(body.toLowerCase()).toMatch(/viewport(s)?/);
+    expect(body).toMatch(/mobile|tablet|desktop/i);
+  });
+
+  it('references visual diff via pixelmatch / baselines', () => {
+    expect(body.toLowerCase()).toMatch(/visual[- ]diff|pixelmatch|baseline/);
+    expect(body).toMatch(/\.cloverleaf\/baselines/);
+  });
+
+  it('documents info-severity for visual-diff findings', () => {
+    expect(body.toLowerCase()).toMatch(/severity.*info|info.*severity|severity[^\n]*"info"/);
+    expect(body).toMatch(/visual[- ]diff/i);
+  });
+
+  it('documents axe dedupe by (ruleId, target) with viewports aggregated', () => {
+    expect(body.toLowerCase()).toMatch(/dedupe|aggregat/);
+    expect(body).toMatch(/viewports/);
   });
 
   it('forbids touching source code', () => {
@@ -165,5 +184,15 @@ describe('qa prompt', () => {
 
   it('explains nothing-testable case', () => {
     expect(body.toLowerCase()).toMatch(/nothing.*testable|skip|no match/);
+  });
+
+  it('documents writing a QA HTML report under .cloverleaf/runs/{taskId}/qa/', () => {
+    expect(body).toContain('.cloverleaf/runs');
+    expect(body).toContain('qa/report.html');
+  });
+
+  it('documents attaching the report via finding.attachments', () => {
+    expect(body.toLowerCase()).toMatch(/attachment/);
+    expect(body).toContain('report');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { matchesUiPaths, loadDefaultPatterns, loadUiPathsConfig } from '../lib/ui-paths.js';
+import { matchesUiPaths, loadUiPathsConfig } from '../lib/ui-paths.js';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -36,9 +36,14 @@ describe('matchesUiPaths', () => {
     expect(matchesUiPaths(['apps/api/x.ts'], patterns)).toBe(false);
   });
 
-  it('loads default patterns from config file', () => {
-    const patterns = loadDefaultPatterns();
-    expect(patterns).toContain('site/**');
+  it('package default patterns include src/pages/**', () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'clv-ui-paths-default-'));
+    try {
+      const { patterns } = loadUiPathsConfig(tmpRoot);
+      expect(patterns).toContain('src/pages/**');
+    } finally {
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });
 
@@ -55,7 +60,7 @@ describe('loadUiPathsConfig', () => {
 
   it('returns package default when consumer override is absent', () => {
     const cfg = loadUiPathsConfig(repoRoot);
-    expect(cfg.patterns).toContain('site/**');
+    expect(cfg.patterns).toContain('src/pages/**');
   });
 
   it('returns consumer override when present', () => {
@@ -78,7 +83,7 @@ describe('loadUiPathsConfig', () => {
       JSON.stringify({ unrelated: 'data' })
     );
     const cfg = loadUiPathsConfig(repoRoot);
-    expect(cfg.patterns).toContain('site/**');
+    expect(cfg.patterns).toContain('src/pages/**');
   });
 
   it('ignores consumer override with invalid JSON', () => {
@@ -89,6 +94,6 @@ describe('loadUiPathsConfig', () => {
       'not-valid-json'
     );
     const cfg = loadUiPathsConfig(repoRoot);
-    expect(cfg.patterns).toContain('site/**');
+    expect(cfg.patterns).toContain('src/pages/**');
   });
 });

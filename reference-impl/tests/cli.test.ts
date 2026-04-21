@@ -105,9 +105,9 @@ describe('cli', () => {
       execSync('git checkout -q -b cloverleaf/DEMO-001', { cwd: repoRoot });
     });
 
-    it('returns true when site/** paths changed', () => {
-      mkdirSync(join(repoRoot, 'site', 'src'), { recursive: true });
-      writeFileSync(join(repoRoot, 'site', 'src', 'page.astro'), '<p>hi</p>');
+    it('returns true when src/pages/** paths changed', () => {
+      mkdirSync(join(repoRoot, 'src', 'pages'), { recursive: true });
+      writeFileSync(join(repoRoot, 'src', 'pages', 'index.astro'), '<p>hi</p>');
       execSync('git add . && git commit -q -m "add page"', { cwd: repoRoot });
       const { stdout, exitCode } = run(['detect-ui-paths', repoRoot, 'DEMO-001']);
       expect(exitCode).toBe(0);
@@ -151,8 +151,8 @@ describe('cli', () => {
     });
 
     it('returns route list for a specific page change', () => {
-      mkdirSync(join(repoRoot, 'site', 'src', 'pages'), { recursive: true });
-      writeFileSync(join(repoRoot, 'site', 'src', 'pages', 'faq.astro'), '<p>faq</p>');
+      mkdirSync(join(repoRoot, 'src', 'pages'), { recursive: true });
+      writeFileSync(join(repoRoot, 'src', 'pages', 'faq.astro'), '<p>faq</p>');
       execSync('git add . && git commit -q -m "add faq"', { cwd: repoRoot });
       const { stdout, exitCode } = run(['affected-routes', repoRoot, 'DEMO-001']);
       expect(exitCode).toBe(0);
@@ -161,8 +161,8 @@ describe('cli', () => {
     });
 
     it('returns "all" string for layout changes', () => {
-      mkdirSync(join(repoRoot, 'site', 'src', 'layouts'), { recursive: true });
-      writeFileSync(join(repoRoot, 'site', 'src', 'layouts', 'Base.astro'), 'layout');
+      mkdirSync(join(repoRoot, 'src', 'layouts'), { recursive: true });
+      writeFileSync(join(repoRoot, 'src', 'layouts', 'Base.astro'), 'layout');
       execSync('git add . && git commit -q -m "layout"', { cwd: repoRoot });
       const { stdout, exitCode } = run(['affected-routes', repoRoot, 'DEMO-001']);
       expect(exitCode).toBe(0);
@@ -228,6 +228,34 @@ describe('cli', () => {
       execSync('git add . && git commit -q -m "guide chapter"', { cwd: repoRoot });
       const { stdout } = run(['affected-routes', repoRoot, 'DEMO-001']);
       expect(JSON.parse(stdout.trim())).toEqual(['/guide/']);
+    });
+  });
+
+  describe('cli: ui-review-config', () => {
+    it('prints the resolved UiReviewConfig as JSON (package default)', () => {
+      const { stdout, exitCode } = run(['ui-review-config', '--repo-root', repoRoot]);
+      expect(exitCode).toBe(0);
+      const doc = JSON.parse(stdout);
+      expect(doc.viewports.desktop).toEqual({ width: 1280, height: 800 });
+      expect(doc.visualDiff.enabled).toBe(true);
+      expect(doc.axe.viewports).toEqual(['desktop']);
+    });
+
+    it('honors consumer override', () => {
+      mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'config', 'ui-review.json'),
+        JSON.stringify({
+          viewports: { desktop: { width: 1440, height: 900 } },
+          visualDiff: { enabled: false, threshold: 0.2, maxDiffRatio: 0.02, mask: [] },
+          axe: { viewports: ['desktop'], dedupeBy: ['ruleId', 'target'] },
+        }),
+      );
+      const { stdout, exitCode } = run(['ui-review-config', '--repo-root', repoRoot]);
+      expect(exitCode).toBe(0);
+      const doc = JSON.parse(stdout);
+      expect(doc.viewports.desktop.width).toBe(1440);
+      expect(doc.visualDiff.enabled).toBe(false);
     });
   });
 });

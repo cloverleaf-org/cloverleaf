@@ -50,6 +50,24 @@
         "rule": {
           "type": "string",
           "description": "Stable identifier for the check that fired (e.g., 'no-self-review', 'a11y.wcag.1.3.1')."
+        },
+        "attachments": {
+          "type": "array",
+          "description": "File paths (repoRoot-relative) pointing to artifacts that accompany the finding (e.g., screenshots, reports).",
+          "items": {
+            "type": "object",
+            "required": ["label", "path"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "path":  { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Source-specific structured data (e.g., axe rule metadata, viewport aggregations, diff ratios). Shape is not constrained by the Standard.",
+          "additionalProperties": true
         }
       },
       "additionalProperties": false

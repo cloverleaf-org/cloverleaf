@@ -45,7 +45,19 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
 
 6. Commit: `git add .cloverleaf/tasks/<allocated-id>.json && git commit -m "cloverleaf: task <allocated-id>"`.
 
-7. Report:
+7. **v0.4 scaffolding:** Ensure baseline and run directories are set up:
+   ```bash
+   # v0.4 scaffolding additions — baselines tracked, runs ephemeral
+   mkdir -p <repo_root>/.cloverleaf/baselines
+   mkdir -p <repo_root>/.cloverleaf/runs
+   
+   # Ensure .gitignore excludes runs/ (baselines ARE tracked, only runs is ephemeral)
+   if ! grep -qE '^\.cloverleaf/runs/?$' <repo_root>/.gitignore 2>/dev/null; then
+     echo '.cloverleaf/runs/' >> <repo_root>/.gitignore
+   fi
+   ```
+
+8. Report:
    - "Created `<allocated-id>` at `.cloverleaf/tasks/<allocated-id>.json`."
    - Show the generated acceptance criteria.
    - Suggest: "Review and edit the task if needed, then run `/cloverleaf-run <allocated-id>`."
@@ -62,3 +74,8 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
 - After writing the task, report the chosen risk_class and how it was determined, e.g.:
   > "Risk class: `high` → full pipeline (matched keyword `component` in acceptance criterion). Override with `--risk=low` if desired."
 - Users can manually edit `risk_class` in the task JSON before running `/cloverleaf-run`.
+
+## v0.4 artifacts
+
+- `.cloverleaf/baselines/` is **tracked** in git; baseline PNGs travel with code.
+- `.cloverleaf/runs/` is **gitignored**; each task's run artifacts (diffs, candidate screenshots, QA reports) are ephemeral.

@@ -34,7 +34,7 @@ function routeForPage(file: string, pageRoot: string): string | null {
   return `/${withoutExt}/`;
 }
 
-export function loadDefaultConfig(): AffectedRoutesConfig {
+function loadDefaultConfig(): AffectedRoutesConfig {
   if (!existsSync(DEFAULT_CONFIG)) {
     throw new Error(`affected-routes config not found at ${DEFAULT_CONFIG}`);
   }

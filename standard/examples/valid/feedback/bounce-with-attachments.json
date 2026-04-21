@@ -1,0 +1,32 @@
+{
+  "verdict": "bounce",
+  "summary": "Visual diff and a11y violation detected.",
+  "findings": [
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "visual diff: /faq/ @ mobile — 3.4% pixels differ",
+      "metadata": {
+        "route": "/faq/",
+        "viewport": "mobile",
+        "diffRatio": 0.034
+      },
+      "attachments": [
+        { "label": "baseline", "path": ".cloverleaf/baselines/faq-mobile.png" },
+        { "label": "candidate", "path": ".cloverleaf/runs/DEMO-001/ui-review/candidate-faq-mobile.png" },
+        { "label": "diff", "path": ".cloverleaf/runs/DEMO-001/ui-review/diff-faq-mobile.png" }
+      ]
+    },
+    {
+      "severity": "error",
+      "rule": "color-contrast",
+      "message": "color-contrast on button.primary",
+      "metadata": {
+        "target": "button.primary",
+        "viewports": ["mobile", "desktop"],
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.7/color-contrast"
+      }
+    }
+  ]
+}

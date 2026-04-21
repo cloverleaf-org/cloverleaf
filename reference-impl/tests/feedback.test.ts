@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { writeFeedback, latestFeedback, allFeedback, type FeedbackEnvelope } from '../lib/feedback.js';
+import { writeFeedback, latestFeedback, allFeedback, type FeedbackEnvelope, type Finding } from '../lib/feedback.js';
 
 function envelope(verdict: 'pass' | 'bounce' | 'escalate', summary = 'x'): FeedbackEnvelope {
   return {
@@ -74,5 +74,22 @@ describe('feedback', () => {
       envelope: { verdict: 'pass', findings: [] },
     });
     expect(existsSync(path)).toBe(true);
+  });
+});
+
+describe('Finding type — v0.4.0 additions', () => {
+  it('accepts attachments + metadata on a finding', () => {
+    const f: Finding = {
+      severity: 'info',
+      message: 'visual diff',
+      rule: 'visual-diff',
+      metadata: { route: '/faq/', viewport: 'mobile', diffRatio: 0.034 },
+      attachments: [
+        { label: 'baseline', path: '.cloverleaf/baselines/faq-mobile.png' },
+        { label: 'diff',     path: '.cloverleaf/runs/X/ui-review/diff-faq-mobile.png' },
+      ],
+    };
+    expect(f.attachments).toHaveLength(2);
+    expect(f.metadata?.diffRatio).toBe(0.034);
   });
 });

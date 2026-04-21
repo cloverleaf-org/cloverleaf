@@ -13,12 +13,19 @@ export interface FindingLocation {
   work_item_id?: { project: string; id: string };
 }
 
+export interface Attachment {
+  label: string;
+  path: string;
+}
+
 export interface Finding {
   severity: FindingSeverity;
   message: string;
   location?: FindingLocation;
   suggestion?: string;
   rule?: string;
+  attachments?: Attachment[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface FeedbackEnvelope {

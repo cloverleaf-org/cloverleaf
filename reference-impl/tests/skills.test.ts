@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 const SKILLS_DIR = resolve(__dirname, '..', 'skills');
 
 function readSkill(name: string): string {
-  return readFileSync(resolve(SKILLS_DIR, `${name}.md`), 'utf-8');
+  return readFileSync(resolve(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
 }
 
 describe('cloverleaf-new-task skill', () => {
@@ -219,5 +219,41 @@ describe('cloverleaf-run skill (v0.2 path-aware)', () => {
 
   it('escalates when any per-agent counter hits cap', () => {
     expect(body).toMatch(/escalate/i);
+  });
+});
+
+describe('cloverleaf-ui-review skill (v0.4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
+
+  it('references {{ui_review_config}} placeholder for prompt substitution', () => {
+    expect(body).toContain('{{ui_review_config}}');
+  });
+
+  it('mkdirs the .cloverleaf/baselines and runs/<taskId>/ui-review paths', () => {
+    expect(body).toContain('.cloverleaf/baselines');
+    expect(body).toContain('ui-review');
+  });
+});
+
+describe('cloverleaf-qa skill (v0.4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-qa', 'SKILL.md'), 'utf-8');
+
+  it('mkdirs the .cloverleaf/runs/<taskId>/qa path', () => {
+    expect(body).toContain('.cloverleaf/runs');
+    expect(body).toContain('qa');
+  });
+});
+
+describe('cloverleaf-new-task skill (v0.4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-new-task', 'SKILL.md'), 'utf-8');
+
+  it('mkdirs .cloverleaf/baselines and .cloverleaf/runs', () => {
+    expect(body).toContain('.cloverleaf/baselines');
+    expect(body).toContain('.cloverleaf/runs');
+  });
+
+  it('appends .cloverleaf/runs/ to .gitignore if missing', () => {
+    expect(body).toContain('.gitignore');
+    expect(body).toMatch(/\.cloverleaf\/runs\/?/);
   });
 });
