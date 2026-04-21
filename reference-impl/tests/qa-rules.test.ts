@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { selectTestCommands, loadDefaultRules } from '../lib/qa-rules.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { selectTestCommands, loadDefaultRules, loadQaRulesConfig } from '../lib/qa-rules.js';
 
 describe('selectTestCommands', () => {
   const defaultRules = loadDefaultRules();
@@ -45,5 +48,58 @@ describe('selectTestCommands', () => {
     expect(cwds).toContain('standard');
     expect(cwds).toContain('reference-impl');
     expect(cwds).toContain('site');
+  });
+});
+
+describe('loadQaRulesConfig', () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-qa-rules-'));
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('returns package default when consumer override is absent', () => {
+    const rules = loadQaRulesConfig(repoRoot);
+    const cwds = rules.map((r) => r.cwd);
+    expect(cwds).toContain('standard');
+    expect(cwds).toContain('reference-impl');
+    expect(cwds).toContain('site');
+  });
+
+  it('returns consumer override when present', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(
+      join(overrideDir, 'qa-rules.json'),
+      JSON.stringify({
+        rules: [
+          { cwd: 'apps/web', match: ['apps/web/**'], command: 'pnpm test' }
+        ]
+      })
+    );
+    const rules = loadQaRulesConfig(repoRoot);
+    expect(rules.length).toBe(1);
+    expect(rules[0].cwd).toBe('apps/web');
+    expect(rules[0].command).toBe('pnpm test');
+  });
+
+  it('ignores consumer override with missing rules array', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(join(overrideDir, 'qa-rules.json'), JSON.stringify({ foo: 'bar' }));
+    const rules = loadQaRulesConfig(repoRoot);
+    expect(rules.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('ignores consumer override with invalid JSON', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(join(overrideDir, 'qa-rules.json'), 'not json');
+    const rules = loadQaRulesConfig(repoRoot);
+    expect(rules.length).toBeGreaterThanOrEqual(3);
   });
 });
