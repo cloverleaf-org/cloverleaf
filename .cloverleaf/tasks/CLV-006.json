@@ -1,0 +1,19 @@
+{
+  "id": "CLV-006",
+  "type": "task",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "implementer" },
+  "project": "CLV",
+  "title": "Add a closing sentence to chapter 11 (Glossary) noting term additions come from real usage",
+  "context": { "rfc": { "project": "CLV", "id": "CLV-RFC-001" } },
+  "acceptance_criteria": [
+    "site/src/content/guide/11-glossary.mdx gains a short closing paragraph (1 sentence) stating that terms are added as they come up in real usage, not speculatively.",
+    "The existing glossary entries and their order are preserved unchanged.",
+    "The site builds successfully with `npm run build` in site/.",
+    "Only site/src/content/guide/11-glossary.mdx is modified; no other files touched."
+  ],
+  "definition_of_done": [
+    "One new closing sentence added; site builds; diff is a single file."
+  ],
+  "risk_class": "high"
+}
