@@ -2,6 +2,15 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## [0.4.0] — Unreleased
+
+### Added
+- `finding.attachments`: optional array of `{ label, path }` objects for artifact paths accompanying a finding (screenshots, reports). Paths are repoRoot-relative.
+- `finding.metadata`: optional free-form object for source-specific structured data (e.g., axe rule metadata, viewport aggregations, diff ratios).
+
+### Compatibility
+- Additive only. Feedback documents valid under 0.3.1 remain valid under 0.4.0.
+
 ## [0.3.1] — 2026-04-20
 
 ### Added
