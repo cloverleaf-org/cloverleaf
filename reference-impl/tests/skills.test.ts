@@ -243,3 +243,17 @@ describe('cloverleaf-qa skill (v0.4)', () => {
     expect(body).toContain('qa');
   });
 });
+
+describe('cloverleaf-new-task skill (v0.4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-new-task.md'), 'utf-8');
+
+  it('mkdirs .cloverleaf/baselines and .cloverleaf/runs', () => {
+    expect(body).toContain('.cloverleaf/baselines');
+    expect(body).toContain('.cloverleaf/runs');
+  });
+
+  it('appends .cloverleaf/runs/ to .gitignore if missing', () => {
+    expect(body).toContain('.gitignore');
+    expect(body).toMatch(/\.cloverleaf\/runs\/?/);
+  });
+});
