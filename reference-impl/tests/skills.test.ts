@@ -160,6 +160,11 @@ describe('cloverleaf-qa skill', () => {
   it('passes qa_rules to the subagent prompt', () => {
     expect(body).toMatch(/qa_rules|qa-rules\.json/);
   });
+
+  it('reads consumer qa-rules override if present, else package default', () => {
+    expect(body).toContain('.cloverleaf/config/qa-rules.json');
+    expect(body.toLowerCase()).toMatch(/test -f|\[ -f/);
+  });
 });
 
 describe('cloverleaf-merge skill (v0.2 state-aware)', () => {
