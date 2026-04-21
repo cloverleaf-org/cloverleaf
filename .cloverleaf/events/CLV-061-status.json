@@ -1,0 +1,17 @@
+{
+  "event_id": "8a06908a-ee34-4b0c-be3c-3b48e022f090",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-21T20:43:10.050Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-007"
+  },
+  "work_item_type": "task",
+  "from_status": "ui-review",
+  "to_status": "qa",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "reason": "path=full_pipeline"
+}
