@@ -21,8 +21,10 @@ import { advanceStatus } from './state.js';
 import { emitGateDecision } from './events.js';
 import { writeFeedback, latestFeedback } from './feedback.js';
 import { nextTaskId, inferProject } from './ids.js';
-import { matchesUiPaths, loadDefaultPatterns } from './ui-paths.js';
-import { computeAffectedRoutes, loadDefaultConfig } from './affected-routes.js';
+import { matchesUiPaths } from './ui-paths.js';
+import { loadUiPathsConfig } from './ui-paths.js';
+import { computeAffectedRoutes } from './affected-routes.js';
+import { loadAffectedRoutesConfig } from './affected-routes.js';
 import type { FeedbackEnvelope } from './feedback.js';
 
 function die(msg: string, code = 1): never {
@@ -186,7 +188,7 @@ try {
         console.error(`branch ${branch} not found: ${stderrStr || err.message || 'unknown'}`);
         process.exit(2);
       }
-      const patterns = loadDefaultPatterns();
+      const { patterns } = loadUiPathsConfig(repoRoot);
       const result = matchesUiPaths(changed, patterns);
       process.stdout.write(`${result}\n`);
       process.exit(0);
@@ -213,7 +215,7 @@ try {
         console.error(`branch ${branch} not found: ${stderrStr || err.message || 'unknown'}`);
         process.exit(2);
       }
-      const config = loadDefaultConfig();
+      const config = loadAffectedRoutesConfig(repoRoot);
       const result = computeAffectedRoutes(changed, config);
       process.stdout.write(`${JSON.stringify(result)}\n`);
       process.exit(0);

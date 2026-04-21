@@ -186,4 +186,48 @@ describe('cli', () => {
       expect(stderr).toMatch(/branch|not found/i);
     });
   });
+
+  describe('consumer override', () => {
+    beforeEach(() => {
+      execSync('git init -q -b main', { cwd: repoRoot });
+      execSync('git config user.email test@test', { cwd: repoRoot });
+      execSync('git config user.name test', { cwd: repoRoot });
+      writeFileSync(join(repoRoot, 'README.md'), 'initial\n');
+      execSync('git add . && git commit -q -m initial', { cwd: repoRoot });
+      execSync('git checkout -q -b cloverleaf/DEMO-001', { cwd: repoRoot });
+    });
+
+    it('detect-ui-paths respects consumer override', () => {
+      // Consumer config says UI lives at apps/web/, not site/
+      mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'config', 'ui-paths.json'),
+        JSON.stringify({ patterns: ['apps/web/**'] })
+      );
+      // Change site/ file — should NOT match overridden patterns
+      mkdirSync(join(repoRoot, 'site', 'src'), { recursive: true });
+      writeFileSync(join(repoRoot, 'site', 'src', 'page.astro'), '<p>hi</p>');
+      execSync('git add . && git commit -q -m "site change"', { cwd: repoRoot });
+      const { stdout } = run(['detect-ui-paths', repoRoot, 'DEMO-001']);
+      expect(stdout.trim()).toBe('false');
+    });
+
+    it('affected-routes respects consumer override with contentRoutes', () => {
+      mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'config', 'affected-routes.json'),
+        JSON.stringify({
+          pageRoots: [],
+          globalPatterns: [],
+          routeScope: ['site/src/**'],
+          contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+        })
+      );
+      mkdirSync(join(repoRoot, 'site', 'src', 'content', 'guide'), { recursive: true });
+      writeFileSync(join(repoRoot, 'site', 'src', 'content', 'guide', '01.mdx'), '# chapter 1');
+      execSync('git add . && git commit -q -m "guide chapter"', { cwd: repoRoot });
+      const { stdout } = run(['affected-routes', repoRoot, 'DEMO-001']);
+      expect(JSON.parse(stdout.trim())).toEqual(['/guide/']);
+    });
+  });
 });
