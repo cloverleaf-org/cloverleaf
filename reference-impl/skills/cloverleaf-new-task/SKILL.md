@@ -11,13 +11,13 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
 
 1. Determine the active project. Run:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli infer-project <repo_root>
+   cloverleaf-cli infer-project <repo_root>
    ```
    where `<repo_root>` is the current working directory. On failure (no projects, or multiple projects), report the error and ask the user to specify `--project=<id>` or to create a project config first.
 
 2. Allocate the next task ID:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli next-task-id <repo_root> --project=<project>
+   cloverleaf-cli next-task-id <repo_root> --project=<project>
    ```
    Capture the output (e.g., `DEMO-002`).
 

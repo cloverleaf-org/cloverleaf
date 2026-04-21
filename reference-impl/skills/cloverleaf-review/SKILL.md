@@ -21,7 +21,7 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
 
 2. Load the task:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli load-task <repo_root> <TASK-ID>
+   cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
    Verify `status === "review"`. If not, report the current status and stop.
 
@@ -36,7 +36,7 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
 5. Dispatch the Reviewer subagent via the Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: `sonnet`
-   - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/reviewer.md` with substitutions for `{{task}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{diff}}`.
+   - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/reviewer.md` with substitutions for `{{task}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{diff}}`.
 
 6. Parse the subagent's response. Expect a feedback envelope JSON of the form `{"verdict": "pass"|"bounce", "summary": "...", "findings": [...]}`. Validate shape: verdict must be `pass` or `bounce`; if `bounce`, findings must have at least one entry with `severity` (one of `blocker|error|warning|info`) and `message`.
 

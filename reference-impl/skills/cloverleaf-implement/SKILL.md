@@ -13,20 +13,20 @@ The user has invoked this skill with a TASK-ID (e.g., `DEMO-001`).
 
 2. Load the task:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli load-task <repo_root> <TASK-ID>
+   cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
    Parse the JSON. Verify `status === "pending"` OR `status === "implementing"` (the second case is a re-run after a Reviewer bounce). If neither, report the current status and ask the user to use the correct command for that state.
 
 3. Load any outstanding feedback:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli latest-feedback <repo_root> <TASK-ID>
+   cloverleaf-cli latest-feedback <repo_root> <TASK-ID>
    ```
    Capture the output. If present and the latest verdict is `bounce`, pass it into the subagent.
 
 4. Dispatch the Implementer subagent via the Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: `sonnet`
-   - Prompt: the contents of `~/.claude/plugins/cloverleaf/prompts/implementer.md`, with placeholders substituted:
+   - Prompt: the contents of `$(cloverleaf-cli plugin-root)/prompts/implementer.md`, with placeholders substituted:
      - `{{task}}` → the full task JSON (pretty-printed)
      - `{{feedback}}` → the feedback JSON if present, else the literal string `null`
      - `{{repo_root}}` → absolute path to the current repo

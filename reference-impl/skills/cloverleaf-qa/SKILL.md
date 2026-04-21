@@ -30,7 +30,7 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
    if [ -f "<repo_root>/.cloverleaf/config/qa-rules.json" ]; then
      cat "<repo_root>/.cloverleaf/config/qa-rules.json"
    else
-     cat ~/.claude/plugins/cloverleaf/config/qa-rules.json
+     cat $(cloverleaf-cli plugin-root)/config/qa-rules.json
    fi
    ```
    Capture for the subagent as `qa_rules`.
@@ -43,7 +43,7 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
 7. Dispatch the QA subagent via the Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: `sonnet`
-   - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/qa.md` with substitutions for `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{qa_rules}}` (the JSON loaded in step 5).
+   - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/qa.md` with substitutions for `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{qa_rules}}` (the JSON loaded in step 5).
 
 8. Parse response: expect `{"verdict": "pass"|"bounce"|"escalate", "summary", "findings", "results"}`.
 

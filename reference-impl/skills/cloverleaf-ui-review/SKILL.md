@@ -21,7 +21,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
 2. Load the task:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli load-task <repo_root> <TASK-ID>
+   cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
    Verify `status === "ui-review"`. If not, report and stop.
 
@@ -35,7 +35,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
 5. Compute affected routes:
    ```bash
-   AFFECTED=$(~/.claude/plugins/cloverleaf/bin/cloverleaf-cli affected-routes <repo_root> <TASK-ID>)
+   AFFECTED=$(cloverleaf-cli affected-routes <repo_root> <TASK-ID>)
    ```
 
 6. **Empty-set early-exit.** If `AFFECTED` is `[]`, skip the subagent entirely:
@@ -63,7 +63,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 10. Dispatch the UI Reviewer subagent via the Task tool:
     - `subagent_type`: `general-purpose`
     - `model`: `sonnet`
-    - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/ui-reviewer.md` with substitutions:
+    - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/ui-reviewer.md` with substitutions:
       - `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{preview_port}}`
       - `{{affected_routes}}` → the value of `$AFFECTED` (verbatim — may be `"all"`, a JSON array, or `[]` but step 6 handled `[]` already)
       - `{{ui_review_config}}` → JSON-stringified result of `cloverleaf-cli ui-review-config <repo_root>` (used by the subagent to scope viewport sizes, thresholds, and axe rule overrides)
