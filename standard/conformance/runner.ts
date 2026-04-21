@@ -10,6 +10,7 @@ import {
   SCENARIO_LEVELS,
   includesLevel,
   parseLevelArg,
+  isSpecificLevel,
   type Level,
 } from './level-map.js';
 import {
@@ -57,31 +58,31 @@ if (levelArg !== 'all') {
 }
 
 function schemaInLevel(schemaName: string): boolean {
-  if (levelArg === 'all') return true;
+  if (!isSpecificLevel(levelArg)) return true;
   const lvl = SCHEMA_LEVEL[schemaName];
   if (!lvl) return false;
-  return includesLevel(lvl, levelArg as Level);
+  return includesLevel(lvl, levelArg);
 }
 
 function contractInLevel(contractName: string): boolean {
-  if (levelArg === 'all') return true;
+  if (!isSpecificLevel(levelArg)) return true;
   const lvl = CONTRACT_LEVEL[contractName];
   if (!lvl) return false;
-  return includesLevel(lvl, levelArg as Level);
+  return includesLevel(lvl, levelArg);
 }
 
 function scenarioInLevel(scenarioName: string): boolean {
-  if (levelArg === 'all') return true;
+  if (!isSpecificLevel(levelArg)) return true;
   const levels = SCENARIO_LEVELS[scenarioName];
   if (!levels) return false;
-  return levels.some((l) => includesLevel(l, levelArg as Level));
+  return levels.some((l) => includesLevel(l, levelArg));
 }
 
 function validatorInLevel(validatorName: string): boolean {
-  if (levelArg === 'all') return true;
+  if (!isSpecificLevel(levelArg)) return true;
   const lvl = VALIDATOR_LEVEL[validatorName];
   if (!lvl) return false;
-  return includesLevel(lvl, levelArg as Level);
+  return includesLevel(lvl, levelArg);
 }
 
 function fail(msg: string): void {

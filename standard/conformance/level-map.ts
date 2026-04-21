@@ -7,6 +7,14 @@ export type Level = 'L1' | 'L2' | 'L3';
 
 export const LEVELS: readonly Level[] = ['L1', 'L2', 'L3'] as const;
 
+// Union of a specific level or the sentinel 'all' (used for --level= CLI arg).
+export type LevelArg = Level | 'all';
+
+// Type guard: narrows LevelArg to Level by excluding 'all'.
+export function isSpecificLevel(arg: LevelArg): arg is Level {
+  return arg !== 'all';
+}
+
 // Schema name → level. Names match `examples/valid/<name>/` and `<name>.schema.json`.
 export const SCHEMA_LEVEL: Readonly<Record<string, Level>> = {
   // L1 — Producer
