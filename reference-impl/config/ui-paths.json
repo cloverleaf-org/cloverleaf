@@ -1,3 +1,8 @@
 {
-  "patterns": ["site/**"]
+  "patterns": [
+    "src/pages/**",
+    "src/components/**",
+    "src/layouts/**",
+    "src/styles/**"
+  ]
 }

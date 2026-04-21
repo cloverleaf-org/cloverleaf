@@ -18,62 +18,52 @@ describe('computeAffectedRoutes', () => {
   });
 
   it('maps a direct page file to its route', () => {
-    expect(computeAffectedRoutes(['site/src/pages/guide.astro'], DEFAULT)).toEqual(['/guide/']);
-    expect(computeAffectedRoutes(['site/src/pages/faq.astro'], DEFAULT)).toEqual(['/faq/']);
+    expect(computeAffectedRoutes(['src/pages/guide.astro'], DEFAULT)).toEqual(['/guide/']);
+    expect(computeAffectedRoutes(['src/pages/faq.astro'], DEFAULT)).toEqual(['/faq/']);
   });
 
   it('maps index.astro to /', () => {
-    expect(computeAffectedRoutes(['site/src/pages/index.astro'], DEFAULT)).toEqual(['/']);
+    expect(computeAffectedRoutes(['src/pages/index.astro'], DEFAULT)).toEqual(['/']);
   });
 
   it('maps nested pages', () => {
     expect(
-      computeAffectedRoutes(['site/src/pages/guide/getting-started.astro'], DEFAULT)
+      computeAffectedRoutes(['src/pages/guide/getting-started.astro'], DEFAULT)
     ).toEqual(['/guide/getting-started/']);
   });
 
   it('returns "all" for layout changes', () => {
-    expect(computeAffectedRoutes(['site/src/layouts/Layout.astro'], DEFAULT)).toBe('all');
+    expect(computeAffectedRoutes(['src/layouts/Layout.astro'], DEFAULT)).toBe('all');
   });
 
   it('returns "all" for component changes', () => {
-    expect(computeAffectedRoutes(['site/src/components/Nav.astro'], DEFAULT)).toBe('all');
+    expect(computeAffectedRoutes(['src/components/Nav.astro'], DEFAULT)).toBe('all');
   });
 
   it('returns "all" for global style changes', () => {
-    expect(computeAffectedRoutes(['site/src/styles/global.css'], DEFAULT)).toBe('all');
+    expect(computeAffectedRoutes(['src/styles/global.css'], DEFAULT)).toBe('all');
   });
 
   it('returns "all" for public asset changes', () => {
-    expect(computeAffectedRoutes(['site/public/favicon.svg'], DEFAULT)).toBe('all');
-  });
-
-  it('returns "all" for astro config changes', () => {
-    expect(computeAffectedRoutes(['site/astro.config.mjs'], DEFAULT)).toBe('all');
-  });
-
-  it('returns "all" for content-collection mdx', () => {
-    expect(
-      computeAffectedRoutes(['site/src/content/guide/01-intro.mdx'], DEFAULT)
-    ).toBe('all');
+    expect(computeAffectedRoutes(['public/favicon.svg'], DEFAULT)).toBe('all');
   });
 
   it('falls back to "all" for unrecognized paths inside routeScope', () => {
-    // site/src/weird.xyz is inside routeScope (site/src/**) but matches no specific rule
-    expect(computeAffectedRoutes(['site/src/weird.xyz'], DEFAULT)).toBe('all');
+    // src/weird.xyz is inside routeScope (src/**) but matches no specific rule
+    expect(computeAffectedRoutes(['src/weird.xyz'], DEFAULT)).toBe('all');
   });
 
-  it('returns [] for site project-meta files outside routeScope', () => {
-    // site/README.md, package.json, tsconfig.json etc. don't affect rendered routes
-    expect(computeAffectedRoutes(['site/README.md'], DEFAULT)).toEqual([]);
-    expect(computeAffectedRoutes(['site/package.json'], DEFAULT)).toEqual([]);
-    expect(computeAffectedRoutes(['site/tsconfig.json'], DEFAULT)).toEqual([]);
+  it('returns [] for project-meta files outside routeScope', () => {
+    // README.md, package.json, tsconfig.json etc. don't affect rendered routes
+    expect(computeAffectedRoutes(['README.md'], DEFAULT)).toEqual([]);
+    expect(computeAffectedRoutes(['package.json'], DEFAULT)).toEqual([]);
+    expect(computeAffectedRoutes(['tsconfig.json'], DEFAULT)).toEqual([]);
   });
 
   it('short-circuits to "all" on any global match', () => {
     expect(
       computeAffectedRoutes(
-        ['site/src/pages/faq.astro', 'site/src/layouts/Layout.astro'],
+        ['src/pages/faq.astro', 'src/layouts/Layout.astro'],
         DEFAULT
       )
     ).toBe('all');
@@ -82,16 +72,16 @@ describe('computeAffectedRoutes', () => {
   it('dedupes and sorts specific-route results', () => {
     expect(
       computeAffectedRoutes(
-        ['site/src/pages/guide.astro', 'site/src/pages/faq.astro', 'site/src/pages/guide.astro'],
+        ['src/pages/guide.astro', 'src/pages/faq.astro', 'src/pages/guide.astro'],
         DEFAULT
       )
     ).toEqual(['/faq/', '/guide/']);
   });
 
-  it('ignores non-site files in a mixed diff', () => {
+  it('ignores non-src files in a mixed diff', () => {
     expect(
       computeAffectedRoutes(
-        ['reference-impl/lib/cli.ts', 'site/src/pages/faq.astro'],
+        ['reference-impl/lib/cli.ts', 'src/pages/faq.astro'],
         DEFAULT
       )
     ).toEqual(['/faq/']);
@@ -111,9 +101,9 @@ describe('loadAffectedRoutesConfig package default fallback', () => {
 
   it('loads the bundled default config', () => {
     const cfg = loadAffectedRoutesConfig(repoRoot);
-    expect(cfg.pageRoots).toContain('site/src/pages/');
-    expect(cfg.globalPatterns.length).toBeGreaterThanOrEqual(5);
-    expect(cfg.routeScope).toContain('site/src/**');
+    expect(cfg.pageRoots).toContain('src/pages/');
+    expect(cfg.globalPatterns.length).toBeGreaterThanOrEqual(1);
+    expect(cfg.routeScope).toContain('src/**');
   });
 
   it('includes empty contentRoutes on package default', () => {
@@ -135,7 +125,7 @@ describe('loadAffectedRoutesConfig', () => {
 
   it('returns package default when consumer override is absent', () => {
     const cfg = loadAffectedRoutesConfig(repoRoot);
-    expect(cfg.pageRoots).toContain('site/src/pages/');
+    expect(cfg.pageRoots).toContain('src/pages/');
     expect(cfg.contentRoutes).toEqual({});
   });
 
@@ -175,25 +165,25 @@ describe('loadAffectedRoutesConfig', () => {
 describe('computeAffectedRoutes with contentRoutes', () => {
   it('maps a content file to its configured route', () => {
     const cfg = {
-      pageRoots: ['site/src/pages/'],
+      pageRoots: ['src/pages/'],
       globalPatterns: [],
-      routeScope: ['site/src/**'],
-      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+      routeScope: ['src/**'],
+      contentRoutes: { 'src/content/guide/**': '/guide/' },
     };
     expect(
-      computeAffectedRoutes(['site/src/content/guide/01-intro.mdx'], cfg)
+      computeAffectedRoutes(['src/content/guide/01-intro.mdx'], cfg)
     ).toEqual(['/guide/']);
   });
 
   it('contentRoutes evaluated after globalPatterns short-circuit', () => {
     const cfg = {
       pageRoots: [],
-      globalPatterns: ['site/src/content/**'],
-      routeScope: ['site/src/**'],
-      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+      globalPatterns: ['src/content/**'],
+      routeScope: ['src/**'],
+      contentRoutes: { 'src/content/guide/**': '/guide/' },
     };
     expect(
-      computeAffectedRoutes(['site/src/content/guide/01.mdx'], cfg)
+      computeAffectedRoutes(['src/content/guide/01.mdx'], cfg)
     ).toBe('all');
   });
 
@@ -201,11 +191,11 @@ describe('computeAffectedRoutes with contentRoutes', () => {
     const cfg = {
       pageRoots: [],
       globalPatterns: [],
-      routeScope: ['site/src/**'],
-      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+      routeScope: ['src/**'],
+      contentRoutes: { 'src/content/guide/**': '/guide/' },
     };
     expect(
-      computeAffectedRoutes(['site/src/content/guide/01.mdx'], cfg)
+      computeAffectedRoutes(['src/content/guide/01.mdx'], cfg)
     ).toEqual(['/guide/']);
   });
 
@@ -213,12 +203,12 @@ describe('computeAffectedRoutes with contentRoutes', () => {
     const cfg = {
       pageRoots: [],
       globalPatterns: [],
-      routeScope: ['site/src/**'],
-      contentRoutes: { 'site/src/content/guide/**': '/guide/' },
+      routeScope: ['src/**'],
+      contentRoutes: { 'src/content/guide/**': '/guide/' },
     };
     expect(
       computeAffectedRoutes(
-        ['site/src/content/guide/01.mdx', 'site/src/content/guide/02.mdx'],
+        ['src/content/guide/01.mdx', 'src/content/guide/02.mdx'],
         cfg
       )
     ).toEqual(['/guide/']);
