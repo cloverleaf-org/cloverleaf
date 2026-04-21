@@ -23,6 +23,7 @@
     "reference-implementation"
   ],
   "files": [
+    ".claude-plugin",
     "skills",
     "lib",
     "prompts",
