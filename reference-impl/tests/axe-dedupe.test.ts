@@ -83,3 +83,61 @@ describe('dedupeAxeFindings', () => {
     expect(out.map(f => f.severity)).toEqual(['blocker', 'error', 'warning', 'info']);
   });
 });
+
+describe('dedupeAxeFindings — ignored (v0.4.1 #6)', () => {
+  const findingAt = (viewport: string, ruleId: string, target: string, extras: Partial<RawAxeFinding> = {}): RawAxeFinding => ({
+    viewport,
+    ruleId,
+    target,
+    impact: 'serious',
+    message: `${ruleId} on ${target}`,
+    helpUrl: `https://example/${ruleId}`,
+    ...extras,
+  });
+
+  it('drops findings matching an ignored (ruleId, target) tuple', () => {
+    const raws = [
+      findingAt('desktop', 'color-contrast', '.step-meta'),
+      findingAt('desktop', 'color-contrast', 'button.primary'),
+    ];
+    const out = dedupeAxeFindings(raws, ['ruleId', 'target'], [
+      { ruleId: 'color-contrast', target: '.step-meta' },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0].metadata?.target).toBe('button.primary');
+  });
+
+  it('does not drop findings that only partially match (different target)', () => {
+    const raws = [findingAt('desktop', 'color-contrast', 'button.primary')];
+    const out = dedupeAxeFindings(raws, ['ruleId', 'target'], [
+      { ruleId: 'color-contrast', target: '.step-meta' },
+    ]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('does not drop findings that only partially match (different ruleId)', () => {
+    const raws = [findingAt('desktop', 'aria-label', '.step-meta')];
+    const out = dedupeAxeFindings(raws, ['ruleId', 'target'], [
+      { ruleId: 'color-contrast', target: '.step-meta' },
+    ]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('applies ignored across viewports (all-viewport match drops entirely)', () => {
+    const raws = [
+      findingAt('mobile',  'color-contrast', '.step-meta'),
+      findingAt('tablet',  'color-contrast', '.step-meta'),
+      findingAt('desktop', 'color-contrast', '.step-meta'),
+    ];
+    const out = dedupeAxeFindings(raws, ['ruleId', 'target'], [
+      { ruleId: 'color-contrast', target: '.step-meta' },
+    ]);
+    expect(out).toHaveLength(0);
+  });
+
+  it('ignored parameter defaults to [] (back-compat with v0.4 callers)', () => {
+    const raws = [findingAt('desktop', 'color-contrast', '.step-meta')];
+    const out = dedupeAxeFindings(raws, ['ruleId', 'target']);
+    expect(out).toHaveLength(1);
+  });
+});
