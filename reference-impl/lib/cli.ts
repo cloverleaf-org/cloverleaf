@@ -13,6 +13,7 @@
  *   latest-feedback <repoRoot> <taskId>
  *   emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]
  *   ui-review-config --repo-root <repoRoot>
+ *   plugin-root
  */
 
 import { readFileSync } from 'node:fs';
@@ -27,6 +28,7 @@ import { loadUiPathsConfig } from './ui-paths.js';
 import { computeAffectedRoutes } from './affected-routes.js';
 import { loadAffectedRoutesConfig } from './affected-routes.js';
 import { loadUiReviewConfig } from './ui-review-config.js';
+import { getPluginRoot } from './plugin-path.js';
 import type { FeedbackEnvelope } from './feedback.js';
 
 function die(msg: string, code = 1): never {
@@ -46,7 +48,8 @@ function usage(msg?: string): never {
       '  write-feedback <repoRoot> <taskId> <envelopeJsonPath>\n' +
       '  latest-feedback <repoRoot> <taskId>\n' +
       '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n' +
-      '  ui-review-config --repo-root <repoRoot>\n'
+      '  ui-review-config --repo-root <repoRoot>\n' +
+      '  plugin-root\n'
   );
   process.exit(2);
 }
@@ -241,6 +244,11 @@ try {
       }
       const config = loadUiReviewConfig(repoRoot);
       process.stdout.write(JSON.stringify(config, null, 2));
+      process.exit(0);
+    }
+
+    case 'plugin-root': {
+      process.stdout.write(getPluginRoot());
       process.exit(0);
     }
 
