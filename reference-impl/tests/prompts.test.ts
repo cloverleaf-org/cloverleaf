@@ -110,6 +110,16 @@ describe('ui-reviewer prompt', () => {
   it('notes PLAYWRIGHT_BROWSERS_PATH cache resolution', () => {
     expect(body).toContain('PLAYWRIGHT_BROWSERS_PATH');
   });
+
+  it('checks .cloverleaf/config/astro-base.json before parsing astro config', () => {
+    expect(body).toContain('.cloverleaf/config/astro-base.json');
+    expect(body.toLowerCase()).toMatch(/check.*astro-base|astro-base.*first|consumer.*override|before parsing/);
+  });
+
+  it('documents astro-config parse as fallback', () => {
+    expect(body.toLowerCase()).toMatch(/fallback|if absent|otherwise/);
+    expect(body).toMatch(/astro\.config/);
+  });
 });
 
 describe('qa prompt', () => {
