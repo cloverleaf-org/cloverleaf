@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 const SKILLS_DIR = resolve(__dirname, '..', 'skills');
 
 function readSkill(name: string): string {
-  return readFileSync(resolve(SKILLS_DIR, `${name}.md`), 'utf-8');
+  return readFileSync(resolve(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
 }
 
 describe('cloverleaf-new-task skill', () => {
@@ -223,7 +223,7 @@ describe('cloverleaf-run skill (v0.2 path-aware)', () => {
 });
 
 describe('cloverleaf-ui-review skill (v0.4)', () => {
-  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review.md'), 'utf-8');
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
 
   it('references {{ui_review_config}} placeholder for prompt substitution', () => {
     expect(body).toContain('{{ui_review_config}}');
@@ -236,7 +236,7 @@ describe('cloverleaf-ui-review skill (v0.4)', () => {
 });
 
 describe('cloverleaf-qa skill (v0.4)', () => {
-  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-qa.md'), 'utf-8');
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-qa', 'SKILL.md'), 'utf-8');
 
   it('mkdirs the .cloverleaf/runs/<taskId>/qa path', () => {
     expect(body).toContain('.cloverleaf/runs');
@@ -245,7 +245,7 @@ describe('cloverleaf-qa skill (v0.4)', () => {
 });
 
 describe('cloverleaf-new-task skill (v0.4)', () => {
-  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-new-task.md'), 'utf-8');
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-new-task', 'SKILL.md'), 'utf-8');
 
   it('mkdirs .cloverleaf/baselines and .cloverleaf/runs', () => {
     expect(body).toContain('.cloverleaf/baselines');
