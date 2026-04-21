@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { matchesUiPaths, loadDefaultPatterns, loadUiPathsConfig } from '../lib/ui-paths.js';
+import { matchesUiPaths, loadUiPathsConfig } from '../lib/ui-paths.js';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -36,9 +36,14 @@ describe('matchesUiPaths', () => {
     expect(matchesUiPaths(['apps/api/x.ts'], patterns)).toBe(false);
   });
 
-  it('loads default patterns from config file', () => {
-    const patterns = loadDefaultPatterns();
-    expect(patterns).toContain('site/**');
+  it('package default patterns include site/**', () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'clv-ui-paths-default-'));
+    try {
+      const { patterns } = loadUiPathsConfig(tmpRoot);
+      expect(patterns).toContain('site/**');
+    } finally {
+      rmSync(tmpRoot, { recursive: true, force: true });
+    }
   });
 });
 

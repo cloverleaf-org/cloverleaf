@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { computeAffectedRoutes, loadDefaultConfig, loadAffectedRoutesConfig } from '../lib/affected-routes.js';
+import { computeAffectedRoutes, loadAffectedRoutesConfig } from '../lib/affected-routes.js';
 
-const DEFAULT = loadDefaultConfig();
+const _defaultTmpRoot = mkdtempSync(join(tmpdir(), 'clv-affected-routes-default-'));
+const DEFAULT = loadAffectedRoutesConfig(_defaultTmpRoot);
+afterAll(() => {
+  rmSync(_defaultTmpRoot, { recursive: true, force: true });
+});
 
 describe('computeAffectedRoutes', () => {
   it('returns [] when no files match routeScope', () => {
@@ -94,16 +98,26 @@ describe('computeAffectedRoutes', () => {
   });
 });
 
-describe('loadDefaultConfig', () => {
+describe('loadAffectedRoutesConfig package default fallback', () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'clv-affected-routes-fallback-'));
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
   it('loads the bundled default config', () => {
-    const cfg = loadDefaultConfig();
+    const cfg = loadAffectedRoutesConfig(repoRoot);
     expect(cfg.pageRoots).toContain('site/src/pages/');
     expect(cfg.globalPatterns.length).toBeGreaterThanOrEqual(5);
     expect(cfg.routeScope).toContain('site/src/**');
   });
 
   it('includes empty contentRoutes on package default', () => {
-    const cfg = loadDefaultConfig();
+    const cfg = loadAffectedRoutesConfig(repoRoot);
     expect(cfg.contentRoutes).toEqual({});
   });
 });

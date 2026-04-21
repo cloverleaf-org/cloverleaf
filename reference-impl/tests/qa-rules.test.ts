@@ -1,11 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { selectTestCommands, loadDefaultRules, loadQaRulesConfig } from '../lib/qa-rules.js';
+import { selectTestCommands, loadQaRulesConfig } from '../lib/qa-rules.js';
 
 describe('selectTestCommands', () => {
-  const defaultRules = loadDefaultRules();
+  let defaultRules: ReturnType<typeof loadQaRulesConfig>;
+  let _tmpRoot: string;
+
+  beforeAll(() => {
+    _tmpRoot = mkdtempSync(join(tmpdir(), 'clv-qa-rules-default-'));
+    defaultRules = loadQaRulesConfig(_tmpRoot);
+  });
+
+  afterAll(() => {
+    rmSync(_tmpRoot, { recursive: true, force: true });
+  });
 
   it('selects standard/ test command when standard paths changed', () => {
     const cmds = selectTestCommands(['standard/src/foo.ts'], defaultRules);
