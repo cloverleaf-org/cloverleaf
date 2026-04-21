@@ -46,7 +46,10 @@ The `PLAYWRIGHT_BROWSERS_PATH` environment variable is set to `~/.cache/ms-playw
 
 4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, kill it and return verdict `escalate`.
 
-5. Determine the site base path: read `astro.config.*` in the worktree for a `base: '<path>'` entry. Default to empty string if not found or unparseable.
+5. Determine the site base path:
+   1. Check `<repoRoot>/.cloverleaf/config/astro-base.json`. Expected shape: `{ "base": "<path>" }`. If present, use the `base` field verbatim and skip to step 6. (Consumer override — checked before parsing astro config.)
+   2. Otherwise, attempt to locate and parse an astro config file (common locations: `site/astro.config.mjs`, `astro.config.mjs` at repo root, `apps/web/astro.config.mjs`). This is best-effort; the v0.3 behavior is preserved. Consumers with non-conventional layouts should supply `astro-base.json` rather than relying on parse.
+   3. If both fail, treat base as empty string.
 
 6. For each route in `{{affected_routes}}` (or the crawl set, if `"all"`):
    - Construct URL `http://localhost:{{preview_port}}<base><route>`.

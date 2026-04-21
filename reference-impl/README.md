@@ -52,12 +52,43 @@ Two JSON config files in `config/` (overridable per consumer project):
 - `config/ui-paths.json` — glob patterns that trigger UI Reviewer (default: `site/**`)
 - `config/qa-rules.json` — per-package test commands
 
+### Customizing for your repo
+
+The package ships with cloverleaf-flavored defaults in `config/`. Your repo overrides any of them by placing a file of the same name at `<repoRoot>/.cloverleaf/config/<name>.json`. Consumer override is a **full replacement** — your file becomes the complete source of truth for that config.
+
+Available overrides:
+
+| Override file | Purpose |
+|---|---|
+| `.cloverleaf/config/ui-paths.json` | Controls `detect-ui-paths` — which diffs trigger the `ui-review` state |
+| `.cloverleaf/config/qa-rules.json` | Per-package test commands for the QA agent |
+| `.cloverleaf/config/affected-routes.json` | Rules for mapping diffs to site routes (UI Reviewer scope); includes `contentRoutes` for content-collection mapping |
+| `.cloverleaf/config/astro-base.json` | Explicit Astro `base` path — avoids best-effort parsing of `astro.config.*` |
+
+Example `affected-routes.json` override for a Next.js project:
+
+```json
+{
+  "pageRoots": ["apps/web/app/"],
+  "globalPatterns": ["apps/web/components/**", "apps/web/styles/**"],
+  "routeScope": ["apps/web/**"],
+  "contentRoutes": {}
+}
+```
+
+Example `astro-base.json`:
+
+```json
+{ "base": "/my-docs" }
+```
+
+All overrides are read fresh on every skill invocation; no caching. Edit and the next `/cloverleaf-run` picks it up.
+
 ### Known limitations
 
 - Concurrent `/cloverleaf-run` on the same repo may race on preview ports.
 - UI Reviewer visual diff + multi-viewport deferred to v0.4.
 - QA does not produce HTML reports (no `report_uri`).
-- Astro `base` path is parsed best-effort; if misdetected, UI Reviewer may return escalate.
 
 ### Prerequisites for UI Reviewer
 

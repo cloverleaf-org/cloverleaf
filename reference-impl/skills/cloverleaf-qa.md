@@ -21,7 +21,12 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
 
 4. Load QA rules JSON:
    ```bash
-   cat ~/.claude/plugins/cloverleaf/config/qa-rules.json
+   # Consumer override takes precedence over the package default.
+   if [ -f "<repo_root>/.cloverleaf/config/qa-rules.json" ]; then
+     cat "<repo_root>/.cloverleaf/config/qa-rules.json"
+   else
+     cat ~/.claude/plugins/cloverleaf/config/qa-rules.json
+   fi
    ```
    Capture for the subagent as `qa_rules`.
 

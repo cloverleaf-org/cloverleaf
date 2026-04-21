@@ -9,6 +9,7 @@ export interface AffectedRoutesConfig {
   pageRoots: string[];
   globalPatterns: string[];
   routeScope: string[];
+  contentRoutes: Record<string, string>;
 }
 
 function globToRegex(pattern: string): RegExp {
@@ -42,7 +43,30 @@ export function loadDefaultConfig(): AffectedRoutesConfig {
     pageRoots: Array.isArray(doc.pageRoots) ? doc.pageRoots : [],
     globalPatterns: Array.isArray(doc.globalPatterns) ? doc.globalPatterns : [],
     routeScope: Array.isArray(doc.routeScope) ? doc.routeScope : [],
+    contentRoutes: (doc.contentRoutes && typeof doc.contentRoutes === 'object' && !Array.isArray(doc.contentRoutes))
+      ? doc.contentRoutes
+      : {},
   };
+}
+
+export function loadAffectedRoutesConfig(repoRoot: string): AffectedRoutesConfig {
+  const consumerPath = join(repoRoot, '.cloverleaf', 'config', 'affected-routes.json');
+  if (existsSync(consumerPath)) {
+    try {
+      const doc = JSON.parse(readFileSync(consumerPath, 'utf-8')) as Partial<AffectedRoutesConfig>;
+      return {
+        pageRoots: Array.isArray(doc.pageRoots) ? doc.pageRoots : [],
+        globalPatterns: Array.isArray(doc.globalPatterns) ? doc.globalPatterns : [],
+        routeScope: Array.isArray(doc.routeScope) ? doc.routeScope : [],
+        contentRoutes: (doc.contentRoutes && typeof doc.contentRoutes === 'object' && !Array.isArray(doc.contentRoutes))
+          ? doc.contentRoutes
+          : {},
+      };
+    } catch {
+      // fall through
+    }
+  }
+  return loadDefaultConfig();
 }
 
 export function computeAffectedRoutes(
@@ -68,6 +92,15 @@ export function computeAffectedRoutes(
       routes.add(mapped);
       continue;
     }
+    // contentRoutes: map content-collection files to specific routes
+    for (const [pattern, route] of Object.entries(config.contentRoutes)) {
+      if (globToRegex(pattern).test(file)) {
+        routes.add(route);
+        mapped = route;
+        break;
+      }
+    }
+    if (mapped) continue;
     if (matchesAny(file, config.routeScope)) {
       inScopeButUnmatched = true;
     }

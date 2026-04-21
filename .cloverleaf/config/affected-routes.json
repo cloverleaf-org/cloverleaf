@@ -5,9 +5,10 @@
     "site/src/components/**",
     "site/src/styles/**",
     "site/public/**",
-    "site/astro.config.*",
-    "site/src/content/**"
+    "site/astro.config.*"
   ],
   "routeScope": ["site/src/**", "site/public/**"],
-  "contentRoutes": {}
+  "contentRoutes": {
+    "site/src/content/guide/**": "/guide/"
+  }
 }

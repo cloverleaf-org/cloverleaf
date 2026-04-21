@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { matchesUiPaths, loadDefaultPatterns } from '../lib/ui-paths.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { matchesUiPaths, loadDefaultPatterns, loadUiPathsConfig } from '../lib/ui-paths.js';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('matchesUiPaths', () => {
   const defaultPatterns = ['site/**'];
@@ -36,5 +39,56 @@ describe('matchesUiPaths', () => {
   it('loads default patterns from config file', () => {
     const patterns = loadDefaultPatterns();
     expect(patterns).toContain('site/**');
+  });
+});
+
+describe('loadUiPathsConfig', () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-ui-paths-'));
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('returns package default when consumer override is absent', () => {
+    const cfg = loadUiPathsConfig(repoRoot);
+    expect(cfg.patterns).toContain('site/**');
+  });
+
+  it('returns consumer override when present', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(
+      join(overrideDir, 'ui-paths.json'),
+      JSON.stringify({ patterns: ['apps/web/**', 'packages/ui/**'] })
+    );
+    const cfg = loadUiPathsConfig(repoRoot);
+    expect(cfg.patterns).toEqual(['apps/web/**', 'packages/ui/**']);
+    expect(cfg.patterns).not.toContain('site/**');
+  });
+
+  it('ignores consumer override with invalid shape (missing patterns array)', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(
+      join(overrideDir, 'ui-paths.json'),
+      JSON.stringify({ unrelated: 'data' })
+    );
+    const cfg = loadUiPathsConfig(repoRoot);
+    expect(cfg.patterns).toContain('site/**');
+  });
+
+  it('ignores consumer override with invalid JSON', () => {
+    const overrideDir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(overrideDir, { recursive: true });
+    writeFileSync(
+      join(overrideDir, 'ui-paths.json'),
+      'not-valid-json'
+    );
+    const cfg = loadUiPathsConfig(repoRoot);
+    expect(cfg.patterns).toContain('site/**');
   });
 });

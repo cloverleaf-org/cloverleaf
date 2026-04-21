@@ -10,6 +10,8 @@ import {
   LEVELS,
   includesLevel,
   parseLevelArg,
+  isSpecificLevel,
+  type LevelArg,
 } from '../level-map.js';
 
 const STANDARD_ROOT = resolve(__dirname, '..', '..');
@@ -109,5 +111,25 @@ describe('parseLevelArg', () => {
     expect(parseLevelArg('4')).toBe(null);
     expect(parseLevelArg('')).toBe(null);
     expect(parseLevelArg('none')).toBe(null);
+  });
+});
+
+describe('isSpecificLevel', () => {
+  it('returns true for L1/L2/L3', () => {
+    expect(isSpecificLevel('L1' as LevelArg)).toBe(true);
+    expect(isSpecificLevel('L2' as LevelArg)).toBe(true);
+    expect(isSpecificLevel('L3' as LevelArg)).toBe(true);
+  });
+
+  it('returns false for "all"', () => {
+    expect(isSpecificLevel('all' as LevelArg)).toBe(false);
+  });
+
+  it('narrows LevelArg to Level inside the guarded block', () => {
+    const arg: LevelArg = 'L2';
+    if (isSpecificLevel(arg)) {
+      const level: 'L1' | 'L2' | 'L3' = arg;
+      expect(level).toBe('L2');
+    }
   });
 });

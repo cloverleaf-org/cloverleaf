@@ -1,38 +1,14 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { makeAjv } from '../../helpers/ajv-instance.js';
 import { SCHEMA_LEVEL, STATE_MACHINE_LEVEL } from '../../level-map.js';
+import { walkExamples } from './_helpers.js';
 
 const STANDARD_ROOT = resolve(__dirname, '..', '..', '..');
 const SCHEMA_BASE = 'https://cloverleaf.example/schemas/';
 
 const ajv = makeAjv();
-
-interface Sidecar {
-  levels: string[];
-  fixture_of: string;
-}
-
-function readSidecar(jsonPath: string): Sidecar | null {
-  const metaPath = jsonPath.replace(/\.json$/, '.meta.json');
-  if (!existsSync(metaPath)) return null;
-  return JSON.parse(readFileSync(metaPath, 'utf-8')) as Sidecar;
-}
-
-function walkExamples(root: string): Array<{ schemaName: string; jsonPath: string; sidecar: Sidecar | null }> {
-  const out: Array<{ schemaName: string; jsonPath: string; sidecar: Sidecar | null }> = [];
-  if (!existsSync(root)) return out;
-  for (const dir of readdirSync(root)) {
-    const subdir = resolve(root, dir);
-    if (!statSync(subdir).isDirectory()) continue;
-    for (const f of readdirSync(subdir).filter((x) => x.endsWith('.json') && !x.endsWith('.meta.json'))) {
-      const jsonPath = resolve(subdir, f);
-      out.push({ schemaName: dir, jsonPath, sidecar: readSidecar(jsonPath) });
-    }
-  }
-  return out;
-}
 
 describe('L2 Exchange conformance', () => {
   const validExamples = walkExamples(resolve(STANDARD_ROOT, 'examples', 'valid'));

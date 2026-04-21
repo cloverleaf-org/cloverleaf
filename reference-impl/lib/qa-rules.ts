@@ -18,6 +18,21 @@ export function loadDefaultRules(): QaRule[] {
   return Array.isArray(doc.rules) ? doc.rules : [];
 }
 
+export function loadQaRulesConfig(repoRoot: string): QaRule[] {
+  const consumerPath = join(repoRoot, '.cloverleaf', 'config', 'qa-rules.json');
+  if (existsSync(consumerPath)) {
+    try {
+      const doc = JSON.parse(readFileSync(consumerPath, 'utf-8')) as { rules?: QaRule[] };
+      if (Array.isArray(doc.rules)) {
+        return doc.rules;
+      }
+    } catch {
+      // fall through
+    }
+  }
+  return loadDefaultRules();
+}
+
 export function selectTestCommands(changedFiles: string[], rules: QaRule[]): QaRule[] {
   return rules.filter((rule) => matchesUiPaths(changedFiles, rule.match));
 }
