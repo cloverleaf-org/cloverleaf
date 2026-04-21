@@ -49,11 +49,15 @@
     "@cloverleaf/standard": "^0.3.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "axe-core": "^4.10.0",
+    "pixelmatch": "^5.3.0",
     "playwright": "^1.47.0",
-    "axe-core": "^4.10.0"
+    "pngjs": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
