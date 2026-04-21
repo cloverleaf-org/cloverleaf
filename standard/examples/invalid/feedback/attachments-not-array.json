@@ -1,0 +1,12 @@
+{
+  "verdict": "bounce",
+  "summary": "attachments must be an array.",
+  "findings": [
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "diff detected",
+      "attachments": { "label": "baseline", "path": "baseline.png" }
+    }
+  ]
+}

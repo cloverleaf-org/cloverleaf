@@ -1,0 +1,14 @@
+{
+  "verdict": "bounce",
+  "summary": "Attachment missing required path field.",
+  "findings": [
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "diff detected",
+      "attachments": [
+        { "label": "baseline" }
+      ]
+    }
+  ]
+}
