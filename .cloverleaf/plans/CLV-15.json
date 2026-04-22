@@ -1,0 +1,330 @@
+{
+  "type": "plan",
+  "id": "CLV-15",
+  "project": "CLV",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-9"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-16"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-17"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-18"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-19"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-20"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-16"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-17"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-16"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-18"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-16"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-19"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-17"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-20"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-18"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-20"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-19"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-20"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "CLV-16",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Browser install, config schema, and install.sh update for webkit/firefox",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-9"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-10"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-14"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "reference-impl/config/ui-review.json schema accepts new top-level 'browsers' key (array of engine strings, default [\"chromium\"]), 'axe.browser' key (string, default \"chromium\"), and 'maxCombinations' key (integer, default 90).",
+        "reference-impl/install.sh runs 'npx playwright install webkit firefox' after the existing chromium step, and on Linux also runs 'npx playwright install-deps webkit'.",
+        "Install documentation (reference-impl/README.md or equivalent) is updated to document the webkit/firefox install step, the PLAYWRIGHT_BROWSERS_PATH convention, and the approximate additional disk footprint (~300–350 MB).",
+        "A JSON Schema or TypeScript type for UiReviewConfig is updated to include 'browsers', 'axe.browser', and 'maxCombinations', with backward-compatible defaults so existing consumer configs (e.g. .cloverleaf/config/ui-review.json) that omit these keys continue to work.",
+        "Unit tests verify that a config omitting the new keys resolves to the correct defaults (browsers=[\"chromium\"], axe.browser=\"chromium\", maxCombinations=90)."
+      ],
+      "acceptance_criteria": [
+        "A reference-impl/config/ui-review.json with only legacy keys passes config validation and resolves browsers to [\"chromium\"], axe.browser to \"chromium\", and maxCombinations to 90.",
+        "A config explicitly setting browsers to [\"chromium\",\"webkit\",\"firefox\"] and maxCombinations to 45 passes validation.",
+        "A config setting axe.browser to \"webkit\" passes validation.",
+        "install.sh executed on a Linux machine runs both 'npx playwright install webkit firefox' and 'npx playwright install-deps webkit' without error (verified via script inspection or integration test).",
+        "install.sh executed on macOS does not run 'npx playwright install-deps webkit' (Linux-only guard is present).",
+        "The README or install docs state the aggregate disk footprint (~600–650 MB total) and the PLAYWRIGHT_BROWSERS_PATH=~/.cache/ms-playwright convention."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-17",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Baseline layout migration: git-mv flat chromium baselines to baselines/chromium/ subdirectory",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-9"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-11"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "All existing flat .cloverleaf/baselines/{slug}-{viewport}.png files are moved to .cloverleaf/baselines/chromium/{slug}-{viewport}.png via explicit git mv commands (no copy-and-delete, no compatibility shim).",
+        "No stale flat baseline files remain under .cloverleaf/baselines/ after migration (only subdirectory-organized files exist).",
+        "All compareVisual call-sites in reference-impl (prompt and lib) that construct a baselinePath are updated to include the {browser} path segment: .cloverleaf/baselines/{browser}/{slug}-{viewport}.png.",
+        "Attachment label paths in any UI Reviewer output schema or prompt that reference baseline filenames are updated to the new subdir form.",
+        "A migration guide or comment documents that the flat layout is deprecated and that new baselines must be placed under baselines/{browser}/."
+      ],
+      "acceptance_criteria": [
+        "After migration, 'git status' shows only R (rename) entries for the moved baseline files, no untracked flat PNG files remain in .cloverleaf/baselines/ root.",
+        "Running the UI Reviewer against an existing task that previously produced .cloverleaf/baselines/faq-desktop.png now produces .cloverleaf/baselines/chromium/faq-desktop.png.",
+        "compareVisual called with browser=\"chromium\", slug=\"faq\", viewport=\"desktop\" constructs path .cloverleaf/baselines/chromium/faq-desktop.png.",
+        "compareVisual called with browser=\"webkit\", slug=\"faq\", viewport=\"mobile\" constructs path .cloverleaf/baselines/webkit/faq-mobile.png.",
+        "No references to the old flat path pattern ({slug}-{viewport}.png directly under .cloverleaf/baselines/) remain in reference-impl source files."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-18",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "UI Reviewer prompt: 3-browser outer loop, per-engine escalation, axe chromium-only, maxCombinations cap",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-9"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-10"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-11"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-12"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-14"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "reference-impl/prompts/ui-reviewer.md iterates 'browsers' as the outermost loop, wrapping the existing viewport × route loops, using the engines listed in config.browsers.",
+        "When a required browser binary is absent, the reviewer returns verdict 'escalate' with a finding that names the missing engine and includes the install command ('npx playwright install webkit firefox'; on Linux additionally 'npx playwright install-deps webkit').",
+        "axe-core scanning is executed on exactly the engine specified by config.axe.browser (defaulting to 'chromium'); webkit and firefox runs produce no axe output and no axe findings.",
+        "maxCombinations enforcement: when routes × viewports × browsers exceeds config.maxCombinations, the reviewer sorts affected routes by diff size (most-changed first), processes the first floor(maxCombinations / (viewports × browsers)) routes, and emits one 'warning'-severity finding with rule 'ui-review-cap' per skipped route, including the route name and the current vs cap count.",
+        "Per-browser baseline paths use the new .cloverleaf/baselines/{browser}/{slug}-{viewport}.png convention (consistent with CLV-17).",
+        "The prompt's step structure and output schema remain compatible with the existing feedback envelope (no Standard schema changes)."
+      ],
+      "acceptance_criteria": [
+        "A task with config.browsers=[\"chromium\",\"webkit\",\"firefox\"] causes the reviewer to launch three separate browser sessions, one per engine, producing baselines under baselines/chromium/, baselines/webkit/, and baselines/firefox/.",
+        "A task run with webkit binary absent returns verdict 'escalate' with a finding message containing 'webkit' and 'npx playwright install webkit firefox'.",
+        "A task run with config.axe.browser=\"chromium\" produces axe findings only from the chromium run; the webkit and firefox sections of the output contain no axe findings.",
+        "A task with 4 affected routes, 3 viewports, and 3 browsers (36 combinations) under a maxCombinations of 27 (floor(27/(3×3))=3 routes) skips 1 route and emits exactly 1 'warning' finding with rule 'ui-review-cap' for the skipped route.",
+        "Removing 'webkit' from config.browsers causes zero webkit baseline files to be written and zero webkit findings to be emitted.",
+        "The reviewer output passes feedback envelope schema validation after the changes."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-19",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Baseline-approval sidecar: state.json gate, approve-baselines skill, ui-review→qa block",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-9"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-13"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "The UI Reviewer prompt writes .cloverleaf/runs/{taskId}/ui-review/state.json containing {\"baselines_pending\": true} whenever any compareVisual result is 'new-baseline' or 'dimension-mismatch'.",
+        "The cloverleaf-ui-review skill reads state.json after the agent completes; if baselines_pending is true it leaves the task in ui-review status and surfaces a human-readable message explaining that baseline approval is required before advancing to qa.",
+        "A new 'approve-baselines' reference-impl skill is implemented that writes {\"baselines_pending\": false} to state.json and then allows the ui-review → qa transition to proceed.",
+        "When no new-baseline or dimension-mismatch results are produced, state.json either contains {\"baselines_pending\": false} or is absent, and the ui-review → qa transition proceeds normally.",
+        "No Standard schemas (task.schema.json, state-machine JSON) are modified.",
+        "The approve-baselines skill is documented with its trigger condition and effect."
+      ],
+      "acceptance_criteria": [
+        "Running the UI Reviewer on a task that produces at least one new-baseline result leaves the task in ui-review status and the skill output message contains the phrase 'baselines_pending' or an equivalent human-readable baseline approval notice.",
+        "Running approve-baselines on the same task writes baselines_pending: false to state.json and the subsequent ui-review → qa transition succeeds.",
+        "Running the UI Reviewer on a task that produces only 'match' or 'diff' results (no new-baseline or dimension-mismatch) does not set baselines_pending: true; the task advances to qa without requiring approve-baselines.",
+        "The Standard task state-machine JSON and task.schema.json are byte-for-byte identical before and after this task's implementation (no Standard changes).",
+        "The state.json sidecar file is co-located at .cloverleaf/runs/{taskId}/ui-review/state.json for a task with id 'CLV-42' results in path .cloverleaf/runs/CLV-42/ui-review/state.json."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-20",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "End-to-end integration test: 3-browser matrix, per-browser baselines, engine diffs, baseline-approval gate",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-9"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-10"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-11"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-12"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-13"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-14"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "A reference-impl integration test (e.g. in reference-impl/tests/) exercises the full cross-browser UI review flow against a minimal toy site change, using config.browsers=[\"chromium\",\"webkit\",\"firefox\"] and config.maxCombinations=90.",
+        "The test asserts that per-browser baseline PNG files are written under .cloverleaf/baselines/chromium/, .cloverleaf/baselines/webkit/, and .cloverleaf/baselines/firefox/.",
+        "The test asserts that axe findings appear only in the chromium section of the output.",
+        "The test asserts that when baselines_pending is true, the task remains in ui-review status; after approve-baselines, the task advances to qa.",
+        "The test asserts that a browser-specific visual diff (e.g. a deliberate webkit-only rendering difference) surfaces as a finding attributed to the webkit engine.",
+        "The test is included in the reference-impl test suite (e.g. referenced in package.json test script or CI workflow) and passes in CI with all three browsers installed."
+      ],
+      "acceptance_criteria": [
+        "'npm test' (or equivalent) in reference-impl/ runs the integration test and it passes when chromium, webkit, and firefox are installed.",
+        "The integration test output confirms baseline PNGs exist at .cloverleaf/baselines/chromium/*.png, .cloverleaf/baselines/webkit/*.png, and .cloverleaf/baselines/firefox/*.png after the run.",
+        "The integration test confirms zero axe findings are emitted for webkit and firefox runs.",
+        "The integration test confirms the task status is 'ui-review' (not 'qa') after a run that produces new-baseline results, and 'qa' after approve-baselines is called.",
+        "The integration test confirms that a maxCombinations cap of 3 (below the toy route×viewport×browser product) causes at least one 'ui-review-cap' warning finding to appear in the output.",
+        "The integration test can be run in isolation without affecting other test suites."
+      ],
+      "risk_class": "high"
+    }
+  ]
+}
