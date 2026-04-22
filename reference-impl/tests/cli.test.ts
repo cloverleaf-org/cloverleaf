@@ -258,4 +258,22 @@ describe('cli', () => {
       expect(doc.visualDiff.enabled).toBe(false);
     });
   });
+
+  describe('cli: plugin-root', () => {
+    it('prints the plugin root path (absolute, no trailing newline)', () => {
+      const { stdout, exitCode } = run(['plugin-root']);
+      expect(exitCode).toBe(0);
+      expect(stdout.startsWith('/')).toBe(true);
+      // No trailing newline — shell-composable via $(cloverleaf-cli plugin-root)
+      expect(stdout.endsWith('\n')).toBe(false);
+      // Matches the reference-impl directory pattern
+      expect(stdout).toMatch(/reference-impl$/);
+    });
+
+    it('plugin-root output can be concatenated with a relative skill path', () => {
+      const { stdout } = run(['plugin-root']);
+      const prompt = `${stdout}/prompts/documenter.md`;
+      expect(prompt).toContain('/prompts/documenter.md');
+    });
+  });
 });

@@ -70,7 +70,7 @@ export function latestFeedback(repoRoot: string, taskId: string): FeedbackEnvelo
 export function allFeedback(repoRoot: string, taskId: string): FeedbackEnvelope[] {
   const dir = feedbackDir(repoRoot);
   if (!existsSync(dir)) return [];
-  const re = new RegExp(`^${escapeRegex(taskId)}-r(\\d+)\\.json$`);
+  const re = new RegExp(`^${escapeRegex(taskId)}-[ruq](\\d+)\\.json$`);
   const entries = readdirSync(dir)
     .map((f) => ({ f, m: f.match(re) }))
     .filter((x): x is { f: string; m: RegExpMatchArray } => !!x.m)

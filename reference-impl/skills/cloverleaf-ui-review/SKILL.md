@@ -7,7 +7,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
 ## Steps
 
-0. Ensure you are on `main`. State is authoritative on main. Run:
+0. Pre-flight: ensure you are on `main` and clean stale feedback temp files from previous runs (prevents /tmp leakage between tasks):
 
    ```bash
    cd <repo_root>
@@ -17,11 +17,15 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
    If main has uncommitted changes, stop and report.
 
+   ```bash
+   rm -f /tmp/cloverleaf-fb-r.json /tmp/cloverleaf-fb-u.json /tmp/cloverleaf-fb-q.json
+   ```
+
 1. Capture the TASK-ID argument.
 
 2. Load the task:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli load-task <repo_root> <TASK-ID>
+   cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
    Verify `status === "ui-review"`. If not, report and stop.
 
@@ -35,7 +39,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
 5. Compute affected routes:
    ```bash
-   AFFECTED=$(~/.claude/plugins/cloverleaf/bin/cloverleaf-cli affected-routes <repo_root> <TASK-ID>)
+   AFFECTED=$(cloverleaf-cli affected-routes <repo_root> <TASK-ID>)
    ```
 
 6. **Empty-set early-exit.** If `AFFECTED` is `[]`, skip the subagent entirely:
@@ -63,7 +67,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 10. Dispatch the UI Reviewer subagent via the Task tool:
     - `subagent_type`: `general-purpose`
     - `model`: `sonnet`
-    - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/ui-reviewer.md` with substitutions:
+    - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/ui-reviewer.md` with substitutions:
       - `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{preview_port}}`
       - `{{affected_routes}}` → the value of `$AFFECTED` (verbatim — may be `"all"`, a JSON array, or `[]` but step 6 handled `[]` already)
       - `{{ui_review_config}}` → JSON-stringified result of `cloverleaf-cli ui-review-config <repo_root>` (used by the subagent to scope viewport sizes, thresholds, and axe rule overrides)
@@ -82,9 +86,15 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
     **Bounce:**
     1. Write feedback: `echo '<envelope-json>' > /tmp/cloverleaf-fb-u.json`
     2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-u.json --prefix=u`
-    3. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent '' full_pipeline`
-    4. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review bounced → implementing"`.
-    5. Report: "✗ UI Review bounced. Findings: <summary by severity>. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
+    3. Commit the persisted feedback file (was missing pre-v0.4.1 — bug #3):
+       ```bash
+       cd <repo_root>
+       git add .cloverleaf/feedback/
+       git commit -m "cloverleaf: <TASK-ID> ui-review feedback"
+       ```
+    4. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent '' full_pipeline`
+    5. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review bounced → implementing"`.
+    6. Report: "✗ UI Review bounced. Findings: <summary by severity>. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
 
     **Escalate:**
     1. `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`

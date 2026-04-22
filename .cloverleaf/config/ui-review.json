@@ -13,6 +13,9 @@
   "axe": {
     "viewports": ["desktop"],
     "dedupeBy": ["ruleId", "target"],
-    "ignored": []
+    "ignored": [
+      { "ruleId": "color-contrast", "target": ".step-meta" },
+      { "ruleId": "color-contrast", "target": "[data-astro-cid-jptz7ure] .step-meta" }
+    ]
   }
 }

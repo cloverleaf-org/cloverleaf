@@ -2,6 +2,23 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] — Unreleased
+
+### Added
+- `cloverleaf-cli plugin-root` subcommand — prints the CLI's plugin root, used by skills to locate prompts/config regardless of install mode.
+- `axe.ignored` field in `config/ui-review.json` — array of `{ruleId, target}` tuples to drop matching findings before verdict computation. Unblocks tasks on surfaces with pre-existing a11y debt.
+
+### Fixed
+- `cloverleaf-merge` skill now performs a real `git merge --no-ff` (was only committing state transitions, leaving feature-branch code/baselines stranded).
+- `latestFeedback` now finds the most recent feedback across `r`/`u`/`q` prefixes (was `r`-only).
+- Reviewer skills (`-review`, `-ui-review`, `-qa`) reliably persist feedback under `.cloverleaf/feedback/` with an explicit `git add` + `git commit` after `write-feedback`.
+- UI Reviewer's `compareVisual` paths explicitly rooted at `{{repo_root}}` (not the worktree) — prevents stray baselines in main repo during pipeline runs.
+- Reviewer skills clean up `/tmp/cloverleaf-fb-*.json` at step 0 — prevents stale feedback from prior tasks bleeding into new runs.
+- Skills no longer hardcode `~/.claude/plugins/cloverleaf/` paths. They use `$(cloverleaf-cli plugin-root)/...` — works under any install mode (npm install, `claude plugin install`, `--plugin-dir`, legacy symlinks).
+
+### Changed
+- Cloverleaf's own `.cloverleaf/config/ui-review.json` adds `axe.ignored` entries for pre-existing /guide/ `.step-meta` color-contrast violations (unblocks CLV-008-class tasks on /guide/).
+
 ## [0.4.0] — 2026-04-21
 
 ### Added

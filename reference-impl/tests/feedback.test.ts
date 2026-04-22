@@ -77,6 +77,56 @@ describe('feedback', () => {
   });
 });
 
+describe('latestFeedback — v0.4.1 #2 (multi-prefix)', () => {
+  it('returns highest iteration across r / u / q prefixes', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'clv-latest-fb-'));
+    try {
+      const fbDir = join(repoRoot, '.cloverleaf', 'feedback');
+      mkdirSync(fbDir, { recursive: true });
+      writeFileSync(join(fbDir, 'ACME-042-r1.json'), JSON.stringify({ verdict: 'bounce', summary: 'r1' }));
+      writeFileSync(join(fbDir, 'ACME-042-u1.json'), JSON.stringify({ verdict: 'bounce', summary: 'u1' }));
+      writeFileSync(join(fbDir, 'ACME-042-r2.json'), JSON.stringify({ verdict: 'bounce', summary: 'r2' }));
+      writeFileSync(join(fbDir, 'ACME-042-q1.json'), JSON.stringify({ verdict: 'pass',   summary: 'q1' }));
+
+      const result = latestFeedback(repoRoot, 'ACME-042');
+      expect(result).not.toBeNull();
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('returns u-prefixed feedback when only u-prefix files exist (validates bug fix)', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'clv-latest-fb-'));
+    try {
+      const fbDir = join(repoRoot, '.cloverleaf', 'feedback');
+      mkdirSync(fbDir, { recursive: true });
+      writeFileSync(join(fbDir, 'ACME-042-u1.json'), JSON.stringify({ verdict: 'bounce', summary: 'u1-surface' }));
+
+      // Before the fix, this returned null because the regex only matched -r prefixes.
+      const result = latestFeedback(repoRoot, 'ACME-042');
+      expect(result).not.toBeNull();
+      expect(result!.summary).toBe('u1-surface');
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('returns q-prefixed feedback when only q-prefix files exist', () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'clv-latest-fb-'));
+    try {
+      const fbDir = join(repoRoot, '.cloverleaf', 'feedback');
+      mkdirSync(fbDir, { recursive: true });
+      writeFileSync(join(fbDir, 'ACME-042-q1.json'), JSON.stringify({ verdict: 'bounce', summary: 'q1-surface' }));
+
+      const result = latestFeedback(repoRoot, 'ACME-042');
+      expect(result).not.toBeNull();
+      expect(result!.summary).toBe('q1-surface');
+    } finally {
+      rmSync(repoRoot, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('Finding type — v0.4.0 additions', () => {
   it('accepts attachments + metadata on a finding', () => {
     const f: Finding = {

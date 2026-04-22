@@ -24,9 +24,20 @@ function dedupeKeyOf(raw: RawAxeFinding, keys: DedupeKey[]): string {
   return keys.map((k) => raw[k]).join('||');
 }
 
-export function dedupeAxeFindings(raws: RawAxeFinding[], keys: DedupeKey[]): Finding[] {
+export function dedupeAxeFindings(
+  raws: RawAxeFinding[],
+  keys: DedupeKey[],
+  ignored: Array<{ ruleId: string; target: string }> = []
+): Finding[] {
+  // Filter out ignored (ruleId, target) tuples BEFORE grouping.
+  const filtered = raws.filter((raw) => {
+    return !ignored.some(
+      (i) => i.ruleId === raw.ruleId && i.target === raw.target
+    );
+  });
+
   const groups = new Map<string, { first: RawAxeFinding; viewports: string[] }>();
-  for (const raw of raws) {
+  for (const raw of filtered) {
     const key = dedupeKeyOf(raw, keys);
     const existing = groups.get(key);
     if (existing) {

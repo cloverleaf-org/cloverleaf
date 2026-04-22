@@ -1,6 +1,6 @@
 {
   "name": "@cloverleaf/standard",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "The Cloverleaf Interoperability Standard — schemas, agent contracts, and conformance pack.",
   "type": "module",
   "license": "MIT",
@@ -31,8 +31,27 @@
     "conformance",
     "docs",
     "README.md",
-    "VERSION"
+    "VERSION",
+    "dist"
   ],
+  "exports": {
+    ".": {
+      "types": "./dist/validators/index.d.ts",
+      "import": "./dist/validators/index.js"
+    },
+    "./validators": {
+      "types": "./dist/validators/index.d.ts",
+      "import": "./dist/validators/index.js"
+    },
+    "./validators/*.js": {
+      "types": "./dist/validators/*.d.ts",
+      "import": "./dist/validators/*.js"
+    },
+    "./package.json": "./package.json",
+    "./schemas/*": "./schemas/*",
+    "./agent-contracts/*": "./agent-contracts/*",
+    "./state-machines/*": "./state-machines/*"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -40,7 +59,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "validate:examples": "tsx conformance/runner.ts",
-    "prepublishOnly": "npm test && npm run validate:examples"
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm test && npm run validate:examples && npm run build"
   },
   "devDependencies": {
     "@apidevtools/swagger-parser": "^10.1.0",

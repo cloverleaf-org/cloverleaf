@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const SKILLS_DIR = resolve(__dirname, '..', 'skills');
@@ -256,4 +256,53 @@ describe('cloverleaf-new-task skill (v0.4)', () => {
     expect(body).toContain('.gitignore');
     expect(body).toMatch(/\.cloverleaf\/runs\/?/);
   });
+});
+
+describe('cloverleaf-merge skill (v0.4.1 #1)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-merge', 'SKILL.md'), 'utf-8');
+
+  it('performs a real git merge --no-ff of the feature branch', () => {
+    expect(body).toContain('git merge --no-ff cloverleaf/');
+  });
+
+  it('documents conflict handling via git merge --abort + escalate', () => {
+    expect(body).toContain('git merge --abort');
+    expect(body.toLowerCase()).toMatch(/escalate/);
+  });
+});
+
+describe('no hardcoded plugin paths in skills (v0.4.1 #7)', () => {
+  const SKILLS_DIR = resolve(__dirname, '..', 'skills');
+  const names = readdirSync(SKILLS_DIR, { withFileTypes: true })
+    .filter((e) => e.isDirectory() && e.name.startsWith('cloverleaf-'))
+    .map((e) => e.name);
+
+  for (const name of names) {
+    it(`skills/${name}/SKILL.md contains no literal ~/.claude/plugins/cloverleaf/`, () => {
+      const body = readFileSync(resolve(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
+      expect(body).not.toContain('~/.claude/plugins/cloverleaf/');
+    });
+  }
+});
+
+describe('reviewer skills /tmp cleanup + feedback commit (v0.4.1 #3, #5)', () => {
+  const REVIEWERS = ['cloverleaf-review', 'cloverleaf-ui-review', 'cloverleaf-qa'] as const;
+
+  for (const name of REVIEWERS) {
+    describe(name, () => {
+      const body = readFileSync(resolve(__dirname, '..', 'skills', name, 'SKILL.md'), 'utf-8');
+
+      it('cleans /tmp/cloverleaf-fb-*.json at step 0', () => {
+        expect(body).toMatch(/rm\s+-f\s+\/tmp\/cloverleaf-fb-r\.json/);
+        expect(body).toContain('/tmp/cloverleaf-fb-u.json');
+        expect(body).toContain('/tmp/cloverleaf-fb-q.json');
+      });
+
+      it('commits feedback after write-feedback', () => {
+        expect(body).toContain('cloverleaf-cli write-feedback');
+        expect(body).toContain('git add .cloverleaf/feedback/');
+        expect(body).toContain('git commit -m');
+      });
+    });
+  }
 });

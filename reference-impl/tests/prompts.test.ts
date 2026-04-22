@@ -139,6 +139,21 @@ describe('ui-reviewer prompt', () => {
     expect(body.toLowerCase()).toMatch(/fallback|if absent|otherwise/);
     expect(body).toMatch(/astro\.config/);
   });
+
+  it('has a Paths section distinguishing worktree from repoRoot (v0.4.1 #4)', () => {
+    expect(body.toLowerCase()).toContain('paths');
+    expect(body).toContain('worktree');
+    expect(body).toContain('{{repo_root}}');
+  });
+
+  it('roots compareVisual paths at {{repo_root}}, not worktree', () => {
+    expect(body).toMatch(/baselinePath\s*=\s*\{\{repo_root\}\}\/\.cloverleaf\/baselines/);
+  });
+
+  it('documents the axe.ignored allowlist (v0.4.1 #6)', () => {
+    expect(body).toContain('axe.ignored');
+    expect(body.toLowerCase()).toMatch(/allowlist|ignored/);
+  });
 });
 
 describe('qa prompt', () => {

@@ -21,7 +21,7 @@ description: Run the Documenter agent on a task in the `implementing` state (ful
 
 2. Load the task:
    ```
-   ~/.claude/plugins/cloverleaf/bin/cloverleaf-cli load-task <repo_root> <TASK-ID>
+   cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
    Verify `status === "implementing"`. Verify `risk_class === "high"`. If either check fails, report and stop.
 
@@ -36,7 +36,7 @@ description: Run the Documenter agent on a task in the `implementing` state (ful
 5. Dispatch the Documenter subagent via the Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: `sonnet`
-   - Prompt: contents of `~/.claude/plugins/cloverleaf/prompts/documenter.md` with substitutions:
+   - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/documenter.md` with substitutions:
      - `{{task}}` → full task JSON (pretty-printed)
      - `{{diff}}` → diff output
      - `{{branch}}` → `cloverleaf/<TASK-ID>`

@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": false,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "composite": false
+  },
+  "include": ["validators/**/*.ts"],
+  "exclude": ["**/*.test.ts", "**/__tests__/**", "conformance/**", "examples/**"]
+}

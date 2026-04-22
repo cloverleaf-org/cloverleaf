@@ -51,4 +51,47 @@ describe('loadUiReviewConfig', () => {
     const cfg = loadUiReviewConfig(repoRoot);
     expect(cfg.viewports.desktop).toEqual({ width: 1280, height: 800 });
   });
+
+  describe('axe.ignored (v0.4.1 #6)', () => {
+    it('default config has axe.ignored as empty array', () => {
+      const cfg = loadUiReviewConfig(repoRoot);
+      expect(cfg.axe.ignored).toEqual([]);
+    });
+
+    it('consumer override can populate axe.ignored', () => {
+      mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'config', 'ui-review.json'),
+        JSON.stringify({
+          viewports: { desktop: { width: 1280, height: 800 } },
+          visualDiff: { enabled: true, threshold: 0.1, maxDiffRatio: 0.01, mask: [] },
+          axe: {
+            viewports: ['desktop'],
+            dedupeBy: ['ruleId', 'target'],
+            ignored: [{ ruleId: 'color-contrast', target: '.step-meta' }],
+          },
+        }),
+      );
+      const cfg = loadUiReviewConfig(repoRoot);
+      expect(cfg.axe.ignored).toEqual([{ ruleId: 'color-contrast', target: '.step-meta' }]);
+    });
+
+    it('missing axe.ignored in override falls back to empty array', () => {
+      mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'config', 'ui-review.json'),
+        JSON.stringify({
+          viewports: { desktop: { width: 1280, height: 800 } },
+          visualDiff: { enabled: true, threshold: 0.1, maxDiffRatio: 0.01, mask: [] },
+          axe: {
+            viewports: ['desktop'],
+            dedupeBy: ['ruleId', 'target'],
+            // ignored omitted — back-compat for older overrides
+          },
+        }),
+      );
+      const cfg = loadUiReviewConfig(repoRoot);
+      expect(cfg.axe.ignored).toEqual([]);
+    });
+  });
 });
