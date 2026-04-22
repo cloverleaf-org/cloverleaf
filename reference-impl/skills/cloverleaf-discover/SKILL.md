@@ -32,14 +32,14 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
    [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ] || { echo "Run /cloverleaf-discover from main" >&2; exit 1; }
    ```
 
-3. **Create the RFC** — inline `/cloverleaf-new-rfc $BRIEF_FILE` steps. Capture the printed RFC ID as `$RFC_ID`.
+3. **Create the RFC** — invoke `/cloverleaf-new-rfc $BRIEF_FILE`. Capture the printed RFC ID as `$RFC_ID`.
 
    Initialise revise loop counter:
    ```
    revise_loops = 0
    ```
 
-4. **Draft RFC (Researcher draftRfc)** — inline `/cloverleaf-draft-rfc $RFC_ID` steps. Researcher runs with a per-invocation bounce budget (3 bounces inside draft-rfc).
+4. **Draft RFC (Researcher draftRfc)** — invoke `/cloverleaf-draft-rfc $RFC_ID`. Researcher runs with a per-invocation bounce budget (3 bounces inside draft-rfc).
    - On bounce exhaustion (draft-rfc exits non-zero): dump state to `.cloverleaf/runs/$RFC_ID/discover-crash.json` and halt.
    - Reload the RFC. Its new status is either `spike-in-flight` (unknowns non-empty) or `planning` (unknowns empty).
 
@@ -48,7 +48,7 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
    - If `spike-in-flight`: run every pending spike linked to this RFC:
      ```bash
      for each spike in .cloverleaf/spikes/*.json where parent_rfc.id === $RFC_ID AND status === "pending":
-       inline /cloverleaf-spike <SPIKE_ID> steps.
+       invoke /cloverleaf-spike <SPIKE_ID>.
      ```
 
      If `/cloverleaf-spike` exits non-zero or leaves the spike in a non-`completed` status after returning, treat that as bounce exhaustion: dump state to `.cloverleaf/runs/$RFC_ID/discover-crash.json` (including the spike ID) and halt. The orchestrator does NOT resume partially-run spike trees — if any spike is unresolved, the whole Discovery halts.
@@ -74,11 +74,11 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
    ```
 
    Parse input. On:
-   - `approve` → inline `/cloverleaf-gate $RFC_ID approve` steps. Continue to step 7.
-   - `reject [reason]` → inline `/cloverleaf-gate $RFC_ID reject [reason]` steps. Exit with summary.
-   - `revise [reason]` → inline `/cloverleaf-gate $RFC_ID revise [reason]` steps. `revise_loops += 1`. If `revise_loops >= MAX_REVISE_LOOPS`, dump state and halt. Else loop back to step 4.
+   - `approve` → invoke `/cloverleaf-gate $RFC_ID approve`. Continue to step 7.
+   - `reject [reason]` → invoke `/cloverleaf-gate $RFC_ID reject [reason]`. Exit with summary.
+   - `revise [reason]` → invoke `/cloverleaf-gate $RFC_ID revise [reason]`. `revise_loops += 1`. If `revise_loops >= MAX_REVISE_LOOPS`, dump state and halt. Else loop back to step 4.
 
-7. **Plan breakdown** — inline `/cloverleaf-breakdown $RFC_ID` steps. Per-invocation bounce budget (3 bounces inside breakdown). Capture `$PLAN_ID`. On bounce exhaustion: dump state and halt.
+7. **Plan breakdown** — invoke `/cloverleaf-breakdown $RFC_ID`. Per-invocation bounce budget (3 bounces inside breakdown). Capture `$PLAN_ID`. On bounce exhaustion: dump state and halt.
 
 8. **Gate: task_batch_gate** — Plan is already in `gate-pending` (set by breakdown). Prompt:
    ```
@@ -86,8 +86,8 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
    ```
 
    On:
-   - `approve` → inline `/cloverleaf-gate $PLAN_ID approve` steps. Continue.
-   - `reject [reason]` → inline `/cloverleaf-gate $PLAN_ID reject [reason]` steps. Exit with summary.
+   - `approve` → invoke `/cloverleaf-gate $PLAN_ID approve`. Continue.
+   - `reject [reason]` → invoke `/cloverleaf-gate $PLAN_ID reject [reason]`. Exit with summary.
 
 9. **Materialise tasks**:
    ```bash
@@ -123,7 +123,7 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
     Run first root via /cloverleaf-run now? [y/N] > _
     ```
 
-    On `y` or `yes` (case-insensitive): inline `/cloverleaf-run <FIRST_ROOT>` steps. On anything else: exit with summary.
+    On `y` or `yes` (case-insensitive): invoke `/cloverleaf-run <FIRST_ROOT>`. On anything else: exit with summary.
 
 12. **Exit summary**:
     - RFC ID + final status
@@ -137,3 +137,4 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
 - v0.5 prompts only for the FIRST DAG root. Multi-root concurrent Delivery is v0.6 scope.
 - All bounces and revise loops halt cleanly with a state dump at `.cloverleaf/runs/<RFC_ID>/discover-crash.json`. No partial work is left in an inconsistent state — the gate_decision events and work-item status are always coherent.
 - The readline prompts are compatible with the user's session-bridging tool for automated dogfooding.
+- "Invoke `/cloverleaf-X`" means spawn the sub-skill via the Skill tool — do NOT re-enter `/cloverleaf-discover` recursively. Sub-skills run in-process (same session) and return control to this orchestrator.

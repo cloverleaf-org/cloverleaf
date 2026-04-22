@@ -517,4 +517,17 @@ describe('cloverleaf-discover skill', () => {
   it('supports revise loop at rfc_strategy_gate', () => {
     expect(body).toMatch(/revise/);
   });
+
+  // v0.5.1: the v0.5 prose said "inline /cloverleaf-X steps", which the driven
+  // Claude consistently interpreted as "invoke the sub-skill" anyway. Match the
+  // observed behaviour explicitly so future edits don't reintroduce the
+  // confusing "inline steps" phrasing.
+  it('uses "invoke" language for sub-skill calls (not "inline ... steps") (v0.5.1)', () => {
+    expect(body).not.toMatch(/inline\s+`?\/cloverleaf-/i);
+    expect(body).toMatch(/invoke\s+`?\/cloverleaf-new-rfc/i);
+    expect(body).toMatch(/invoke\s+`?\/cloverleaf-draft-rfc/i);
+    expect(body).toMatch(/invoke\s+\/cloverleaf-spike/i);
+    expect(body).toMatch(/invoke\s+`?\/cloverleaf-breakdown/i);
+    expect(body).toMatch(/invoke\s+`?\/cloverleaf-gate/i);
+  });
 });
