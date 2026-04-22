@@ -336,3 +336,35 @@ describe('reviewer skills /tmp cleanup + feedback commit (v0.4.1 #3, #5)', () =>
     });
   }
 });
+
+describe('cloverleaf-draft-rfc skill', () => {
+  const body = readSkill('cloverleaf-draft-rfc');
+
+  it('takes an RFC ID argument', () => {
+    expect(body).toMatch(/\$RFC_ID|<RFC-ID>|<rfc-id>|RFC-ID/);
+  });
+
+  it('loads the researcher prompt via plugin-root (no hardcoded plugin path)', () => {
+    expect(body).toMatch(/\$\(cloverleaf-cli plugin-root\)\/prompts\/researcher/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('uses operation=draftRfc', () => {
+    expect(body).toMatch(/draftRfc/);
+  });
+
+  it('creates Spike work items from unknowns[] when non-empty', () => {
+    expect(body).toMatch(/unknowns/);
+    expect(body).toMatch(/save-spike/);
+    expect(body).toMatch(/spike-in-flight/);
+  });
+
+  it('transitions to planning when unknowns is empty', () => {
+    expect(body).toMatch(/planning/);
+  });
+
+  it('uses cloverleaf-cli save-rfc + advance-rfc (no hardcoded paths)', () => {
+    expect(body).toMatch(/save-rfc/);
+    expect(body).toMatch(/advance-rfc/);
+  });
+});
