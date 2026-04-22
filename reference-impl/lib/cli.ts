@@ -18,8 +18,8 @@
 
 import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { loadTask } from './state.js';
-import { advanceStatus } from './state.js';
+import { loadTask } from './task.js';
+import { advanceStatus } from './task.js';
 import { emitGateDecision } from './events.js';
 import { writeFeedback, latestFeedback } from './feedback.js';
 import { nextTaskId, inferProject } from './ids.js';
