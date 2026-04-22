@@ -2,6 +2,14 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `UiReviewConfig` gains three new backward-compatible fields: `browsers` (array of `BrowserEngine` strings, default `["chromium"]`), `axe.browser` (string, default `"chromium"`), and `maxCombinations` (integer, default `90`). Configs that omit these keys continue to work unchanged — `applyDefaults()` fills them in at load time.
+- `BrowserEngine` type alias (`'chromium' | 'webkit' | 'firefox'`) exported from `lib/ui-review-config.ts`.
+- `install.sh` now runs `npx playwright install chromium webkit firefox` (all three browsers) after the existing chromium step, and on Linux also runs `npx playwright install-deps webkit` for webkit system dependencies.
+
 ## 0.5.1 — 2026-04-22
 
 Bug-fix release closing issues surfaced by the v0.5 Discovery-track dogfood
