@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { rfcsDir } from './paths.js';
 import { validateOrThrow } from './validate.js';
@@ -27,6 +27,7 @@ export function loadRfc(repoRoot: string, id: string): RfcDoc {
 
 export function saveRfc(repoRoot: string, rfc: RfcDoc): void {
   validateOrThrow('https://cloverleaf.example/schemas/rfc.schema.json', rfc);
+  mkdirSync(rfcsDir(repoRoot), { recursive: true });
   const path = join(rfcsDir(repoRoot), `${rfc.id}.json`);
   writeFileSync(path, JSON.stringify(rfc, null, 2) + '\n');
 }

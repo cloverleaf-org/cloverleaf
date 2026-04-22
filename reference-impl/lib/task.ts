@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tasksDir, projectsDir } from './paths.js';
 import type { Task as SMTask } from '@cloverleaf/standard/validators/index.js';
@@ -33,6 +33,7 @@ export function loadTask(repoRoot: string, taskId: string): TaskDoc {
 
 export function saveTask(repoRoot: string, task: TaskDoc): void {
   validateOrThrow('https://cloverleaf.example/schemas/task.schema.json', task);
+  mkdirSync(tasksDir(repoRoot), { recursive: true });
   const path = join(tasksDir(repoRoot), `${task.id}.json`);
   writeFileSync(path, JSON.stringify(task, null, 2) + '\n');
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadPlan, savePlan, advancePlanStatus, materialiseTasksFromPlan, type PlanDoc } from '../lib/plan.js';
@@ -81,6 +81,17 @@ describe('plan lib — load/save/advance', () => {
     expect(() => advancePlanStatus(tmp, 'CLV-012', 'approved', 'agent', { gate: 'task_batch_gate' })).toThrow();
     advancePlanStatus(tmp, 'CLV-012', 'approved', 'human', { gate: 'task_batch_gate' });
     expect(loadPlan(tmp, 'CLV-012').status).toBe('approved');
+  });
+
+  it('savePlan auto-creates the plans directory on first write (v0.5.1)', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'cl-plan-fresh-'));
+    try {
+      expect(existsSync(join(fresh, '.cloverleaf', 'plans'))).toBe(false);
+      savePlan(fresh, validPlan());
+      expect(existsSync(join(fresh, '.cloverleaf', 'plans', 'CLV-012.json'))).toBe(true);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 });
 

@@ -35,6 +35,7 @@ export function loadPlan(repoRoot: string, id: string): PlanDoc {
 
 export function savePlan(repoRoot: string, plan: PlanDoc): void {
   validateOrThrow('https://cloverleaf.example/schemas/plan.schema.json', plan);
+  mkdirSync(plansDir(repoRoot), { recursive: true });
   const path = join(plansDir(repoRoot), `${plan.id}.json`);
   writeFileSync(path, JSON.stringify(plan, null, 2) + '\n');
 }

@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { spikesDir } from './paths.js';
 import { validateOrThrow } from './validate.js';
@@ -27,6 +27,7 @@ export function loadSpike(repoRoot: string, id: string): SpikeDoc {
 
 export function saveSpike(repoRoot: string, spike: SpikeDoc): void {
   validateOrThrow('https://cloverleaf.example/schemas/spike.schema.json', spike);
+  mkdirSync(spikesDir(repoRoot), { recursive: true });
   const path = join(spikesDir(repoRoot), `${spike.id}.json`);
   writeFileSync(path, JSON.stringify(spike, null, 2) + '\n');
 }
