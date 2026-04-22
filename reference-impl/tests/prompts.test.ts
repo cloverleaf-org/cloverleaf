@@ -211,3 +211,36 @@ describe('qa prompt', () => {
     expect(body).toContain('report');
   });
 });
+
+describe('researcher prompt', () => {
+  const body = readPrompt('researcher');
+
+  it('has all required placeholders', () => {
+    expect(body).toContain('{{operation}}');
+    expect(body).toContain('{{brief}}');
+    expect(body).toContain('{{doc_context_uri}}');
+    expect(body).toContain('{{repo_root}}');
+    expect(body).toContain('{{spike}}');
+  });
+
+  it('has no stale placeholders', () => {
+    expect(body).not.toMatch(/\{\{[^}]*TODO[^}]*\}\}/);
+    expect(body).not.toMatch(/XXX|TBD/);
+  });
+
+  it('specifies both operations', () => {
+    expect(body).toMatch(/draftRfc/);
+    expect(body).toMatch(/runSpike/);
+  });
+
+  it('specifies JSON output contract with schema references', () => {
+    expect(body.toLowerCase()).toMatch(/rfc\.schema\.json/);
+    expect(body.toLowerCase()).toMatch(/spike\.schema\.json/);
+  });
+
+  it('references unknowns[] for RFC uncertainties (not rfc.spikes[])', () => {
+    expect(body).toMatch(/unknowns/);
+    // Spike IDs must come from separate spike work items, not embedded in the RFC.
+    expect(body).not.toMatch(/rfc\.spikes\s*\[/);
+  });
+});
