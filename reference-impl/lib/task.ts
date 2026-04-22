@@ -1,18 +1,10 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
 import { tasksDir, projectsDir } from './paths.js';
-import { emitStatusTransition, formatReason } from './events.js';
-
-// Import validator from @cloverleaf/standard.
-// The standard package ships TypeScript source only with no exports map.
-// Vitest (via vite-node) resolves .js → .ts for workspace symlinked packages,
-// so the .js convention works here. If it ever fails with "module not found",
-// switch the specifier to '@cloverleaf/standard/validators/index.ts'.
-import { validateStatusTransitionLegality } from '@cloverleaf/standard/validators/index.js';
 import type { StatusTransitions, Task as SMTask } from '@cloverleaf/standard/validators/index.js';
 import { validateOrThrow } from './validate.js';
+import { advanceWorkItemStatus } from './work-item.js';
 
 const req = createRequire(import.meta.url);
 
@@ -73,15 +65,11 @@ export function advanceStatus(
   const from = task.status;
   const sm = loadTaskStateMachine();
 
-  // Read risk_class directly from the task (defaulting to 'low' if absent).
-  // The validator derives itemPath from workItem.risk_class: low → fast_lane, else full_pipeline.
-  // If caller passed options.path, translate it back to risk_class for the validator.
   const riskClass: 'low' | 'high' =
     options.path === 'fast_lane' ? 'low'
     : options.path === 'full_pipeline' ? 'high'
     : (task.risk_class ?? 'low');
 
-  // Build a minimal Task-shaped object so the validator can resolve path-tagged transitions.
   const workItemForValidator: SMTask = {
     type: 'task',
     id: task.id,
@@ -93,45 +81,21 @@ export function advanceStatus(
     acceptance_criteria: task.acceptance_criteria,
   };
 
-  const reason = formatReason({ gate: options.gate, path: options.path });
-  const event = {
-    event_id: randomUUID(),
-    event_type: 'status_transition' as const,
-    occurred_at: new Date().toISOString(),
-    work_item_id: { project: task.project, id: task.id },
-    work_item_type: 'task' as const,
-    from_status: from,
-    to_status: toStatus,
-    actor: { kind: actor, id: actor },
-    ...(reason ? { reason } : {}),
-  };
-
-  const result = validateStatusTransitionLegality(event, sm, workItemForValidator);
-  if (!result.ok) {
-    const msgs = result.violations.map((v) => v.message).join('; ');
-    throw new Error(`Illegal transition ${from} → ${toStatus}: ${msgs}`);
-  }
-
-  // NEW: emit first, save second. validateStatusTransitionLegality stays above.
-  const emittedPath = emitStatusTransition(repoRoot, {
-    project: task.project,
+  const proposed = { ...task, status: toStatus };
+  advanceWorkItemStatus({
+    repoRoot,
     workItemType: 'task',
-    workItemId: task.id,
+    project: task.project,
+    id: task.id,
     from,
     to: toStatus,
     actor,
+    stateMachine: sm,
+    validateFixture: workItemForValidator as unknown as Record<string, unknown>,
+    save: (p) => saveTask(repoRoot, p as TaskDoc),
+    proposed,
     gate: options.gate,
     path: options.path,
   });
-
-  const proposed = { ...task, status: toStatus };
-  try {
-    saveTask(repoRoot, proposed);
-  } catch (err) {
-    const inner = err instanceof Error ? err.message : String(err);
-    throw new Error(
-      `orphan event written to ${emittedPath} but task save failed: ${inner}`
-    );
-  }
   return proposed;
 }
