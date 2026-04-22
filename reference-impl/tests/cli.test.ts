@@ -318,6 +318,21 @@ describe('cli — rfc', () => {
     const { stdout } = run(['load-rfc', tmp, 'CLV-009']);
     expect(JSON.parse(stdout).status).toBe('spike-in-flight');
   });
+
+  it('advance-rfc rejects actor=system (v0.1.1 guardrail)', () => {
+    const rfc = {
+      type: 'rfc', project: 'CLV', id: 'CLV-009', status: 'drafting',
+      owner: { kind: 'agent', id: 'researcher' },
+      title: 't', problem: 'p', solution: 's',
+      unknowns: [], acceptance_criteria: ['ac'], out_of_scope: [],
+    };
+    const p = join(tmp, 'r.json');
+    writeFileSync(p, JSON.stringify(rfc));
+    run(['save-rfc', tmp, p]);
+    const { exitCode, stderr } = run(['advance-rfc', tmp, 'CLV-009', 'spike-in-flight', 'system']);
+    expect(exitCode).not.toBe(0);
+    expect(stderr.toLowerCase()).toMatch(/actor.*agent.*human|agent.*or.*human/);
+  });
 });
 
 describe('cli — spike', () => {
@@ -344,6 +359,23 @@ describe('cli — spike', () => {
     const { stdout, exitCode } = run(['load-spike', tmp, 'CLV-010']);
     expect(exitCode).toBe(0);
     expect(JSON.parse(stdout).id).toBe('CLV-010');
+  });
+
+  it('advance-spike moves pending → running', () => {
+    const spike = {
+      type: 'spike', project: 'CLV', id: 'CLV-010',
+      title: 'test', status: 'pending',
+      owner: { kind: 'agent', id: 'researcher' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      question: 'q?', method: 'research',
+    };
+    const p = join(tmp, 's.json');
+    writeFileSync(p, JSON.stringify(spike));
+    run(['save-spike', tmp, p]);
+    const { exitCode } = run(['advance-spike', tmp, 'CLV-010', 'running', 'agent']);
+    expect(exitCode).toBe(0);
+    const { stdout } = run(['load-spike', tmp, 'CLV-010']);
+    expect(JSON.parse(stdout).status).toBe('running');
   });
 });
 
@@ -381,6 +413,32 @@ describe('cli — plan', () => {
     const { stdout, exitCode } = run(['materialise-tasks', tmp, 'CLV-012']);
     expect(exitCode).toBe(0);
     expect(JSON.parse(stdout).task_ids).toEqual(['CLV-013']);
+  });
+
+  it('advance-plan moves drafting → gate-pending', () => {
+    const plan = {
+      type: 'plan', project: 'CLV', id: 'CLV-012', status: 'drafting',
+      owner: { kind: 'agent', id: 'plan' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      task_dag: {
+        nodes: [{ project: 'CLV', id: 'CLV-013' }],
+        edges: [],
+      },
+      tasks: [{
+        type: 'task', project: 'CLV', id: 'CLV-013', title: 't',
+        status: 'pending', risk_class: 'high',
+        owner: { kind: 'agent', id: 'implementer' },
+        acceptance_criteria: ['a'], definition_of_done: ['d'],
+        context: { rfc: { project: 'CLV', id: 'CLV-009' } },
+      }],
+    };
+    const p = join(tmp, 'plan.json');
+    writeFileSync(p, JSON.stringify(plan));
+    run(['save-plan', tmp, p]);
+    const { exitCode } = run(['advance-plan', tmp, 'CLV-012', 'gate-pending', 'agent', 'task_batch_gate']);
+    expect(exitCode).toBe(0);
+    const { stdout } = run(['load-plan', tmp, 'CLV-012']);
+    expect(JSON.parse(stdout).status).toBe('gate-pending');
   });
 });
 
@@ -427,5 +485,15 @@ describe('cli — next-work-item-id', () => {
     const { stdout, exitCode } = run(['next-work-item-id', tmp, 'CLV']);
     expect(exitCode).toBe(0);
     expect(stdout.trim()).toBe('CLV-1');
+  });
+
+  it('returns max+1 when files exist across rfcs/spikes/plans/tasks', () => {
+    writeFileSync(join(tmp, '.cloverleaf/rfcs/CLV-3.json'), '{}');
+    writeFileSync(join(tmp, '.cloverleaf/spikes/CLV-12.json'), '{}');
+    writeFileSync(join(tmp, '.cloverleaf/plans/CLV-5.json'), '{}');
+    writeFileSync(join(tmp, '.cloverleaf/tasks/CLV-7.json'), '{}');
+    const { stdout, exitCode } = run(['next-work-item-id', tmp, 'CLV']);
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe('CLV-13');
   });
 });
