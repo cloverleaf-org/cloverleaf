@@ -14,7 +14,7 @@
       "source": "./reference-impl",
       "category": "development",
       "homepage": "https://github.com/cloverleaf-org/cloverleaf",
-      "version": "0.4.1"
+      "version": "0.5.0"
     }
   ]
 }

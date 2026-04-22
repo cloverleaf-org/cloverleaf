@@ -2,6 +2,40 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.5.0 — 2026-04-22
+
+### Added — Discovery track is now real
+
+- **Researcher agent** (`prompts/researcher.md`) — operations `draftRfc` (reads brief + docs, emits RFC with `unknowns[]` for candidate spikes) and `runSpike` (executes a spike, emits `findings` + `recommendation`). Dual-operation prompt file.
+- **Plan agent** (`prompts/plan.md`) — operation `breakdown` (approved RFC + completed spikes → Plan with edge-based `task_dag` + inline `tasks[]` + optional `path_reviewer_map`).
+- **Discovery skills** (6 new):
+  - `/cloverleaf-new-rfc <brief-file>` — scaffolds a new RFC in `.cloverleaf/rfcs/`.
+  - `/cloverleaf-draft-rfc <RFC-ID>` — invokes Researcher draftRfc; emits one Spike per unknown; transitions RFC to spike-in-flight or planning.
+  - `/cloverleaf-spike <SPIKE-ID>` — invokes Researcher runSpike; transitions pending → running → completed with findings + recommendation.
+  - `/cloverleaf-breakdown <RFC-ID>` — invokes Plan breakdown on an approved RFC; emits a Plan at `task_batch_gate` gate-pending.
+  - `/cloverleaf-gate <item-id> <approve|reject|revise> [reason]` — human gate action on RFC (`rfc_strategy_gate`, all 3 actions) or Plan (`task_batch_gate`, approve/reject only).
+  - `/cloverleaf-discover <brief-file>` — full Discovery orchestrator mirroring `/cloverleaf-run`. Drives RFC → (Spikes) → Plan → gates → task materialisation, then prompts to kick off Delivery on the first DAG root via `/cloverleaf-run`.
+- **Per-type library modules** — `lib/rfc.ts`, `lib/spike.ts`, `lib/plan.ts`. Each exports `loadX`, `saveX` (with AJV `validateOrThrow`), `advanceXStatus` (delegates to `advanceWorkItemStatus`). `lib/plan.ts` also exports `materialiseTasksFromPlan` — atomic batch task-file creation with DFS cycle detection + pre-validation of every task before any file write.
+- **Generic work-item helper** — `lib/work-item.ts::advanceWorkItemStatus<T>` + `loadStateMachine(type)`. The per-type modules delegate emit-then-save atomicity through this helper, so each type inherits the "orphan event" guard established in v0.1.1.
+- **Discovery config** — `config/discovery.json` package default (`{ "docContextUri": "", "projectId": "", "idStart": 1 }`; all generic values). Consumer override at `<repoRoot>/.cloverleaf/config/discovery.json` with full-replacement + per-field fallback normalisation. Loader: `loadDiscoveryConfig(repoRoot)`. CLI: `cloverleaf-cli discovery-config --repo-root <path>`.
+- **Shared work-item ID helper** — `nextWorkItemId(repoRoot, project)` scans `.cloverleaf/{rfcs,spikes,plans,tasks}/` for the next sequential ID, matching the oauth-rollout scenario convention where IDs share a per-project namespace across types (directory determines type, not ID).
+- **CLI subcommands** (12 new) — `load-rfc`, `save-rfc`, `advance-rfc [gate]`, `load-spike`, `save-spike`, `advance-spike`, `load-plan`, `save-plan`, `advance-plan [gate]`, `materialise-tasks <plan-id>`, `next-work-item-id <project>`, `discovery-config --repo-root <path>`. All `advance-*` commands enforce the v0.1.1 actor guardrail (`agent` or `human` only; `system` rejected).
+
+### Changed
+
+- `lib/state.ts` renamed to `lib/task.ts` (no behavioural change). Prepares the lib for parallel per-type modules.
+- `lib/task.ts::advanceStatus` now delegates to `lib/work-item.ts::advanceWorkItemStatus`. Public signature unchanged; the orphan-event error format preserves byte-for-byte compatibility with v0.4.1 regex matches.
+
+### Compatibility
+
+- Standard stays at 0.4.1. No schema, contract, or state-machine changes. RFC/Spike/Plan schemas + contracts have shipped in Standard since 0.2.0.
+- Existing Delivery-track skills (`/cloverleaf-implement`, `-document`, `-review`, `-ui-review`, `-qa`, `-merge`, `-run`) are unchanged.
+- Existing `nextTaskId` export still works (back-compat).
+
+### Tests
+
+~375 tests passing (up from 273 at v0.4.1).
+
 ## [0.4.1] — 2026-04-21
 
 ### Added
