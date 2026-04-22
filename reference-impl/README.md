@@ -92,11 +92,28 @@ All overrides are read fresh on every skill invocation; no caching. Edit and the
 
 ### Prerequisites for UI Reviewer
 
-Run once per machine:
+The installer (`install.sh`) automatically runs the Playwright browser install step. If you need to install manually, run:
 
-    npx playwright install chromium
+    npx playwright install chromium webkit firefox
 
-This installs chromium into `~/.cache/ms-playwright/` (the default `PLAYWRIGHT_BROWSERS_PATH`). Subsequent `/cloverleaf-ui-review` invocations reuse this cache — no ~300 MB re-download per run.
+On **Linux**, webkit additionally requires system-level dependencies:
+
+    npx playwright install-deps webkit
+
+**Disk footprint:** approximately 600–650 MB total across all three browsers in the default `PLAYWRIGHT_BROWSERS_PATH` location (`~/.cache/ms-playwright/`).
+
+| Browser   | Approx. size |
+|-----------|-------------|
+| chromium  | ~300 MB     |
+| webkit    | ~150–170 MB |
+| firefox   | ~150–180 MB |
+
+To store browsers in a non-default location, set `PLAYWRIGHT_BROWSERS_PATH` before installing and before running the UI Reviewer skill:
+
+    export PLAYWRIGHT_BROWSERS_PATH=/mnt/data/playwright
+    npx playwright install chromium webkit firefox
+
+Subsequent `/cloverleaf-ui-review` invocations reuse the cache — no re-download per run as long as `PLAYWRIGHT_BROWSERS_PATH` is set consistently.
 
 ## Quick start — toy repo
 

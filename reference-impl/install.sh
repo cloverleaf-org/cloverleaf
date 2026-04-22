@@ -42,9 +42,22 @@ echo "  /cloverleaf-merge      — merge gate"
 echo ""
 echo "Restart any open Claude Code sessions to pick up the new skills."
 
-# Post-install: warn about Playwright chromium if not cached
-if [ ! -d "${HOME}/.cache/ms-playwright" ] || [ -z "$(ls -A "${HOME}/.cache/ms-playwright" 2>/dev/null)" ]; then
+# Post-install: install Playwright browsers for UI Reviewer.
+echo ""
+echo "Installing Playwright browsers (chromium, webkit, firefox)..."
+echo "  (approx. 600–650 MB total in \${PLAYWRIGHT_BROWSERS_PATH:-~/.cache/ms-playwright})"
+echo ""
+
+npx playwright install chromium webkit firefox
+
+# On Linux, system deps for webkit are also required.
+if [ "$(uname -s)" = "Linux" ]; then
   echo ""
-  echo "Note: UI Reviewer uses Playwright chromium. If you plan to run /cloverleaf-ui-review, install once with:"
-  echo "  npx playwright install chromium"
+  echo "Linux detected — installing webkit system dependencies..."
+  npx playwright install-deps webkit
 fi
+
+echo ""
+echo "Playwright browsers installed."
+echo "To use a custom cache directory, set PLAYWRIGHT_BROWSERS_PATH before running install."
+echo "  e.g. PLAYWRIGHT_BROWSERS_PATH=~/.cache/ms-playwright ./install.sh"
