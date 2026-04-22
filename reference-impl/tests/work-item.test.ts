@@ -44,6 +44,7 @@ describe('advanceWorkItemStatus', () => {
       stateMachine: sm,
       validateFixture: { type: 'rfc', id: 'CLV-009', project: 'CLV', status: 'drafting' },
       save: saveFn,
+      proposed: { type: 'rfc', id: 'CLV-009', project: 'CLV', status: 'gate-pending' },
     });
 
     expect(result.to).toBe('gate-pending');
@@ -67,6 +68,7 @@ describe('advanceWorkItemStatus', () => {
         stateMachine: sm,
         validateFixture: { type: 'rfc', id: 'CLV-009', project: 'CLV', status: 'drafting' },
         save: saveFn,
+        proposed: { type: 'rfc', id: 'CLV-009', project: 'CLV', status: 'approved' },
       })
     ).toThrow(/Illegal transition/);
   });
@@ -86,6 +88,7 @@ describe('advanceWorkItemStatus', () => {
         stateMachine: sm,
         validateFixture: { type: 'rfc', id: 'CLV-009', project: 'CLV', status: 'drafting' },
         save: saveFn,
+        proposed: { type: 'rfc', id: 'CLV-009', project: 'CLV', status: 'gate-pending' },
       })
     ).toThrow(/orphan event written to .* but .* save failed: disk full/);
   });

@@ -14,7 +14,7 @@ export interface AdvanceWorkItemParams<T> {
   stateMachine: StatusTransitions;
   validateFixture: Record<string, unknown>;
   save: (proposed: T & { status: string }) => void;
-  proposed?: T;
+  proposed: T;
   gate?: string;
   path?: 'fast_lane' | 'full_pipeline';
 }
@@ -58,7 +58,7 @@ export function advanceWorkItemStatus<T>(params: AdvanceWorkItemParams<T>): Adva
   });
 
   try {
-    save((params.proposed ?? ({} as T)) as T & { status: string });
+    save(params.proposed as T & { status: string });
   } catch (err) {
     const inner = err instanceof Error ? err.message : String(err);
     throw new Error(`orphan event written to ${emittedPath} but ${workItemType} save failed: ${inner}`);
