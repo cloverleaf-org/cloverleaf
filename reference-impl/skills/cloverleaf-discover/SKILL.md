@@ -11,15 +11,14 @@ The user has invoked this skill with a brief file path (e.g., `docs/briefs/cross
 
 Each sub-skill runs from `main`. Between steps, confirm branch is `main` before proceeding. All sub-skills return the user to `main`.
 
-## Per-agent bounce budget (in-session counters)
+## Per-agent bounce budget (in-session)
 
-```
-MAX_RESEARCHER_BOUNCES = 3
-MAX_PLAN_BOUNCES       = 3
-MAX_REVISE_LOOPS       = 3
-```
-
-These counters live in-session; `/cloverleaf-discover` rerun resets.
+- **Researcher and Plan agent bounces are budgeted inside the sub-skills** (`/cloverleaf-draft-rfc`, `/cloverleaf-spike`, `/cloverleaf-breakdown`), each with a 3-bounce per-invocation budget. The orchestrator invokes each sub-skill once per step — if a sub-skill exhausts its budget, it halts, and the orchestrator treats that as a hard halt and dumps state.
+- **Revise loops are budgeted in the orchestrator:**
+  ```
+  MAX_REVISE_LOOPS = 3
+  ```
+  Resets on each `/cloverleaf-discover` invocation.
 
 ## Steps
 
@@ -35,33 +34,36 @@ These counters live in-session; `/cloverleaf-discover` rerun resets.
 
 3. **Create the RFC** — inline `/cloverleaf-new-rfc $BRIEF_FILE` steps. Capture the printed RFC ID as `$RFC_ID`.
 
-4. **Draft RFC (Researcher draftRfc)** — begin revise loop:
+   Initialise revise loop counter:
    ```
    revise_loops = 0
    ```
-   Loop:
-   - Inline `/cloverleaf-draft-rfc $RFC_ID` steps. Researcher runs with per-invocation bounce budget MAX_RESEARCHER_BOUNCES.
-   - On bounce exhaustion: dump state to `.cloverleaf/runs/$RFC_ID/discover-crash.json` and halt.
+
+4. **Draft RFC (Researcher draftRfc)** — inline `/cloverleaf-draft-rfc $RFC_ID` steps. Researcher runs with a per-invocation bounce budget (3 bounces inside draft-rfc).
+   - On bounce exhaustion (draft-rfc exits non-zero): dump state to `.cloverleaf/runs/$RFC_ID/discover-crash.json` and halt.
    - Reload the RFC. Its new status is either `spike-in-flight` (unknowns non-empty) or `planning` (unknowns empty).
 
-5. **If RFC status is `spike-in-flight`** — run every pending spike linked to this RFC:
-   ```bash
-   for each spike in .cloverleaf/spikes/*.json where parent_rfc.id === $RFC_ID AND status === "pending":
-     inline /cloverleaf-spike <SPIKE_ID> steps.
-     On bounce exhaustion for any spike: dump state and halt.
-   ```
+5. **Conditional on RFC status after step 4:**
+   - If `planning`: skip the spike loop below; proceed to step 6.
+   - If `spike-in-flight`: run every pending spike linked to this RFC:
+     ```bash
+     for each spike in .cloverleaf/spikes/*.json where parent_rfc.id === $RFC_ID AND status === "pending":
+       inline /cloverleaf-spike <SPIKE_ID> steps.
+     ```
 
-   After all spikes complete, **always re-invoke `/cloverleaf-draft-rfc $RFC_ID`**. The Researcher sees the completed spikes and may revise the RFC body. Then transition RFC explicitly:
-   ```
-   cloverleaf-cli advance-rfc <repo_root> $RFC_ID drafting agent
-   cloverleaf-cli advance-rfc <repo_root> $RFC_ID planning agent
-   ```
+     If `/cloverleaf-spike` exits non-zero or leaves the spike in a non-`completed` status after returning, treat that as bounce exhaustion: dump state to `.cloverleaf/runs/$RFC_ID/discover-crash.json` (including the spike ID) and halt. The orchestrator does NOT resume partially-run spike trees — if any spike is unresolved, the whole Discovery halts.
 
-   Rationale: redundant redraft is cheap; avoids introducing an off-contract "rfc_revision_required" boolean. The human gate at step 7 catches any missed revisions.
+     After all spikes complete:
 
-6. **(if RFC status is `planning`, skip step 5; proceed directly)**
+     1. Transition RFC spike-in-flight → drafting:
+        ```
+        cloverleaf-cli advance-rfc <repo_root> $RFC_ID drafting agent
+        ```
+     2. Re-invoke `/cloverleaf-draft-rfc $RFC_ID` — Researcher sees the completed spikes and may revise the RFC body. draft-rfc itself re-transitions the RFC to `spike-in-flight` (if new unknowns emerge — should not happen the second time since spikes were answered) or `planning` (expected path).
 
-7. **Gate: rfc_strategy_gate** — transition RFC to gate-pending:
+     Rationale: redundant redraft is cheap; avoids introducing an off-contract "rfc_revision_required" boolean. The human gate at step 6 catches any missed revisions.
+
+6. **Gate: rfc_strategy_gate** — transition RFC to gate-pending:
    ```
    cloverleaf-cli advance-rfc <repo_root> $RFC_ID gate-pending agent rfc_strategy_gate
    ```
@@ -72,13 +74,13 @@ These counters live in-session; `/cloverleaf-discover` rerun resets.
    ```
 
    Parse input. On:
-   - `approve` → inline `/cloverleaf-gate $RFC_ID approve` steps. Continue to step 8.
+   - `approve` → inline `/cloverleaf-gate $RFC_ID approve` steps. Continue to step 7.
    - `reject [reason]` → inline `/cloverleaf-gate $RFC_ID reject [reason]` steps. Exit with summary.
    - `revise [reason]` → inline `/cloverleaf-gate $RFC_ID revise [reason]` steps. `revise_loops += 1`. If `revise_loops >= MAX_REVISE_LOOPS`, dump state and halt. Else loop back to step 4.
 
-8. **Plan breakdown** — inline `/cloverleaf-breakdown $RFC_ID` steps. Per-invocation bounce budget MAX_PLAN_BOUNCES. Capture `$PLAN_ID`. On bounce exhaustion: dump state and halt.
+7. **Plan breakdown** — inline `/cloverleaf-breakdown $RFC_ID` steps. Per-invocation bounce budget (3 bounces inside breakdown). Capture `$PLAN_ID`. On bounce exhaustion: dump state and halt.
 
-9. **Gate: task_batch_gate** — Plan is already in `gate-pending` (set by breakdown). Prompt:
+8. **Gate: task_batch_gate** — Plan is already in `gate-pending` (set by breakdown). Prompt:
    ```
    PLN $PLAN_ID at task_batch_gate: approve / reject [reason]? > _
    ```
@@ -87,42 +89,43 @@ These counters live in-session; `/cloverleaf-discover` rerun resets.
    - `approve` → inline `/cloverleaf-gate $PLAN_ID approve` steps. Continue.
    - `reject [reason]` → inline `/cloverleaf-gate $PLAN_ID reject [reason]` steps. Exit with summary.
 
-10. **Materialise tasks**:
-    ```bash
-    OUT=$(cloverleaf-cli materialise-tasks <repo_root> $PLAN_ID)
-    TASK_IDS=$(echo "$OUT" | jq -r '.task_ids[]')
-    ```
+9. **Materialise tasks**:
+   ```bash
+   OUT=$(cloverleaf-cli materialise-tasks <repo_root> $PLAN_ID)
+   TASK_IDS=$(echo "$OUT" | jq -r '.task_ids[]')
+   ```
 
-    On materialise-tasks failure (cycle, AJV error): the CLI's error message names the failing task. Transition the Plan back by rejecting:
-    ```
-    cloverleaf-cli emit-gate-decision <repo_root> $PLAN_ID task_batch_gate reject system --comment="materialisation failed: <error>"
-    cloverleaf-cli advance-plan <repo_root> $PLAN_ID rejected human task_batch_gate
-    ```
-    Halt.
+   On materialise-tasks failure (cycle detected, or AJV validation error):
+   - The error message from `cloverleaf-cli` identifies the failing task.
+   - `materialiseTasksFromPlan` is atomic: the cycle-check and AJV pre-validation run BEFORE any file write, so no task files were created.
+   - The Plan remains in `approved` status (the gate was legitimately approved; the materialisation issue is with the Plan's own task DAG, not the gate decision).
+   - Dump state to `.cloverleaf/runs/$PLAN_ID/materialise-crash.json` and halt.
+   - Operator investigation typically leads to a new `/cloverleaf-breakdown` run to produce a corrected Plan (the rejected path is via the ORIGINAL gate, not a post-approval state correction).
 
-11. **Compute DAG roots**:
+10. **Compute DAG roots**:
     ```bash
     PLAN_JSON=$(cloverleaf-cli load-plan <repo_root> $PLAN_ID)
-    # Roots: nodes[] entries not appearing as `to` in any edge.
-    ROOTS=$(echo "$PLAN_JSON" | jq -r '
-      .task_dag.nodes[] | .id as $nid
-      | ($nid as $n | .task_dag.edges | map(.to.id) | index($n)) // $nid
-    ' | ...)
-    # Simpler: use set-difference via jq; or compute in-app.
+
+    # DAG roots = nodes whose id never appears as `to.id` in any edge.
+    # v0.5 picks the FIRST root only; multi-root concurrent Delivery is v0.6.
+    FIRST_ROOT=$(echo "$PLAN_JSON" | jq -r '
+      (.task_dag.edges | map(.to.id)) as $targets
+      | [.task_dag.nodes[] | select(.id as $n | ($targets | index($n)) | not) | .id][0]
+    ')
     ```
 
     v0.5 simplified rule: pick the FIRST root only (first `nodes[]` entry whose `id` does not appear in any `edges[].to.id`). Defer multi-root walk to v0.6.
 
-12. **Prompt to kick off first root** (blocking readline):
+11. **Prompt to kick off first root** (blocking readline):
     ```
     N tasks materialised: $TASK_IDS.
-    DAG roots: $ROOTS.
+    DAG roots: $FIRST_ROOT.
     Run first root via /cloverleaf-run now? [y/N] > _
     ```
 
     On `y` or `yes` (case-insensitive): inline `/cloverleaf-run <FIRST_ROOT>` steps. On anything else: exit with summary.
 
-13. **Exit summary**:
+12. **Exit summary**:
     - RFC ID + final status
     - Spike IDs + findings summary (if any)
     - Plan ID + task count
