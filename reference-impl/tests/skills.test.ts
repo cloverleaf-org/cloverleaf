@@ -368,3 +368,30 @@ describe('cloverleaf-draft-rfc skill', () => {
     expect(body).toMatch(/advance-rfc/);
   });
 });
+
+describe('cloverleaf-spike skill', () => {
+  const body = readSkill('cloverleaf-spike');
+
+  it('takes a spike ID', () => {
+    expect(body).toMatch(/\$SPIKE_ID|<SPIKE-ID>|<spike-id>|SPIKE-ID/);
+  });
+
+  it('loads the researcher prompt via plugin-root', () => {
+    expect(body).toMatch(/\$\(cloverleaf-cli plugin-root\)\/prompts\/researcher/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('uses operation=runSpike', () => {
+    expect(body).toMatch(/runSpike/);
+  });
+
+  it('advances pending → running → completed', () => {
+    expect(body).toMatch(/pending.*running/s);
+    expect(body).toMatch(/running.*completed/s);
+  });
+
+  it('uses save-spike + advance-spike', () => {
+    expect(body).toMatch(/save-spike/);
+    expect(body).toMatch(/advance-spike/);
+  });
+});
