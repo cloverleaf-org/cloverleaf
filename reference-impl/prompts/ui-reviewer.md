@@ -30,7 +30,7 @@ The rationale: baselines on `{{repo_root}}/.cloverleaf/baselines/` get picked up
   Apply the allowlist in `{{ui_review_config}}.axe.ignored` to drop pre-existing violations that the consumer has accepted (e.g., a11y debt being tracked separately).
   Dedupe findings across viewports by the `{{ui_review_config}}.axe.dedupeBy` composite key (default `["ruleId", "target"]`).
   Emit one finding per (ruleId, target) pair, with a `metadata.viewports` array aggregating the viewports where the violation was detected.
-- **Visual diff (pixelmatch):** when `{{ui_review_config}}.visualDiff.enabled` is true, screenshot each route at each viewport in `{{ui_review_config}}.viewports`, compare to `.cloverleaf/baselines/{route-slug}-{viewport}.png`, emit `severity: "info"` findings with baseline/candidate/diff attachments when the diff ratio exceeds `maxDiffRatio`.
+- **Visual diff (pixelmatch):** when `{{ui_review_config}}.visualDiff.enabled` is true, screenshot each route at each viewport in `{{ui_review_config}}.viewports`, compare to `.cloverleaf/baselines/{browser}/{route-slug}-{viewport}.png`, emit `severity: "info"` findings with baseline/candidate/diff attachments when the diff ratio exceeds `maxDiffRatio`.
 - Visual diffs are **informational**, never gating. A diff does not fail the review — it surfaces to the human final-gate reviewer.
 - Route empty-set / "all" handling preserves v0.3 behavior:
   - `{{affected_routes}}` is `[]` → `verdict: "pass"`, summary `"No renderable routes affected, skipping axe."`, do NOT start the preview server.
@@ -75,7 +75,7 @@ The `PLAYWRIGHT_BROWSERS_PATH` environment variable is set to `~/.cache/ms-playw
    - Compute slug for the route (lowercase, strip leading/trailing slashes, replace slashes with hyphens; `/` → `index`).
    - Note: use `{{repo_root}}` (the absolute main-repo path), NOT `$TMPDIR` or the worktree. See the "Paths" section.
    - Call `compareVisual` (from `lib/visual-diff.ts`) with:
-     - `baselinePath = {{repo_root}}/.cloverleaf/baselines/{slug}-{viewport}.png`
+     - `baselinePath = {{repo_root}}/.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`
      - `candidateBuf = <candidate PNG>`
      - `diffPath = {{repo_root}}/.cloverleaf/runs/{taskId}/ui-review/diff-{slug}-{viewport}.png`
      - `candidateOutPath = {{repo_root}}/.cloverleaf/runs/{taskId}/ui-review/candidate-{slug}-{viewport}.png`
@@ -145,7 +145,7 @@ For a11y findings there is usually no meaningful file/line, so OMIT `location` e
       "message": "<description; include the page URL for a11y, route+viewport+diff for visual-diff>",
       "metadata": { /* per §7/§8 above */ },
       "attachments": [ /* for visual-diff with status="diff" */
-        { "label": "baseline",  "path": ".cloverleaf/baselines/{slug}-{viewport}.png" },
+        { "label": "baseline",  "path": ".cloverleaf/baselines/{browser}/{slug}-{viewport}.png" },
         { "label": "candidate", "path": ".cloverleaf/runs/{taskId}/ui-review/candidate-{slug}-{viewport}.png" },
         { "label": "diff",      "path": ".cloverleaf/runs/{taskId}/ui-review/diff-{slug}-{viewport}.png" }
       ]

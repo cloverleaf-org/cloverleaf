@@ -1,9 +1,28 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, join } from 'node:path';
 import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
 export type VisualDiffStatus = 'new-baseline' | 'match' | 'diff' | 'dimension-mismatch';
+
+/**
+ * Construct the canonical baseline path for a visual-diff capture.
+ *
+ * Layout (as of CLV-17): `.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`
+ *
+ * The flat layout `.cloverleaf/baselines/{slug}-{viewport}.png` is DEPRECATED.
+ * All new baselines MUST be placed under `baselines/{browser}/`.
+ * Existing flat chromium baselines were migrated to `baselines/chromium/` via
+ * explicit `git mv` in CLV-17.
+ */
+export function buildBaselinePath(
+  repoRoot: string,
+  browser: string,
+  slug: string,
+  viewport: string,
+): string {
+  return join(repoRoot, '.cloverleaf', 'baselines', browser, `${slug}-${viewport}.png`);
+}
 
 export interface VisualDiffResult {
   status: VisualDiffStatus;

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PNG } from 'pngjs';
-import { compareVisual } from '../lib/visual-diff.js';
+import { compareVisual, buildBaselinePath } from '../lib/visual-diff.js';
 
 function makePng(width: number, height: number, fill: [number, number, number, number]): Buffer {
   const png = new PNG({ width, height });
@@ -113,5 +113,38 @@ describe('compareVisual', () => {
       maxDiffRatio: 0.01,
     });
     expect(existsSync(baselinePath)).toBe(true);
+  });
+});
+
+describe('buildBaselinePath', () => {
+  it('constructs .cloverleaf/baselines/{browser}/{slug}-{viewport}.png for chromium', () => {
+    const path = buildBaselinePath('/repo', 'chromium', 'faq', 'desktop');
+    expect(path).toBe('/repo/.cloverleaf/baselines/chromium/faq-desktop.png');
+  });
+
+  it('constructs correct path for webkit browser', () => {
+    const path = buildBaselinePath('/repo', 'webkit', 'faq', 'mobile');
+    expect(path).toBe('/repo/.cloverleaf/baselines/webkit/faq-mobile.png');
+  });
+
+  it('constructs correct path for firefox browser', () => {
+    const path = buildBaselinePath('/repo', 'firefox', 'guide', 'tablet');
+    expect(path).toBe('/repo/.cloverleaf/baselines/firefox/guide-tablet.png');
+  });
+
+  it('includes browser as a distinct path segment (not encoded in the filename)', () => {
+    const path = buildBaselinePath('/repo', 'chromium', 'faq', 'desktop');
+    const segments = path.split('/');
+    // baselines/{browser}/{slug}-{viewport}.png → browser is its own directory
+    const baselinesIdx = segments.indexOf('baselines');
+    expect(baselinesIdx).toBeGreaterThan(-1);
+    expect(segments[baselinesIdx + 1]).toBe('chromium');
+    expect(segments[baselinesIdx + 2]).toBe('faq-desktop.png');
+  });
+
+  it('does NOT produce the deprecated flat path {slug}-{viewport}.png directly under baselines/', () => {
+    const chromiumPath = buildBaselinePath('/repo', 'chromium', 'faq', 'desktop');
+    // Flat layout would be: .cloverleaf/baselines/faq-desktop.png
+    expect(chromiumPath).not.toBe('/repo/.cloverleaf/baselines/faq-desktop.png');
   });
 });
