@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { plansDir, tasksDir } from './paths.js';
 import { validateOrThrow } from './validate.js';
@@ -111,6 +111,14 @@ function detectCycle(dag: TaskDag): string | null {
  * any file write. Throws on cycle in task_dag or AJV failure — no
  * partial materialisation on failure. Returns the ordered list of
  * materialised task IDs.
+ *
+ * If a task file already exists at the target path, it is OVERWRITTEN.
+ * Callers responsible for Delivery state consistency should not invoke
+ * this on a Plan whose tasks are already materialised and in-flight.
+ *
+ * Called by /cloverleaf-discover after a human approves the Plan at
+ * task_batch_gate. The gate ensures this function is invoked at most
+ * once per Plan in normal operation.
  */
 export function materialiseTasksFromPlan(repoRoot: string, plan: PlanDoc): string[] {
   // 1. Cycle check on edges.
@@ -122,7 +130,12 @@ export function materialiseTasksFromPlan(repoRoot: string, plan: PlanDoc): strin
     validateOrThrow('https://cloverleaf.example/schemas/task.schema.json', task);
   }
 
-  // 3. Write all task files.
+  // 3. Ensure the tasks directory exists (no-op on fresh repos that haven't
+  //    initialised .cloverleaf/tasks/ yet). Placed after cycle-check and
+  //    validation so those fast-path shorts-circuit without any FS side-effect.
+  mkdirSync(tasksDir(repoRoot), { recursive: true });
+
+  // 4. Write all task files.
   const ids: string[] = [];
   for (const task of plan.tasks) {
     const id = String(task['id']);

@@ -110,10 +110,13 @@ describe('plan lib — materialiseTasksFromPlan', () => {
     const plan = validPlan();
     savePlan(tmp, plan);
 
-    // Build corrupted plan in-memory: remove required definition_of_done from first task.
+    // Build corrupted plan in-memory: remove required definition_of_done from SECOND task.
+    // Corrupting tasks[1] means tasks[0] passes validation cleanly; a buggy interleaved-loop
+    // implementation would write tasks[0] to disk before hitting the failure, surfacing as
+    // readdirSync returning 1 file instead of 0.
     const corruptedPlan = validPlan();
     const tasks = corruptedPlan.tasks as Array<Record<string, unknown>>;
-    delete tasks[0]['definition_of_done'];
+    delete tasks[1]['definition_of_done'];  // corrupt SECOND task so atomicity test catches interleaved-loop bugs
 
     expect(() => materialiseTasksFromPlan(tmp, corruptedPlan as unknown as PlanDoc)).toThrow();
     expect(readdirSync(join(tmp, '.cloverleaf', 'tasks'))).toHaveLength(0);
