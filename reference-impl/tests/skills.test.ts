@@ -285,6 +285,36 @@ describe('no hardcoded plugin paths in skills (v0.4.1 #7)', () => {
   }
 });
 
+describe('cloverleaf-new-rfc skill', () => {
+  const body = readSkill('cloverleaf-new-rfc');
+
+  it('takes a brief file argument', () => {
+    expect(body).toMatch(/\$BRIEF|<brief-file>|brief/i);
+  });
+
+  it('scaffolds the RFC with status=drafting', () => {
+    expect(body).toMatch(/drafting/);
+  });
+
+  it('uses cloverleaf-cli (no hardcoded plugin paths)', () => {
+    expect(body).toMatch(/cloverleaf-cli/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('consults discovery-config for projectId', () => {
+    expect(body).toMatch(/discovery-config/);
+    expect(body).toMatch(/projectId/);
+  });
+
+  it('calls next-work-item-id', () => {
+    expect(body).toMatch(/next-work-item-id/);
+  });
+
+  it('calls save-rfc to persist the scaffold', () => {
+    expect(body).toMatch(/save-rfc/);
+  });
+});
+
 describe('reviewer skills /tmp cleanup + feedback commit (v0.4.1 #3, #5)', () => {
   const REVIEWERS = ['cloverleaf-review', 'cloverleaf-ui-review', 'cloverleaf-qa'] as const;
 
