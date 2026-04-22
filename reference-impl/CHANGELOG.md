@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [0.4.1] — Unreleased
+## [0.4.1] — 2026-04-21
 
 ### Added
 - `cloverleaf-cli plugin-root` subcommand — prints the CLI's plugin root, used by skills to locate prompts/config regardless of install mode.

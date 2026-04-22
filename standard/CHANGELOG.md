@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
-## [0.4.1] — Unreleased
+## [0.4.1] — 2026-04-21
 
 ### Added
 - Compiled output at `dist/` — `dist/validators/index.js` + `.d.ts`. Package now ships runtime JS so downstream consumers don't need `tsx` to `import '@cloverleaf/standard/validators/index.js'`.
