@@ -1,12 +1,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { tasksDir, projectsDir } from './paths.js';
-import type { StatusTransitions, Task as SMTask } from '@cloverleaf/standard/validators/index.js';
+import type { Task as SMTask } from '@cloverleaf/standard/validators/index.js';
 import { validateOrThrow } from './validate.js';
-import { advanceWorkItemStatus } from './work-item.js';
-
-const req = createRequire(import.meta.url);
+import { advanceWorkItemStatus, loadStateMachine } from './work-item.js';
 
 export interface TaskDoc {
   type: 'task';
@@ -46,14 +43,6 @@ export function loadProject(repoRoot: string, projectId: string): ProjectDoc {
   return JSON.parse(readFileSync(path, 'utf-8')) as ProjectDoc;
 }
 
-function loadTaskStateMachine(): StatusTransitions {
-  // state-machines/task.json is a static JSON asset. Navigate from standard's
-  // package.json — no exports map support needed.
-  const pkgPath = req.resolve('@cloverleaf/standard/package.json');
-  const pkgDir = pkgPath.replace(/\/package\.json$/, '');
-  return JSON.parse(readFileSync(`${pkgDir}/state-machines/task.json`, 'utf-8')) as StatusTransitions;
-}
-
 export function advanceStatus(
   repoRoot: string,
   taskId: string,
@@ -63,7 +52,7 @@ export function advanceStatus(
 ): TaskDoc {
   const task = loadTask(repoRoot, taskId);
   const from = task.status;
-  const sm = loadTaskStateMachine();
+  const sm = loadStateMachine('task');
 
   const riskClass: 'low' | 'high' =
     options.path === 'fast_lane' ? 'low'

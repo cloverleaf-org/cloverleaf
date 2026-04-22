@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { emitStatusTransition, formatReason } from './events.js';
 import { validateStatusTransitionLegality } from '@cloverleaf/standard/validators/index.js';
 import type { StatusTransitions } from '@cloverleaf/standard/validators/index.js';
+
+const req = createRequire(import.meta.url);
+
+export function loadStateMachine(type: 'task' | 'rfc' | 'spike' | 'plan'): StatusTransitions {
+  const pkgPath = req.resolve('@cloverleaf/standard/package.json');
+  const pkgDir = pkgPath.replace(/\/package\.json$/, '');
+  return JSON.parse(readFileSync(`${pkgDir}/state-machines/${type}.json`, 'utf-8')) as StatusTransitions;
+}
 
 export interface AdvanceWorkItemParams<T> {
   repoRoot: string;

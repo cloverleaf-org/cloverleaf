@@ -1,12 +1,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { createRequire } from 'node:module';
 import { rfcsDir } from './paths.js';
 import { validateOrThrow } from './validate.js';
-import { advanceWorkItemStatus } from './work-item.js';
-import type { StatusTransitions } from '@cloverleaf/standard/validators/index.js';
-
-const req = createRequire(import.meta.url);
+import { advanceWorkItemStatus, loadStateMachine } from './work-item.js';
 
 export interface RfcDoc {
   type: 'rfc';
@@ -35,12 +31,6 @@ export function saveRfc(repoRoot: string, rfc: RfcDoc): void {
   writeFileSync(path, JSON.stringify(rfc, null, 2) + '\n');
 }
 
-function loadRfcStateMachine(): StatusTransitions {
-  const pkgPath = req.resolve('@cloverleaf/standard/package.json');
-  const pkgDir = pkgPath.replace(/\/package\.json$/, '');
-  return JSON.parse(readFileSync(`${pkgDir}/state-machines/rfc.json`, 'utf-8')) as StatusTransitions;
-}
-
 export function advanceRfcStatus(
   repoRoot: string,
   id: string,
@@ -50,7 +40,7 @@ export function advanceRfcStatus(
 ): RfcDoc {
   const rfc = loadRfc(repoRoot, id);
   const from = rfc.status;
-  const sm = loadRfcStateMachine();
+  const sm = loadStateMachine('rfc');
   const fixture = { type: 'rfc', id: rfc.id, project: rfc.project, status: rfc.status };
 
   const proposed = { ...rfc, status: toStatus };
