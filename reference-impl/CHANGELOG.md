@@ -9,6 +9,12 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 - `UiReviewConfig` gains three new backward-compatible fields: `browsers` (array of `BrowserEngine` strings, default `["chromium"]`), `axe.browser` (string, default `"chromium"`), and `maxCombinations` (integer, default `90`). Configs that omit these keys continue to work unchanged — `applyDefaults()` fills them in at load time.
 - `BrowserEngine` type alias (`'chromium' | 'webkit' | 'firefox'`) exported from `lib/ui-review-config.ts`.
 - `install.sh` now runs `npx playwright install chromium webkit firefox` (all three browsers) after the existing chromium step, and on Linux also runs `npx playwright install-deps webkit` for webkit system dependencies.
+- `buildBaselinePath(repoRoot, browser, slug, viewport)` exported from `lib/visual-diff.ts` — constructs the canonical baseline path `.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`. Callers should use this helper instead of constructing paths manually.
+
+### Changed
+
+- Baseline storage layout migrated from flat (`.cloverleaf/baselines/{slug}-{viewport}.png`) to browser-subdirectory layout (`.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`) via `git mv` (CLV-17). The flat layout is **deprecated**; all new baselines must be placed under `baselines/{browser}/`. Existing chromium baselines have been moved to `baselines/chromium/`.
+- UI Reviewer prompt and `compareVisual` call-sites updated to construct `baselinePath` with the `{browser}` segment. Attachment label paths in reviewer output reference the new subdir form.
 
 ## 0.5.1 — 2026-04-22
 

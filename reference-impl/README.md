@@ -87,7 +87,6 @@ All overrides are read fresh on every skill invocation; no caching. Edit and the
 ### Known limitations
 
 - Concurrent `/cloverleaf-run` on the same repo may race on preview ports.
-- UI Reviewer visual diff + multi-viewport deferred to v0.4.
 - QA does not produce HTML reports (no `report_uri`).
 
 ### Prerequisites for UI Reviewer
@@ -146,7 +145,7 @@ The Reviewer never switches branches. It reads files via `git show` and runs tes
 
 ## Package layout
 
-- `lib/` — TypeScript library used by the CLI. State, events, feedback, IDs, paths.
+- `lib/` — TypeScript library used by the CLI. State, events, feedback, IDs, paths. Includes `buildBaselinePath(repoRoot, browser, slug, viewport)` (`lib/visual-diff.ts`) for constructing canonical baseline paths under `.cloverleaf/baselines/{browser}/`.
 - `skills/` — Claude Code skill markdown files.
 - `prompts/` — Implementer/Reviewer subagent system prompts.
 - `examples/toy-repo/` — standalone demo repo.
