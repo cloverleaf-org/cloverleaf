@@ -14,6 +14,18 @@
  *   emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]
  *   ui-review-config --repo-root <repoRoot>
  *   plugin-root
+ *   load-rfc <repoRoot> <id>
+ *   save-rfc <repoRoot> <filePath>
+ *   advance-rfc <repoRoot> <id> <toStatus> <agent|human> [gate]
+ *   load-spike <repoRoot> <id>
+ *   save-spike <repoRoot> <filePath>
+ *   advance-spike <repoRoot> <id> <toStatus> <agent|human>
+ *   load-plan <repoRoot> <id>
+ *   save-plan <repoRoot> <filePath>
+ *   advance-plan <repoRoot> <id> <toStatus> <agent|human> [gate]
+ *   materialise-tasks <repoRoot> <planId>
+ *   next-work-item-id <repoRoot> <project>
+ *   discovery-config --repo-root <repoRoot>
  */
 
 import { readFileSync } from 'node:fs';
@@ -22,7 +34,7 @@ import { loadTask } from './task.js';
 import { advanceStatus } from './task.js';
 import { emitGateDecision } from './events.js';
 import { writeFeedback, latestFeedback } from './feedback.js';
-import { nextTaskId, inferProject } from './ids.js';
+import { nextTaskId, inferProject, nextWorkItemId } from './ids.js';
 import { matchesUiPaths } from './ui-paths.js';
 import { loadUiPathsConfig } from './ui-paths.js';
 import { computeAffectedRoutes } from './affected-routes.js';
@@ -30,6 +42,10 @@ import { loadAffectedRoutesConfig } from './affected-routes.js';
 import { loadUiReviewConfig } from './ui-review-config.js';
 import { getPluginRoot } from './plugin-path.js';
 import type { FeedbackEnvelope } from './feedback.js';
+import { loadRfc, saveRfc, advanceRfcStatus, type RfcDoc } from './rfc.js';
+import { loadSpike, saveSpike, advanceSpikeStatus, type SpikeDoc } from './spike.js';
+import { loadPlan, savePlan, advancePlanStatus, materialiseTasksFromPlan, type PlanDoc } from './plan.js';
+import { loadDiscoveryConfig } from './discovery-config.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -49,7 +65,19 @@ function usage(msg?: string): never {
       '  latest-feedback <repoRoot> <taskId>\n' +
       '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n' +
       '  ui-review-config --repo-root <repoRoot>\n' +
-      '  plugin-root\n'
+      '  plugin-root\n' +
+      '  load-rfc <repoRoot> <id>\n' +
+      '  save-rfc <repoRoot> <filePath>\n' +
+      '  advance-rfc <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
+      '  load-spike <repoRoot> <id>\n' +
+      '  save-spike <repoRoot> <filePath>\n' +
+      '  advance-spike <repoRoot> <id> <toStatus> <agent|human>\n' +
+      '  load-plan <repoRoot> <id>\n' +
+      '  save-plan <repoRoot> <filePath>\n' +
+      '  advance-plan <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
+      '  materialise-tasks <repoRoot> <planId>\n' +
+      '  next-work-item-id <repoRoot> <project>\n' +
+      '  discovery-config --repo-root <repoRoot>\n'
   );
   process.exit(2);
 }
@@ -250,6 +278,101 @@ try {
     case 'plugin-root': {
       process.stdout.write(getPluginRoot());
       process.exit(0);
+    }
+
+    case 'load-rfc': {
+      const [repoRoot, id] = rest;
+      if (!repoRoot || !id) usage('load-rfc <repoRoot> <id>');
+      process.stdout.write(JSON.stringify(loadRfc(repoRoot, id), null, 2));
+      break;
+    }
+
+    case 'save-rfc': {
+      const [repoRoot, filePath] = rest;
+      if (!repoRoot || !filePath) usage('save-rfc <repoRoot> <filePath>');
+      const rfc = JSON.parse(readFileSync(filePath, 'utf-8')) as RfcDoc;
+      saveRfc(repoRoot, rfc);
+      break;
+    }
+
+    case 'advance-rfc': {
+      const [repoRoot, id, toStatus, actor, gate] = rest;
+      if (!repoRoot || !id || !toStatus || !actor) usage('advance-rfc <repoRoot> <id> <toStatus> <agent|human> [gate]');
+      if (actor !== 'agent' && actor !== 'human') usage('advance-rfc: actor must be agent or human');
+      const opts = gate ? { gate } : {};
+      advanceRfcStatus(repoRoot, id, toStatus, actor as 'agent' | 'human', opts);
+      break;
+    }
+
+    case 'load-spike': {
+      const [repoRoot, id] = rest;
+      if (!repoRoot || !id) usage('load-spike <repoRoot> <id>');
+      process.stdout.write(JSON.stringify(loadSpike(repoRoot, id), null, 2));
+      break;
+    }
+
+    case 'save-spike': {
+      const [repoRoot, filePath] = rest;
+      if (!repoRoot || !filePath) usage('save-spike <repoRoot> <filePath>');
+      const spike = JSON.parse(readFileSync(filePath, 'utf-8')) as SpikeDoc;
+      saveSpike(repoRoot, spike);
+      break;
+    }
+
+    case 'advance-spike': {
+      const [repoRoot, id, toStatus, actor] = rest;
+      if (!repoRoot || !id || !toStatus || !actor) usage('advance-spike <repoRoot> <id> <toStatus> <agent|human>');
+      if (actor !== 'agent' && actor !== 'human') usage('advance-spike: actor must be agent or human');
+      advanceSpikeStatus(repoRoot, id, toStatus, actor as 'agent' | 'human');
+      break;
+    }
+
+    case 'load-plan': {
+      const [repoRoot, id] = rest;
+      if (!repoRoot || !id) usage('load-plan <repoRoot> <id>');
+      process.stdout.write(JSON.stringify(loadPlan(repoRoot, id), null, 2));
+      break;
+    }
+
+    case 'save-plan': {
+      const [repoRoot, filePath] = rest;
+      if (!repoRoot || !filePath) usage('save-plan <repoRoot> <filePath>');
+      const plan = JSON.parse(readFileSync(filePath, 'utf-8')) as PlanDoc;
+      savePlan(repoRoot, plan);
+      break;
+    }
+
+    case 'advance-plan': {
+      const [repoRoot, id, toStatus, actor, gate] = rest;
+      if (!repoRoot || !id || !toStatus || !actor) usage('advance-plan <repoRoot> <id> <toStatus> <agent|human> [gate]');
+      if (actor !== 'agent' && actor !== 'human') usage('advance-plan: actor must be agent or human');
+      const opts = gate ? { gate } : {};
+      advancePlanStatus(repoRoot, id, toStatus, actor as 'agent' | 'human', opts);
+      break;
+    }
+
+    case 'materialise-tasks': {
+      const [repoRoot, planId] = rest;
+      if (!repoRoot || !planId) usage('materialise-tasks <repoRoot> <planId>');
+      const plan = loadPlan(repoRoot, planId);
+      const ids = materialiseTasksFromPlan(repoRoot, plan);
+      process.stdout.write(JSON.stringify({ task_ids: ids }));
+      break;
+    }
+
+    case 'next-work-item-id': {
+      const [repoRoot, project] = rest;
+      if (!repoRoot || !project) usage('next-work-item-id <repoRoot> <project>');
+      process.stdout.write(nextWorkItemId(repoRoot, project));
+      break;
+    }
+
+    case 'discovery-config': {
+      const idx = rest.indexOf('--repo-root');
+      if (idx < 0 || !rest[idx + 1]) usage('discovery-config --repo-root <repoRoot>');
+      const c = loadDiscoveryConfig(rest[idx + 1]);
+      process.stdout.write(JSON.stringify(c, null, 2));
+      break;
     }
 
     default:

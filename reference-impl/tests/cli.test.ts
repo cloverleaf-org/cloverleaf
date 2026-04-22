@@ -277,3 +277,155 @@ describe('cli', () => {
     });
   });
 });
+
+describe('cli — rfc', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cli-rfc-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'rfcs'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('save-rfc + load-rfc round-trips', () => {
+    const rfc = {
+      type: 'rfc', project: 'CLV', id: 'CLV-009', status: 'drafting',
+      owner: { kind: 'agent', id: 'researcher' },
+      title: 't', problem: 'p', solution: 's',
+      unknowns: [], acceptance_criteria: ['ac'], out_of_scope: [],
+    };
+    const p = join(tmp, 'r.json');
+    writeFileSync(p, JSON.stringify(rfc));
+    const { exitCode: saveCode } = run(['save-rfc', tmp, p]);
+    expect(saveCode).toBe(0);
+    const { stdout, exitCode } = run(['load-rfc', tmp, 'CLV-009']);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout).id).toBe('CLV-009');
+  });
+
+  it('advance-rfc moves drafting → spike-in-flight', () => {
+    const rfc = {
+      type: 'rfc', project: 'CLV', id: 'CLV-009', status: 'drafting',
+      owner: { kind: 'agent', id: 'researcher' },
+      title: 't', problem: 'p', solution: 's',
+      unknowns: [], acceptance_criteria: ['ac'], out_of_scope: [],
+    };
+    const p = join(tmp, 'r.json');
+    writeFileSync(p, JSON.stringify(rfc));
+    run(['save-rfc', tmp, p]);
+    const { exitCode: advCode } = run(['advance-rfc', tmp, 'CLV-009', 'spike-in-flight', 'agent']);
+    expect(advCode).toBe(0);
+    const { stdout } = run(['load-rfc', tmp, 'CLV-009']);
+    expect(JSON.parse(stdout).status).toBe('spike-in-flight');
+  });
+});
+
+describe('cli — spike', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cli-spike-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'spikes'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('save-spike + load-spike round-trips', () => {
+    const spike = {
+      type: 'spike', project: 'CLV', id: 'CLV-010',
+      title: 'test', status: 'pending',
+      owner: { kind: 'agent', id: 'researcher' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      question: 'q?', method: 'research',
+    };
+    const p = join(tmp, 's.json');
+    writeFileSync(p, JSON.stringify(spike));
+    const { exitCode: saveCode } = run(['save-spike', tmp, p]);
+    expect(saveCode).toBe(0);
+    const { stdout, exitCode } = run(['load-spike', tmp, 'CLV-010']);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout).id).toBe('CLV-010');
+  });
+});
+
+describe('cli — plan', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cli-plan-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'plans'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('materialise-tasks writes task files from plan', () => {
+    const plan = {
+      type: 'plan', project: 'CLV', id: 'CLV-012', status: 'drafting',
+      owner: { kind: 'agent', id: 'plan' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      task_dag: {
+        nodes: [{ project: 'CLV', id: 'CLV-013' }],
+        edges: [],
+      },
+      tasks: [{
+        type: 'task', project: 'CLV', id: 'CLV-013', title: 't',
+        status: 'pending', risk_class: 'high',
+        owner: { kind: 'agent', id: 'implementer' },
+        acceptance_criteria: ['a'], definition_of_done: ['d'],
+        context: { rfc: { project: 'CLV', id: 'CLV-009' } },
+      }],
+    };
+    const p = join(tmp, 'plan.json');
+    writeFileSync(p, JSON.stringify(plan));
+    const { exitCode: saveCode } = run(['save-plan', tmp, p]);
+    expect(saveCode).toBe(0);
+    const { stdout, exitCode } = run(['materialise-tasks', tmp, 'CLV-012']);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout).task_ids).toEqual(['CLV-013']);
+  });
+});
+
+describe('cli — discovery-config', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cli-disccfg-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'config'), { recursive: true });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('returns package default when no override', () => {
+    const { stdout, exitCode } = run(['discovery-config', '--repo-root', tmp]);
+    expect(exitCode).toBe(0);
+    const c = JSON.parse(stdout);
+    expect(c.docContextUri).toBe('');
+    expect(c.projectId).toBe('');
+    expect(c.idStart).toBe(1);
+  });
+
+  it('returns consumer override when present', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      JSON.stringify({ docContextUri: 'docs/', projectId: 'CLV', idStart: 9 })
+    );
+    const { stdout, exitCode } = run(['discovery-config', '--repo-root', tmp]);
+    expect(exitCode).toBe(0);
+    const c = JSON.parse(stdout);
+    expect(c.projectId).toBe('CLV');
+  });
+});
+
+describe('cli — next-work-item-id', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cli-nextid-'));
+    for (const d of ['rfcs', 'spikes', 'plans', 'tasks']) {
+      mkdirSync(join(tmp, '.cloverleaf', d), { recursive: true });
+    }
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('returns CLV-1 for empty dirs', () => {
+    const { stdout, exitCode } = run(['next-work-item-id', tmp, 'CLV']);
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe('CLV-1');
+  });
+});
