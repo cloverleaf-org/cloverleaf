@@ -2,7 +2,7 @@
   "type": "spike",
   "project": "CLV",
   "id": "CLV-12",
-  "status": "pending",
+  "status": "completed",
   "owner": {
     "kind": "agent",
     "id": "researcher"
@@ -13,5 +13,7 @@
     "id": "CLV-9"
   },
   "question": "Is axe-core genuinely engine-portable across chromium, webkit, and firefox in a Playwright headless context, or do DOM/a11y-tree differences between engines produce false-positive divergence that makes cross-engine axe runs unreliable?",
-  "method": "research"
+  "method": "research",
+  "findings": "axe-core is a JavaScript library injected into the live page (axe.run(document)) and therefore inherits the host engine's DOM and CSSOM. Three categories of engine-specific divergence make cross-engine axe runs unreliable in practice: (1) Computed-style divergence — rules such as color-contrast call getComputedStyle(), whose return values differ across Blink, WebKit, and Gecko due to per-engine gamma correction, subpixel rounding, and color-space handling, producing false positives on the same markup depending on engine. (2) Accessibility-tree divergence — axe polyfills the AccName algorithm in JS and probes ARIA role resolution via DOM APIs; shadow DOM slot assignment, aria-required-children matching, and focus-management rules (scrollable-region-focusable, region) are handled differently by each engine's layout and a11y subsystems, causing the same page to violate or pass the same rule depending on which engine runs it. (3) Target-selector instability — axe reports violations with CSS selectors as the target field; pseudo-element and shadow-root boundary handling differs between engines, so the same violation can appear under different target strings, defeating the (ruleId, target) dedupe key that dedupeAxeFindings relies on. The axe-core project validates its test suite primarily against Chromium and has open issues documenting webkit- and firefox-specific false positives (color-contrast, aria-required-children, scrollable-region-focusable). The reference-impl codebase anticipates this: the RFC CLV-9 solution text explicitly proposes running axe on a single configurable engine to avoid false-positive divergence, and the v0.4 design spec (section 1, Non-Goals) deferred cross-browser axe to a later spike. The current UiReviewConfig schema has no browser axis in RawAxeFinding or dedupeAxeFindings, so multi-engine axe output cannot be disambiguated structurally without a schema change.",
+  "recommendation": "Run axe on chromium only. webkit and firefox should contribute to visual-diff coverage only. Rationale: (a) axe-core's own test suite is Chromium-validated; running it on webkit/firefox introduces engine-sourced false positives with no reliable suppression mechanism short of a large per-engine ignore list. (b) The existing (ruleId, target) dedupe key breaks across engines because target selectors are not stable between Blink and WebKit/Gecko. (c) Real accessibility defects that axe detects — missing labels, insufficient contrast at standard gamma, keyboard trap — are genuine DOM/markup problems that Chromium's axe run will catch; engine-specific rendering edge cases are not in scope for automated a11y gating. (d) The RFC acceptance criteria already state 'axe-core accessibility scanning runs on exactly the configured engine (default: chromium).' The recommended config change for v0.6 is to add an axe.browser field to ui-review.json defaulting to 'chromium', and document that webkit/firefox are excluded from axe runs by design. No changes to the Standard schemas are required."
 }
