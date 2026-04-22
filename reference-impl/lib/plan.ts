@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { plansDir } from './paths.js';
+import { plansDir, tasksDir } from './paths.js';
 import { validateOrThrow } from './validate.js';
 import { advanceWorkItemStatus, loadStateMachine } from './work-item.js';
 
@@ -67,4 +67,68 @@ export function advancePlanStatus(
     gate: options.gate,
   });
   return proposed;
+}
+
+/**
+ * Build a directed graph from the DAG's edges and detect any cycle.
+ * Returns the first node id involved in a cycle, or null.
+ */
+function detectCycle(dag: TaskDag): string | null {
+  // Build adjacency: for each node, list of node ids it points TO.
+  const adj = new Map<string, string[]>();
+  for (const n of dag.nodes) adj.set(n.id, []);
+  for (const e of dag.edges) {
+    const from = e.from.id;
+    const to = e.to.id;
+    if (!adj.has(from)) adj.set(from, []);
+    adj.get(from)!.push(to);
+  }
+
+  const state = new Map<string, 'white' | 'grey' | 'black'>();
+  for (const n of dag.nodes) state.set(n.id, 'white');
+
+  const visit = (id: string): boolean => {
+    const s = state.get(id);
+    if (s === 'grey') return true; // back-edge → cycle
+    if (s === 'black') return false;
+    state.set(id, 'grey');
+    for (const next of adj.get(id) ?? []) {
+      if (visit(next)) return true;
+    }
+    state.set(id, 'black');
+    return false;
+  };
+
+  for (const n of dag.nodes) {
+    if (visit(n.id)) return n.id;
+  }
+  return null;
+}
+
+/**
+ * Materialise all inline tasks from an approved Plan onto disk as
+ * .cloverleaf/tasks/<id>.json. Atomic: pre-validates every task before
+ * any file write. Throws on cycle in task_dag or AJV failure — no
+ * partial materialisation on failure. Returns the ordered list of
+ * materialised task IDs.
+ */
+export function materialiseTasksFromPlan(repoRoot: string, plan: PlanDoc): string[] {
+  // 1. Cycle check on edges.
+  const cycleAt = detectCycle(plan.task_dag);
+  if (cycleAt) throw new Error(`Plan task_dag contains a cycle involving ${cycleAt}`);
+
+  // 2. Pre-validate every task before ANY file write.
+  for (const task of plan.tasks) {
+    validateOrThrow('https://cloverleaf.example/schemas/task.schema.json', task);
+  }
+
+  // 3. Write all task files.
+  const ids: string[] = [];
+  for (const task of plan.tasks) {
+    const id = String(task['id']);
+    const path = join(tasksDir(repoRoot), `${id}.json`);
+    writeFileSync(path, JSON.stringify(task, null, 2) + '\n');
+    ids.push(id);
+  }
+  return ids;
 }
