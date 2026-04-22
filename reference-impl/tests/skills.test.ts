@@ -427,3 +427,40 @@ describe('cloverleaf-breakdown skill', () => {
     expect(body).toMatch(/completed/);
   });
 });
+
+describe('cloverleaf-gate skill', () => {
+  const body = readSkill('cloverleaf-gate');
+
+  it('accepts approve/reject/revise actions', () => {
+    expect(body).toMatch(/approve/);
+    expect(body).toMatch(/reject/);
+    expect(body).toMatch(/revise/);
+  });
+
+  it('handles both rfc_strategy_gate and task_batch_gate', () => {
+    expect(body).toMatch(/rfc_strategy_gate/);
+    expect(body).toMatch(/task_batch_gate/);
+  });
+
+  it('restricts revise to rfc_strategy_gate', () => {
+    expect(body).toMatch(/revise.*(only|exclusive|rfc_strategy|RFC|only valid)/i);
+  });
+
+  it('emits a gate_decision event', () => {
+    expect(body).toMatch(/emit-gate-decision/);
+  });
+
+  it('detects work-item type by directory presence', () => {
+    expect(body).toMatch(/rfcs\//);
+    expect(body).toMatch(/plans\//);
+  });
+
+  it('uses cloverleaf-cli (no hardcoded paths)', () => {
+    expect(body).toMatch(/cloverleaf-cli/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('verifies gate-pending status before acting', () => {
+    expect(body).toMatch(/gate-pending/);
+  });
+});
