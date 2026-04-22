@@ -464,3 +464,46 @@ describe('cloverleaf-gate skill', () => {
     expect(body).toMatch(/gate-pending/);
   });
 });
+
+describe('cloverleaf-discover skill', () => {
+  const body = readSkill('cloverleaf-discover');
+
+  it('takes a brief file argument', () => {
+    expect(body).toMatch(/<brief-file>|\$BRIEF_FILE|BRIEF_FILE|brief/i);
+  });
+
+  it('chains new-rfc → draft-rfc → spike → breakdown → gate stages', () => {
+    expect(body).toMatch(/new-rfc|cloverleaf-new-rfc/);
+    expect(body).toMatch(/draft-rfc|cloverleaf-draft-rfc/);
+    expect(body).toMatch(/cloverleaf-spike/);
+    expect(body).toMatch(/breakdown|cloverleaf-breakdown/);
+    expect(body).toMatch(/gate|cloverleaf-gate/);
+  });
+
+  it('has per-agent bounce budgets', () => {
+    expect(body).toMatch(/bounce|BOUNCES/i);
+    expect(body).toMatch(/3/);
+  });
+
+  it('materialises tasks after plan approval', () => {
+    expect(body).toMatch(/materialise-tasks/);
+  });
+
+  it('prompts to run first task after materialisation', () => {
+    expect(body).toMatch(/Run first.*task|first.*root.*run/i);
+  });
+
+  it('handles both human gates (rfc_strategy_gate and task_batch_gate)', () => {
+    expect(body).toMatch(/rfc_strategy_gate/);
+    expect(body).toMatch(/task_batch_gate/);
+  });
+
+  it('uses cloverleaf-cli (no hardcoded plugin paths)', () => {
+    expect(body).toMatch(/cloverleaf-cli/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('supports revise loop at rfc_strategy_gate', () => {
+    expect(body).toMatch(/revise/);
+  });
+});
