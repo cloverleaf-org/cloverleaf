@@ -1,0 +1,43 @@
+{
+  "id": "CLV-16",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Browser install, config schema, and install.sh update for webkit/firefox",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-9"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-10"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-14"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "reference-impl/config/ui-review.json schema accepts new top-level 'browsers' key (array of engine strings, default [\"chromium\"]), 'axe.browser' key (string, default \"chromium\"), and 'maxCombinations' key (integer, default 90).",
+    "reference-impl/install.sh runs 'npx playwright install webkit firefox' after the existing chromium step, and on Linux also runs 'npx playwright install-deps webkit'.",
+    "Install documentation (reference-impl/README.md or equivalent) is updated to document the webkit/firefox install step, the PLAYWRIGHT_BROWSERS_PATH convention, and the approximate additional disk footprint (~300–350 MB).",
+    "A JSON Schema or TypeScript type for UiReviewConfig is updated to include 'browsers', 'axe.browser', and 'maxCombinations', with backward-compatible defaults so existing consumer configs (e.g. .cloverleaf/config/ui-review.json) that omit these keys continue to work.",
+    "Unit tests verify that a config omitting the new keys resolves to the correct defaults (browsers=[\"chromium\"], axe.browser=\"chromium\", maxCombinations=90)."
+  ],
+  "acceptance_criteria": [
+    "A reference-impl/config/ui-review.json with only legacy keys passes config validation and resolves browsers to [\"chromium\"], axe.browser to \"chromium\", and maxCombinations to 90.",
+    "A config explicitly setting browsers to [\"chromium\",\"webkit\",\"firefox\"] and maxCombinations to 45 passes validation.",
+    "A config setting axe.browser to \"webkit\" passes validation.",
+    "install.sh executed on a Linux machine runs both 'npx playwright install webkit firefox' and 'npx playwright install-deps webkit' without error (verified via script inspection or integration test).",
+    "install.sh executed on macOS does not run 'npx playwright install-deps webkit' (Linux-only guard is present).",
+    "The README or install docs state the aggregate disk footprint (~600–650 MB total) and the PLAYWRIGHT_BROWSERS_PATH=~/.cache/ms-playwright convention."
+  ],
+  "risk_class": "high"
+}

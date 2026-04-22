@@ -1,0 +1,56 @@
+{
+  "id": "CLV-20",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "End-to-end integration test: 3-browser matrix, per-browser baselines, engine diffs, baseline-approval gate",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-9"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-10"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-11"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-12"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-13"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-14"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "A reference-impl integration test (e.g. in reference-impl/tests/) exercises the full cross-browser UI review flow against a minimal toy site change, using config.browsers=[\"chromium\",\"webkit\",\"firefox\"] and config.maxCombinations=90.",
+    "The test asserts that per-browser baseline PNG files are written under .cloverleaf/baselines/chromium/, .cloverleaf/baselines/webkit/, and .cloverleaf/baselines/firefox/.",
+    "The test asserts that axe findings appear only in the chromium section of the output.",
+    "The test asserts that when baselines_pending is true, the task remains in ui-review status; after approve-baselines, the task advances to qa.",
+    "The test asserts that a browser-specific visual diff (e.g. a deliberate webkit-only rendering difference) surfaces as a finding attributed to the webkit engine.",
+    "The test is included in the reference-impl test suite (e.g. referenced in package.json test script or CI workflow) and passes in CI with all three browsers installed."
+  ],
+  "acceptance_criteria": [
+    "'npm test' (or equivalent) in reference-impl/ runs the integration test and it passes when chromium, webkit, and firefox are installed.",
+    "The integration test output confirms baseline PNGs exist at .cloverleaf/baselines/chromium/*.png, .cloverleaf/baselines/webkit/*.png, and .cloverleaf/baselines/firefox/*.png after the run.",
+    "The integration test confirms zero axe findings are emitted for webkit and firefox runs.",
+    "The integration test confirms the task status is 'ui-review' (not 'qa') after a run that produces new-baseline results, and 'qa' after approve-baselines is called.",
+    "The integration test confirms that a maxCombinations cap of 3 (below the toy route×viewport×browser product) causes at least one 'ui-review-cap' warning finding to appear in the output.",
+    "The integration test can be run in isolation without affecting other test suites."
+  ],
+  "risk_class": "high"
+}

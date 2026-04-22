@@ -1,0 +1,52 @@
+{
+  "id": "CLV-18",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "UI Reviewer prompt: 3-browser outer loop, per-engine escalation, axe chromium-only, maxCombinations cap",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-9"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-10"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-11"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-12"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-14"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "reference-impl/prompts/ui-reviewer.md iterates 'browsers' as the outermost loop, wrapping the existing viewport × route loops, using the engines listed in config.browsers.",
+    "When a required browser binary is absent, the reviewer returns verdict 'escalate' with a finding that names the missing engine and includes the install command ('npx playwright install webkit firefox'; on Linux additionally 'npx playwright install-deps webkit').",
+    "axe-core scanning is executed on exactly the engine specified by config.axe.browser (defaulting to 'chromium'); webkit and firefox runs produce no axe output and no axe findings.",
+    "maxCombinations enforcement: when routes × viewports × browsers exceeds config.maxCombinations, the reviewer sorts affected routes by diff size (most-changed first), processes the first floor(maxCombinations / (viewports × browsers)) routes, and emits one 'warning'-severity finding with rule 'ui-review-cap' per skipped route, including the route name and the current vs cap count.",
+    "Per-browser baseline paths use the new .cloverleaf/baselines/{browser}/{slug}-{viewport}.png convention (consistent with CLV-17).",
+    "The prompt's step structure and output schema remain compatible with the existing feedback envelope (no Standard schema changes)."
+  ],
+  "acceptance_criteria": [
+    "A task with config.browsers=[\"chromium\",\"webkit\",\"firefox\"] causes the reviewer to launch three separate browser sessions, one per engine, producing baselines under baselines/chromium/, baselines/webkit/, and baselines/firefox/.",
+    "A task run with webkit binary absent returns verdict 'escalate' with a finding message containing 'webkit' and 'npx playwright install webkit firefox'.",
+    "A task run with config.axe.browser=\"chromium\" produces axe findings only from the chromium run; the webkit and firefox sections of the output contain no axe findings.",
+    "A task with 4 affected routes, 3 viewports, and 3 browsers (36 combinations) under a maxCombinations of 27 (floor(27/(3×3))=3 routes) skips 1 route and emits exactly 1 'warning' finding with rule 'ui-review-cap' for the skipped route.",
+    "Removing 'webkit' from config.browsers causes zero webkit baseline files to be written and zero webkit findings to be emitted.",
+    "The reviewer output passes feedback envelope schema validation after the changes."
+  ],
+  "risk_class": "high"
+}

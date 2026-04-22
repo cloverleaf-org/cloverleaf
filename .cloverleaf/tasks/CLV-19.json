@@ -1,0 +1,39 @@
+{
+  "id": "CLV-19",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Baseline-approval sidecar: state.json gate, approve-baselines skill, ui-review→qa block",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-9"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-13"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "The UI Reviewer prompt writes .cloverleaf/runs/{taskId}/ui-review/state.json containing {\"baselines_pending\": true} whenever any compareVisual result is 'new-baseline' or 'dimension-mismatch'.",
+    "The cloverleaf-ui-review skill reads state.json after the agent completes; if baselines_pending is true it leaves the task in ui-review status and surfaces a human-readable message explaining that baseline approval is required before advancing to qa.",
+    "A new 'approve-baselines' reference-impl skill is implemented that writes {\"baselines_pending\": false} to state.json and then allows the ui-review → qa transition to proceed.",
+    "When no new-baseline or dimension-mismatch results are produced, state.json either contains {\"baselines_pending\": false} or is absent, and the ui-review → qa transition proceeds normally.",
+    "No Standard schemas (task.schema.json, state-machine JSON) are modified.",
+    "The approve-baselines skill is documented with its trigger condition and effect."
+  ],
+  "acceptance_criteria": [
+    "Running the UI Reviewer on a task that produces at least one new-baseline result leaves the task in ui-review status and the skill output message contains the phrase 'baselines_pending' or an equivalent human-readable baseline approval notice.",
+    "Running approve-baselines on the same task writes baselines_pending: false to state.json and the subsequent ui-review → qa transition succeeds.",
+    "Running the UI Reviewer on a task that produces only 'match' or 'diff' results (no new-baseline or dimension-mismatch) does not set baselines_pending: true; the task advances to qa without requiring approve-baselines.",
+    "The Standard task state-machine JSON and task.schema.json are byte-for-byte identical before and after this task's implementation (no Standard changes).",
+    "The state.json sidecar file is co-located at .cloverleaf/runs/{taskId}/ui-review/state.json for a task with id 'CLV-42' results in path .cloverleaf/runs/CLV-42/ui-review/state.json."
+  ],
+  "risk_class": "high"
+}
