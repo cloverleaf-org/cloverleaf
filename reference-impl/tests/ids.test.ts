@@ -130,9 +130,9 @@ describe('nextWorkItemId', () => {
 
   it('picks max across rfcs/spikes/plans/tasks plus 1', () => {
     writeFileSync(join(tmp, '.cloverleaf/rfcs/CLV-5.json'), '{}');
-    writeFileSync(join(tmp, '.cloverleaf/spikes/CLV-8.json'), '{}');
+    writeFileSync(join(tmp, '.cloverleaf/spikes/CLV-12.json'), '{}');  // max in spikes, not tasks
     writeFileSync(join(tmp, '.cloverleaf/plans/CLV-3.json'), '{}');
-    writeFileSync(join(tmp, '.cloverleaf/tasks/CLV-12.json'), '{}');
+    writeFileSync(join(tmp, '.cloverleaf/tasks/CLV-8.json'), '{}');
     expect(nextWorkItemId(tmp, 'CLV')).toBe('CLV-13');
   });
 

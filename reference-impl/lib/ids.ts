@@ -55,6 +55,13 @@ export function inferProject(repoRoot: string, explicit?: string): string {
   return projects[0];
 }
 
+/**
+ * Returns unpadded per-project IDs (e.g., `CLV-13`) by scanning all four
+ * work-item directories and taking max+1. Matches the canonical convention
+ * used in @cloverleaf/standard example scenarios (oauth-rollout: ACME-100,
+ * ACME-200). Legacy `nextTaskId` retains three-digit padding (e.g., CLV-001)
+ * for back-compat with existing task files.
+ */
 export function nextWorkItemId(repoRoot: string, project: string): string {
   const dirs = [rfcsDir(repoRoot), spikesDir(repoRoot), plansDir(repoRoot), tasksDir(repoRoot)];
   const pat = new RegExp(`^${escapeRegex(project)}-(\\d+)\\.json$`);
