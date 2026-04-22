@@ -395,3 +395,35 @@ describe('cloverleaf-spike skill', () => {
     expect(body).toMatch(/advance-spike/);
   });
 });
+
+describe('cloverleaf-breakdown skill', () => {
+  const body = readSkill('cloverleaf-breakdown');
+
+  it('takes an RFC ID', () => {
+    expect(body).toMatch(/\$RFC_ID|<RFC-ID>|<rfc-id>|RFC-ID/);
+  });
+
+  it('invokes the plan prompt via plugin-root', () => {
+    expect(body).toMatch(/\$\(cloverleaf-cli plugin-root\)\/prompts\/plan/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('writes a plan.json with status=drafting then gate-pending', () => {
+    expect(body).toMatch(/drafting/);
+    expect(body).toMatch(/gate-pending/);
+  });
+
+  it('uses task_batch_gate on transition', () => {
+    expect(body).toMatch(/task_batch_gate/);
+  });
+
+  it('uses save-plan + advance-plan', () => {
+    expect(body).toMatch(/save-plan/);
+    expect(body).toMatch(/advance-plan/);
+  });
+
+  it('collects completed spikes via parent_rfc', () => {
+    expect(body).toMatch(/parent_rfc/);
+    expect(body).toMatch(/completed/);
+  });
+});
