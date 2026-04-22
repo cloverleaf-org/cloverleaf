@@ -2,6 +2,39 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.5.1 — 2026-04-22
+
+Bug-fix release closing issues surfaced by the v0.5 Discovery-track dogfood
+(cross-browser UI review, `/cloverleaf-discover docs/briefs/cross-browser-ui-review.md`).
+
+### Fixed
+
+- `saveRfc`, `saveSpike`, `savePlan`, `saveTask` now auto-create their parent
+  directories (`.cloverleaf/rfcs/`, `spikes/`, `plans/`, `tasks/`) on first
+  write. Prior to this fix a fresh consumer repo hit `ENOENT` on the first
+  `/cloverleaf-discover` run, which cascaded into an inconsistent
+  `spike-in-flight` RFC with zero spikes on disk. Mirrors the v0.1.1 fix for
+  `events/` and `feedback/`.
+- `/cloverleaf-new-rfc` title scaffold no longer carries a trailing newline.
+  `echo "$FIRST_LINE" | jq -Rs .` captured `\n` into the JSON string; switched
+  to `printf '%s' "$FIRST_LINE" | jq -Rs .`, same fix for the `problem` field.
+- `/cloverleaf-discover` prose rewritten from "inline `/cloverleaf-X` steps" to
+  "invoke `/cloverleaf-X`" across all 10 sub-skill references. Matches the
+  observed runtime behaviour (driven Claude spawns sub-skills via the Skill
+  tool) and removes the mental-model mismatch for humans reading the skill.
+
+### Compatibility
+
+- Standard stays at 0.4.1. No schema, contract, or state-machine changes.
+- No library API changes — `saveX` signatures unchanged; existing callers
+  benefit from auto-dir-creation transparently.
+
+### Tests
+
+380 tests passing (+6 regression tests: 4 auto-create tests across
+rfc/spike/plan/task, 1 for the printf guard in new-rfc, 1 for the
+invoke-not-inline guard in discover).
+
 ## 0.5.0 — 2026-04-22
 
 ### Added — Discovery track is now real

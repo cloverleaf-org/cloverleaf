@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync as realWriteFileSync, rmSync, readdirSync, chmodSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync as realWriteFileSync, rmSync, readdirSync, chmodSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadTask, saveTask, advanceStatus, loadProject } from '../lib/task.js';
@@ -57,6 +57,28 @@ describe('state', () => {
     task.title = 'Updated title';
     saveTask(repoRoot, task);
     expect(loadTask(repoRoot, 'DEMO-001').title).toBe('Updated title');
+  });
+
+  it('saveTask auto-creates the tasks directory on first write (v0.5.1)', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'cl-task-fresh-'));
+    try {
+      expect(existsSync(join(fresh, '.cloverleaf', 'tasks'))).toBe(false);
+      saveTask(fresh, {
+        type: 'task',
+        project: 'CLV',
+        id: 'CLV-100',
+        title: 'probe',
+        status: 'pending',
+        risk_class: 'low',
+        owner: { kind: 'agent', id: 'implementer' },
+        acceptance_criteria: ['ac-1'],
+        definition_of_done: ['dod-1'],
+        context: { rfc: { project: 'CLV', id: 'CLV-009' } },
+      });
+      expect(existsSync(join(fresh, '.cloverleaf', 'tasks', 'CLV-100.json'))).toBe(true);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 
   it('loads a project by ID', () => {

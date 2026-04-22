@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadRfc, saveRfc, advanceRfcStatus, type RfcDoc } from '../lib/rfc.js';
@@ -61,5 +61,19 @@ describe('rfc lib', () => {
     expect(() => advanceRfcStatus(tmp, 'CLV-009', 'approved', 'agent', { gate: 'rfc_strategy_gate' })).toThrow();
     advanceRfcStatus(tmp, 'CLV-009', 'approved', 'human', { gate: 'rfc_strategy_gate' });
     expect(loadRfc(tmp, 'CLV-009').status).toBe('approved');
+  });
+
+  it('saveRfc auto-creates the rfcs directory on first write (v0.5.1)', () => {
+    // Scope: simulate a fresh consumer repo that has never run Discovery.
+    // Prior to v0.5.1 this threw ENOENT — the events/feedback auto-create
+    // fix from v0.1.1 was not propagated to rfcs/spikes/plans/tasks.
+    const fresh = mkdtempSync(join(tmpdir(), 'cl-rfc-fresh-'));
+    try {
+      expect(existsSync(join(fresh, '.cloverleaf', 'rfcs'))).toBe(false);
+      saveRfc(fresh, validRfc());
+      expect(existsSync(join(fresh, '.cloverleaf', 'rfcs', 'CLV-009.json'))).toBe(true);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 });

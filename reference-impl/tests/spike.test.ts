@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, readdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadSpike, saveSpike, advanceSpikeStatus, type SpikeDoc } from '../lib/spike.js';
@@ -66,5 +66,16 @@ describe('spike lib', () => {
     saveSpike(tmp, validSpike());
     // pending → completed is illegal (must go through running)
     expect(() => advanceSpikeStatus(tmp, 'CLV-010', 'completed', 'agent')).toThrow(/Illegal transition/);
+  });
+
+  it('saveSpike auto-creates the spikes directory on first write (v0.5.1)', () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'cl-spike-fresh-'));
+    try {
+      expect(existsSync(join(fresh, '.cloverleaf', 'spikes'))).toBe(false);
+      saveSpike(fresh, validSpike());
+      expect(existsSync(join(fresh, '.cloverleaf', 'spikes', 'CLV-010.json'))).toBe(true);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 });
