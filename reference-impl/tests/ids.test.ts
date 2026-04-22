@@ -8,6 +8,7 @@ import {
   nextFeedbackIteration,
   listProjects,
   inferProject,
+  nextWorkItemId,
 } from '../lib/ids.js';
 
 describe('ids', () => {
@@ -110,5 +111,34 @@ describe('ids', () => {
       writeFileSync(join(repoRoot, '.cloverleaf', 'projects', 'FOO.json'), '{}');
       expect(() => inferProject(repoRoot)).toThrow(/ambiguous|specify/i);
     });
+  });
+});
+
+describe('nextWorkItemId', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-ids-'));
+    for (const d of ['rfcs', 'spikes', 'plans', 'tasks']) {
+      mkdirSync(join(tmp, '.cloverleaf', d), { recursive: true });
+    }
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('returns <project>-1 when all four dirs are empty', () => {
+    expect(nextWorkItemId(tmp, 'CLV')).toBe('CLV-1');
+  });
+
+  it('picks max across rfcs/spikes/plans/tasks plus 1', () => {
+    writeFileSync(join(tmp, '.cloverleaf/rfcs/CLV-5.json'), '{}');
+    writeFileSync(join(tmp, '.cloverleaf/spikes/CLV-12.json'), '{}');  // max in spikes, not tasks
+    writeFileSync(join(tmp, '.cloverleaf/plans/CLV-3.json'), '{}');
+    writeFileSync(join(tmp, '.cloverleaf/tasks/CLV-8.json'), '{}');
+    expect(nextWorkItemId(tmp, 'CLV')).toBe('CLV-13');
+  });
+
+  it('ignores non-matching files', () => {
+    writeFileSync(join(tmp, '.cloverleaf/tasks/readme.txt'), 'x');
+    writeFileSync(join(tmp, '.cloverleaf/rfcs/OTHER-9.json'), '{}');
+    expect(nextWorkItemId(tmp, 'CLV')).toBe('CLV-1');
   });
 });

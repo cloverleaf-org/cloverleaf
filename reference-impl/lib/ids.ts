@@ -1,5 +1,5 @@
 import { readdirSync, existsSync } from 'node:fs';
-import { tasksDir, eventsDir, feedbackDir, projectsDir } from './paths.js';
+import { tasksDir, eventsDir, feedbackDir, projectsDir, rfcsDir, spikesDir, plansDir } from './paths.js';
 
 export function nextTaskId(repoRoot: string, project: string): string {
   const dir = tasksDir(repoRoot);
@@ -53,6 +53,30 @@ export function inferProject(repoRoot: string, explicit?: string): string {
     throw new Error(`Multiple projects found (${projects.join(', ')}); specify one explicitly.`);
   }
   return projects[0];
+}
+
+/**
+ * Returns unpadded per-project IDs (e.g., `CLV-13`) by scanning all four
+ * work-item directories and taking max+1. Matches the canonical convention
+ * used in @cloverleaf/standard example scenarios (oauth-rollout: ACME-100,
+ * ACME-200). Legacy `nextTaskId` retains three-digit padding (e.g., CLV-001)
+ * for back-compat with existing task files.
+ */
+export function nextWorkItemId(repoRoot: string, project: string): string {
+  const dirs = [rfcsDir(repoRoot), spikesDir(repoRoot), plansDir(repoRoot), tasksDir(repoRoot)];
+  const pat = new RegExp(`^${escapeRegex(project)}-(\\d+)\\.json$`);
+  let max = 0;
+  for (const d of dirs) {
+    if (!existsSync(d)) continue;
+    for (const f of readdirSync(d)) {
+      const m = pat.exec(f);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > max) max = n;
+      }
+    }
+  }
+  return `${project}-${max + 1}`;
 }
 
 function escapeRegex(s: string): string {

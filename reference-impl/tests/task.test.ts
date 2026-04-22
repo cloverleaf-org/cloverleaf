@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync as realWriteFileSync, rmSync, readdirSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadTask, saveTask, advanceStatus, loadProject } from '../lib/state.js';
-import type { ProjectDoc } from '../lib/state.js';
+import { loadTask, saveTask, advanceStatus, loadProject } from '../lib/task.js';
+import type { ProjectDoc } from '../lib/task.js';
 
 function scaffold(repoRoot: string): void {
   mkdirSync(join(repoRoot, '.cloverleaf', 'projects'), { recursive: true });

@@ -24,3 +24,24 @@ describe('package config defaults must stay framework-generic', () => {
     });
   }
 });
+
+describe('config/discovery.json — package default shape', () => {
+  const raw = readFileSync(resolve(CONFIG_DIR, 'discovery.json'), 'utf-8');
+  const cfg = JSON.parse(raw) as Record<string, unknown>;
+
+  it('docContextUri is empty string', () => {
+    expect(cfg.docContextUri).toBe('');
+  });
+
+  it('projectId is empty string', () => {
+    expect(cfg.projectId).toBe('');
+  });
+
+  it('idStart is 1', () => {
+    expect(cfg.idStart).toBe(1);
+  });
+
+  it('has exactly 3 fields', () => {
+    expect(Object.keys(cfg).sort()).toEqual(['docContextUri', 'idStart', 'projectId']);
+  });
+});

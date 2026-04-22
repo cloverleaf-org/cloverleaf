@@ -285,6 +285,36 @@ describe('no hardcoded plugin paths in skills (v0.4.1 #7)', () => {
   }
 });
 
+describe('cloverleaf-new-rfc skill', () => {
+  const body = readSkill('cloverleaf-new-rfc');
+
+  it('takes a brief file argument', () => {
+    expect(body).toMatch(/\$BRIEF|<brief-file>|brief/i);
+  });
+
+  it('scaffolds the RFC with status=drafting', () => {
+    expect(body).toMatch(/drafting/);
+  });
+
+  it('uses cloverleaf-cli (no hardcoded plugin paths)', () => {
+    expect(body).toMatch(/cloverleaf-cli/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('consults discovery-config for projectId', () => {
+    expect(body).toMatch(/discovery-config/);
+    expect(body).toMatch(/projectId/);
+  });
+
+  it('calls next-work-item-id', () => {
+    expect(body).toMatch(/next-work-item-id/);
+  });
+
+  it('calls save-rfc to persist the scaffold', () => {
+    expect(body).toMatch(/save-rfc/);
+  });
+});
+
 describe('reviewer skills /tmp cleanup + feedback commit (v0.4.1 #3, #5)', () => {
   const REVIEWERS = ['cloverleaf-review', 'cloverleaf-ui-review', 'cloverleaf-qa'] as const;
 
@@ -305,4 +335,175 @@ describe('reviewer skills /tmp cleanup + feedback commit (v0.4.1 #3, #5)', () =>
       });
     });
   }
+});
+
+describe('cloverleaf-draft-rfc skill', () => {
+  const body = readSkill('cloverleaf-draft-rfc');
+
+  it('takes an RFC ID argument', () => {
+    expect(body).toMatch(/\$RFC_ID|<RFC-ID>|<rfc-id>|RFC-ID/);
+  });
+
+  it('loads the researcher prompt via plugin-root (no hardcoded plugin path)', () => {
+    expect(body).toMatch(/\$\(cloverleaf-cli plugin-root\)\/prompts\/researcher/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('uses operation=draftRfc', () => {
+    expect(body).toMatch(/draftRfc/);
+  });
+
+  it('creates Spike work items from unknowns[] when non-empty', () => {
+    expect(body).toMatch(/unknowns/);
+    expect(body).toMatch(/save-spike/);
+    expect(body).toMatch(/spike-in-flight/);
+  });
+
+  it('transitions to planning when unknowns is empty', () => {
+    expect(body).toMatch(/planning/);
+  });
+
+  it('uses cloverleaf-cli save-rfc + advance-rfc (no hardcoded paths)', () => {
+    expect(body).toMatch(/save-rfc/);
+    expect(body).toMatch(/advance-rfc/);
+  });
+});
+
+describe('cloverleaf-spike skill', () => {
+  const body = readSkill('cloverleaf-spike');
+
+  it('takes a spike ID', () => {
+    expect(body).toMatch(/\$SPIKE_ID|<SPIKE-ID>|<spike-id>|SPIKE-ID/);
+  });
+
+  it('loads the researcher prompt via plugin-root', () => {
+    expect(body).toMatch(/\$\(cloverleaf-cli plugin-root\)\/prompts\/researcher/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('uses operation=runSpike', () => {
+    expect(body).toMatch(/runSpike/);
+  });
+
+  it('advances pending → running → completed', () => {
+    expect(body).toMatch(/pending.*running/s);
+    expect(body).toMatch(/running.*completed/s);
+  });
+
+  it('uses save-spike + advance-spike', () => {
+    expect(body).toMatch(/save-spike/);
+    expect(body).toMatch(/advance-spike/);
+  });
+});
+
+describe('cloverleaf-breakdown skill', () => {
+  const body = readSkill('cloverleaf-breakdown');
+
+  it('takes an RFC ID', () => {
+    expect(body).toMatch(/\$RFC_ID|<RFC-ID>|<rfc-id>|RFC-ID/);
+  });
+
+  it('invokes the plan prompt via plugin-root', () => {
+    expect(body).toMatch(/\$\(cloverleaf-cli plugin-root\)\/prompts\/plan/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('writes a plan.json with status=drafting then gate-pending', () => {
+    expect(body).toMatch(/drafting/);
+    expect(body).toMatch(/gate-pending/);
+  });
+
+  it('uses task_batch_gate on transition', () => {
+    expect(body).toMatch(/task_batch_gate/);
+  });
+
+  it('uses save-plan + advance-plan', () => {
+    expect(body).toMatch(/save-plan/);
+    expect(body).toMatch(/advance-plan/);
+  });
+
+  it('collects completed spikes via parent_rfc', () => {
+    expect(body).toMatch(/parent_rfc/);
+    expect(body).toMatch(/completed/);
+  });
+});
+
+describe('cloverleaf-gate skill', () => {
+  const body = readSkill('cloverleaf-gate');
+
+  it('accepts approve/reject/revise actions', () => {
+    expect(body).toMatch(/approve/);
+    expect(body).toMatch(/reject/);
+    expect(body).toMatch(/revise/);
+  });
+
+  it('handles both rfc_strategy_gate and task_batch_gate', () => {
+    expect(body).toMatch(/rfc_strategy_gate/);
+    expect(body).toMatch(/task_batch_gate/);
+  });
+
+  it('restricts revise to rfc_strategy_gate', () => {
+    expect(body).toMatch(/revise.*(only|exclusive|rfc_strategy|RFC|only valid)/i);
+  });
+
+  it('emits a gate_decision event', () => {
+    expect(body).toMatch(/emit-gate-decision/);
+  });
+
+  it('detects work-item type by directory presence', () => {
+    expect(body).toMatch(/rfcs\//);
+    expect(body).toMatch(/plans\//);
+  });
+
+  it('uses cloverleaf-cli (no hardcoded paths)', () => {
+    expect(body).toMatch(/cloverleaf-cli/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('verifies gate-pending status before acting', () => {
+    expect(body).toMatch(/gate-pending/);
+  });
+});
+
+describe('cloverleaf-discover skill', () => {
+  const body = readSkill('cloverleaf-discover');
+
+  it('takes a brief file argument', () => {
+    expect(body).toMatch(/<brief-file>|\$BRIEF_FILE|BRIEF_FILE|brief/i);
+  });
+
+  it('chains new-rfc → draft-rfc → spike → breakdown → gate stages', () => {
+    expect(body).toMatch(/new-rfc|cloverleaf-new-rfc/);
+    expect(body).toMatch(/draft-rfc|cloverleaf-draft-rfc/);
+    expect(body).toMatch(/cloverleaf-spike/);
+    expect(body).toMatch(/breakdown|cloverleaf-breakdown/);
+    expect(body).toMatch(/gate|cloverleaf-gate/);
+  });
+
+  it('has per-agent bounce budgets', () => {
+    expect(body).toMatch(/bounce|BOUNCES/i);
+    expect(body).toMatch(/3/);
+  });
+
+  it('materialises tasks after plan approval', () => {
+    expect(body).toMatch(/materialise-tasks/);
+  });
+
+  it('prompts to run first task after materialisation', () => {
+    expect(body).toMatch(/Run first.*task|first.*root.*run/i);
+  });
+
+  it('handles both human gates (rfc_strategy_gate and task_batch_gate)', () => {
+    expect(body).toMatch(/rfc_strategy_gate/);
+    expect(body).toMatch(/task_batch_gate/);
+  });
+
+  it('uses cloverleaf-cli (no hardcoded plugin paths)', () => {
+    expect(body).toMatch(/cloverleaf-cli/);
+    expect(body).not.toMatch(/~\/\.claude\/plugins\/cloverleaf/);
+  });
+
+  it('supports revise loop at rfc_strategy_gate', () => {
+    expect(body).toMatch(/revise/);
+  });
 });

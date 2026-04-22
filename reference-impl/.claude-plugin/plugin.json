@@ -1,7 +1,7 @@
 {
   "name": "cloverleaf",
   "description": "Cloverleaf reference implementation — Claude Code skills for task scaffolding and the Delivery pipeline (implementer, documenter, reviewer, UI reviewer with multi-viewport visual diff, QA, merge).",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "author": {
     "name": "Renato D'Arrigo",
     "email": "renato.darrigo@gmail.com"
