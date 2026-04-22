@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-14",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "What is the realistic wall-clock cost per task for a 3-browser × N-route × V-v",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-9"
+  },
+  "question": "What is the realistic wall-clock cost per task for a 3-browser × N-route × V-viewport matrix using the existing preview-server approach, and what cap value (routes × viewports × browsers) prevents unacceptable run times?",
+  "method": "research"
+}

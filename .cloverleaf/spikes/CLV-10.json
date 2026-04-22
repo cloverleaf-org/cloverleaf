@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-10",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "What is the disk footprint and install mechanism for webkit and firefox under th",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-9"
+  },
+  "question": "What is the disk footprint and install mechanism for webkit and firefox under the existing PLAYWRIGHT_BROWSERS_PATH=~/.cache/ms-playwright convention — does 'npx playwright install webkit firefox' suffice on all supported platforms, or do those engines require separate handling or on-demand download at review time?",
+  "method": "research"
+}

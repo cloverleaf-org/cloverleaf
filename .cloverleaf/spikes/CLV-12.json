@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-12",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Is axe-core genuinely engine-portable across chromium, webkit, and firefox in a ",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-9"
+  },
+  "question": "Is axe-core genuinely engine-portable across chromium, webkit, and firefox in a Playwright headless context, or do DOM/a11y-tree differences between engines produce false-positive divergence that makes cross-engine axe runs unreliable?",
+  "method": "research"
+}

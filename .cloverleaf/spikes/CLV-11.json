@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-11",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Which baseline file layout best preserves git-diff readability when adding a bro",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-9"
+  },
+  "question": "Which baseline file layout best preserves git-diff readability when adding a browser axis: flat {slug}-{browser}-{viewport}.png, per-browser subdirectories (.cloverleaf/baselines/{browser}/{slug}-{viewport}.png), or per-slug bundles?",
+  "method": "research"
+}

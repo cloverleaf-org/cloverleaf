@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-13",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Should the baseline-approval workflow be implemented as a new side-flag on the u",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-9"
+  },
+  "question": "Should the baseline-approval workflow be implemented as a new side-flag on the ui-review run artifact (reference-impl-only change) or as a new state-machine transition in the Standard schema, and what is the impact on existing Standard consumers?",
+  "method": "research"
+}
