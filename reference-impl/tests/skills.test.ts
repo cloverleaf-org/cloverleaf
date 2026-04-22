@@ -313,6 +313,17 @@ describe('cloverleaf-new-rfc skill', () => {
   it('calls save-rfc to persist the scaffold', () => {
     expect(body).toMatch(/save-rfc/);
   });
+
+  // v0.5.1: echo appends a trailing newline that jq -Rs captures into the string,
+  // so the RFC title ended up as "Brief: cross-browser UI review\n". Using printf
+  // without a format-string newline produces a clean string. This regression guard
+  // ensures future edits do not re-introduce `echo "$FIRST_LINE" | jq -Rs`.
+  it('uses printf (not echo) before jq -Rs for title + problem (v0.5.1)', () => {
+    expect(body).not.toMatch(/echo\s+"?\$FIRST_LINE"?\s*\|\s*jq/);
+    expect(body).not.toMatch(/echo\s+"?\$BRIEF_CONTENT"?\s*\|\s*jq/);
+    expect(body).toMatch(/printf\s+'%s'\s+"\$FIRST_LINE"\s*\|\s*jq\s+-Rs/);
+    expect(body).toMatch(/printf\s+'%s'\s+"\$BRIEF_CONTENT"\s*\|\s*jq\s+-Rs/);
+  });
 });
 
 describe('reviewer skills /tmp cleanup + feedback commit (v0.4.1 #3, #5)', () => {
