@@ -30,6 +30,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Build (emits dist/ for build-output contract tests)
+        run: npm run build
+
       - name: Unit + contract suite
         run: npm test
 
