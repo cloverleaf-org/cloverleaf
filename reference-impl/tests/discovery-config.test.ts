@@ -29,4 +29,26 @@ describe('loadDiscoveryConfig', () => {
     expect(c.projectId).toBe('CLV');
     expect(c.idStart).toBe(9);
   });
+
+  it('falls back to package default on malformed consumer JSON', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      '{ this is not valid json'
+    );
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.docContextUri).toBe('');
+    expect(c.projectId).toBe('');
+    expect(c.idStart).toBe(1);
+  });
+
+  it('fills missing fields from package default on partial override', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      JSON.stringify({ projectId: 'CLV' })
+    );
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.projectId).toBe('CLV');      // from override
+    expect(c.docContextUri).toBe('');     // from default
+    expect(c.idStart).toBe(1);            // from default
+  });
 });
