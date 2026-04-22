@@ -2,7 +2,7 @@
   "type": "plan",
   "id": "CLV-15",
   "project": "CLV",
-  "status": "gate-pending",
+  "status": "approved",
   "owner": {
     "kind": "agent",
     "id": "plan"
