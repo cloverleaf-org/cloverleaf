@@ -29,7 +29,7 @@ v0.2 implements both paths of the Delivery track:
 | Implementer | Real | Subagent, code + tests on feature branch |
 | Documenter | Real (v0.2) | Subagent, doc-only commits per file-path rules |
 | Reviewer | Real | Subagent, read-only review of diff |
-| UI Reviewer | Real (v0.3) | Playwright + axe-core, diff-scoped to affected routes, single viewport, a11y only |
+| UI Reviewer | Real (v0.5) | Playwright + axe-core + pixelmatch; multi-browser outer loop (chromium/webkit/firefox); axe-core runs on `axe.browser` engine only (default chromium); maxCombinations cap with per-route warnings |
 | QA | Real (v0.2) | Per-package test runner via `git worktree` |
 | Plan | Stub | Deferred to v0.3 |
 | Researcher | Stub | Deferred to v0.3 |
@@ -145,7 +145,7 @@ The Reviewer never switches branches. It reads files via `git show` and runs tes
 
 ## Package layout
 
-- `lib/` — TypeScript library used by the CLI. State, events, feedback, IDs, paths. Includes `buildBaselinePath(repoRoot, browser, slug, viewport)` (`lib/visual-diff.ts`) for constructing canonical baseline paths under `.cloverleaf/baselines/{browser}/`.
+- `lib/` — TypeScript library used by the CLI. State, events, feedback, IDs, paths. Includes `buildBaselinePath(repoRoot, browser, slug, viewport)` (`lib/visual-diff.ts`) for constructing canonical baseline paths under `.cloverleaf/baselines/{browser}/`. `lib/ui-browser.ts` exports `buildBrowserEscalationFinding` and `applyMaxCombinationsCap` (used by the UI Reviewer prompt for per-engine escalation and combination-count capping).
 - `skills/` — Claude Code skill markdown files.
 - `prompts/` — Implementer/Reviewer subagent system prompts.
 - `examples/toy-repo/` — standalone demo repo.
