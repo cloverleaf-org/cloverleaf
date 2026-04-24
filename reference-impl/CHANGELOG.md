@@ -2,7 +2,20 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## 0.5.4 — 2026-04-24
+
+Bundles the merged CLV-19 baseline-approval sidecar with a follow-up typo
+fix surfaced by CLV-19's own Reviewer.
+
+### Fixed
+
+- `cloverleaf-ui-review/SKILL.md` now uses the fully-qualified
+  `/cloverleaf-approve-baselines <TASK-ID>` in its human-facing message when
+  `baselines_pending` is true. The previous text said `/approve-baselines`,
+  which would have produced a "skill not found" error if a human copied the
+  message verbatim (the registered plugin-scoped skill name is
+  `/cloverleaf-approve-baselines`, matching every other skill in the
+  `cloverleaf-*` family). Regression guarded in `tests/skills.test.ts`.
 
 ### Added
 
