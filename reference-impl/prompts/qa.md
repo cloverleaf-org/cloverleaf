@@ -17,10 +17,15 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 
 ## Runtime procedure
 
-1. Set up isolated worktree:
+1. Set up isolated worktree and prepare its node_modules + standard/dist. The `prep-worktree`
+   helper copies main's `standard/node_modules` and `reference-impl/node_modules` into the
+   worktree and runs the standard build script so the @cloverleaf/standard symlink resolves
+   correctly inside the worktree. (Without this, `tsc` fails with `Cannot find module
+   '@cloverleaf/standard/validators/index.js'` because git worktrees don't inherit node_modules.)
    ```bash
    TMPDIR=$(mktemp -d)
    git worktree add "$TMPDIR" {{branch}}
+   cloverleaf-cli prep-worktree {{repo_root}} "$TMPDIR"
    ```
 
 2. Inspect the changed files (from the diff). For each QA rule whose `match` patterns match ≥1 changed file, queue its command.

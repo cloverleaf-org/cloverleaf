@@ -26,6 +26,7 @@
  *   materialise-tasks <repoRoot> <planId>
  *   next-work-item-id <repoRoot> <project>
  *   discovery-config --repo-root <repoRoot>
+ *   prep-worktree <mainRoot> <worktreePath>
  */
 
 import { readFileSync } from 'node:fs';
@@ -46,6 +47,7 @@ import { loadRfc, saveRfc, advanceRfcStatus, type RfcDoc } from './rfc.js';
 import { loadSpike, saveSpike, advanceSpikeStatus, type SpikeDoc } from './spike.js';
 import { loadPlan, savePlan, advancePlanStatus, materialiseTasksFromPlan, type PlanDoc } from './plan.js';
 import { loadDiscoveryConfig } from './discovery-config.js';
+import { prepWorktree } from './prep-worktree.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -77,7 +79,8 @@ function usage(msg?: string): never {
       '  advance-plan <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
       '  materialise-tasks <repoRoot> <planId>\n' +
       '  next-work-item-id <repoRoot> <project>\n' +
-      '  discovery-config --repo-root <repoRoot>\n'
+      '  discovery-config --repo-root <repoRoot>\n' +
+      '  prep-worktree <mainRoot> <worktreePath>\n'
   );
   process.exit(2);
 }
@@ -372,6 +375,13 @@ try {
       if (idx < 0 || !rest[idx + 1]) usage('discovery-config --repo-root <repoRoot>');
       const c = loadDiscoveryConfig(rest[idx + 1]);
       process.stdout.write(JSON.stringify(c, null, 2));
+      break;
+    }
+
+    case 'prep-worktree': {
+      const [mainRoot, worktreePath] = rest;
+      if (!mainRoot || !worktreePath) usage('prep-worktree requires <mainRoot> <worktreePath>');
+      prepWorktree(mainRoot, worktreePath);
       break;
     }
 

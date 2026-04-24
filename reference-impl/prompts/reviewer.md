@@ -41,12 +41,14 @@ A `pass` verdict MAY have an empty `findings` array or omit it. A `bounce` verdi
 - You are a fresh pair of eyes. Do not rubber-stamp. If you have substantive doubts, bounce.
 - Check that tests actually cover the AC; a passing test suite with no AC coverage is a bounce.
 - Do NOT modify any files. You are read-only.
-- Do NOT use `git checkout` or `git switch`. Read files via `git show <branch>:<path>`. If you need a live checkout to run tests, use a worktree:
+- Do NOT use `git checkout` or `git switch`. Read files via `git show <branch>:<path>`. If you need a live checkout to run tests, use a worktree and prime it with `cloverleaf-cli prep-worktree` (copies main's node_modules + builds standard/dist inside the worktree — without this, `tsc` fails with `Cannot find module '@cloverleaf/standard/validators/index.js'`):
 
   ```bash
+  MAIN=$(pwd)
   git worktree add /tmp/cl-review-<task-id> cloverleaf/<task-id>
-  cd /tmp/cl-review-<task-id>
-  npm install && npm test
+  cloverleaf-cli prep-worktree "$MAIN" /tmp/cl-review-<task-id>
+  cd /tmp/cl-review-<task-id>/reference-impl
+  npm test
   cd -
   git worktree remove /tmp/cl-review-<task-id>
   ```

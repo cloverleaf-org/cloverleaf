@@ -228,6 +228,21 @@ describe('qa prompt', () => {
     expect(body.toLowerCase()).toMatch(/attachment/);
     expect(body).toContain('report');
   });
+
+  it('invokes cloverleaf-cli prep-worktree after git worktree add (v0.5.2 #B)', () => {
+    // Regression guard: QA was hitting `Cannot find module '@cloverleaf/standard/validators/index.js'`
+    // in fresh worktrees on CLV-16 and CLV-17 Delivery runs. prep-worktree primes the worktree.
+    expect(body).toMatch(/cloverleaf-cli prep-worktree[^\n]*\{\{repo_root\}\}[^\n]*"?\$TMPDIR"?/);
+  });
+});
+
+describe('reviewer prompt (v0.5.2 #B — worktree prep)', () => {
+  // Reviewer also spawns a worktree when it wants to run tests; same prep helper applies.
+  const body = readFileSync(resolve(__dirname, '..', 'prompts', 'reviewer.md'), 'utf-8');
+
+  it('invokes cloverleaf-cli prep-worktree when it creates a worktree', () => {
+    expect(body).toMatch(/git worktree add[\s\S]*cloverleaf-cli prep-worktree/);
+  });
 });
 
 describe('researcher prompt', () => {
