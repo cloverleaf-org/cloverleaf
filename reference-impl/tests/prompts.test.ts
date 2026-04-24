@@ -172,6 +172,56 @@ describe('ui-reviewer prompt', () => {
     expect(body).toContain('axe.ignored');
     expect(body.toLowerCase()).toMatch(/allowlist|ignored/);
   });
+
+  // -------------------------------------------------------------------------
+  // CLV-18: 3-browser outer loop, per-engine escalation, axe chromium-only,
+  // maxCombinations cap
+  // -------------------------------------------------------------------------
+
+  it('documents browsers as the outermost loop (CLV-18)', () => {
+    // The prompt must describe iterating over config.browsers as outer loop
+    expect(body).toMatch(/browsers.*outermost|outer.*loop.*browser|per-browser.*outer/i);
+  });
+
+  it('documents per-browser escalation for missing binaries (CLV-18)', () => {
+    // Must name the install command for the missing engine
+    expect(body).toContain('npx playwright install webkit firefox');
+  });
+
+  it('documents per-browser escalation includes Linux install-deps hint (CLV-18)', () => {
+    expect(body).toContain('npx playwright install-deps webkit');
+  });
+
+  it('documents that axe runs only on the configured axe.browser (CLV-18)', () => {
+    // Must say something like "only when browser === axe.browser" or equivalent
+    expect(body).toMatch(/axe\.browser/);
+    expect(body).toMatch(/only.*axe\.browser|axe\.browser.*only|skip.*axe|axe.*skip/i);
+  });
+
+  it('documents that webkit and firefox produce no axe findings (CLV-18)', () => {
+    expect(body).toMatch(/webkit.*no axe|firefox.*no axe|no axe.*webkit|no axe.*firefox/i);
+  });
+
+  it('documents maxCombinations cap enforcement (CLV-18)', () => {
+    expect(body).toMatch(/maxCombinations/);
+    expect(body).toMatch(/ui-review-cap/);
+  });
+
+  it('documents skipped route warning with rule ui-review-cap (CLV-18)', () => {
+    expect(body).toContain('ui-review-cap');
+    expect(body).toMatch(/warning.*ui-review-cap|ui-review-cap.*warning/i);
+  });
+
+  it('documents floor(maxCombinations / (viewports x browsers)) route selection (CLV-18)', () => {
+    // The cap math: floor(maxCombinations / (viewportCount × browserCount))
+    expect(body).toMatch(/floor\(maxCombinations\s*\/\s*\(viewportCount\s*[×x*]\s*browserCount\)\)/i);
+  });
+
+  it('references lib/ui-browser.ts helpers (CLV-18)', () => {
+    expect(body).toContain('lib/ui-browser.ts');
+    expect(body).toContain('applyMaxCombinationsCap');
+    expect(body).toContain('buildBrowserEscalationFinding');
+  });
 });
 
 describe('qa prompt', () => {
