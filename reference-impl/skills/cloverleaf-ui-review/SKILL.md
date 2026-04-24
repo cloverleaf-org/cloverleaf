@@ -95,7 +95,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
       - Commit artifacts: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review passed (baselines pending approval)"`.
       - Report:
         > "✓ UI Review passed (no a11y errors), but **baselines_pending** is true: one or more new or resized visual baselines were captured and require human approval before advancing to qa.
-        > Run `/approve-baselines <TASK-ID>` to review the new baseline images and approve them, which will clear the flag and advance the task to qa."
+        > Run `/cloverleaf-approve-baselines <TASK-ID>` to review the new baseline images and approve them, which will clear the flag and advance the task to qa."
       - Stop here (task remains in `ui-review` status).
 
     - If `BASELINES_PENDING` is `false` (or state.json is absent):

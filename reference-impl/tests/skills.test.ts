@@ -573,8 +573,18 @@ describe('cloverleaf-ui-review skill (CLV-19 — baseline-approval gate)', () =>
 
   it('surfaces a human-readable message containing "baselines_pending" when baseline approval is required', () => {
     expect(body).toMatch(/baselines_pending/);
-    // Must tell the human to run approve-baselines
-    expect(body).toMatch(/approve[-_]baselines|cloverleaf-approve-baselines/i);
+    // Must tell the human to run the approve-baselines skill
+    expect(body).toMatch(/cloverleaf-approve-baselines/);
+  });
+
+  it('uses the fully-qualified /cloverleaf-approve-baselines slash command (v0.5.4 #D)', () => {
+    // CLV-19 review flagged this as a non-blocking nit: line 98 said `/approve-baselines`
+    // but the registered plugin-scoped skill is `/cloverleaf-approve-baselines`. A human
+    // copying the unqualified form verbatim would hit "skill not found". v0.5.4 patches
+    // the skill and this guard keeps the unqualified `/approve-baselines` from reappearing.
+    // Note the word-boundary `\b` — we want to forbid the bare form but still allow
+    // `/cloverleaf-approve-baselines` (which contains the substring "approve-baselines").
+    expect(body).not.toMatch(/(^|[^-])\/approve-baselines\b/);
   });
 
   it('advances to qa normally when baselines_pending is false', () => {
