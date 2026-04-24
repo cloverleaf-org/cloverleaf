@@ -675,3 +675,70 @@ describe('cloverleaf-merge skill (v0.6 #F — Q&A at final-gate)', () => {
     expect(body).toMatch(/\by[/|,\s]+Y[/|,\s]+yes[/|,\s]+YES\b|y\/Y\/yes\/YES/);
   });
 });
+
+describe('cloverleaf-run-plan skill (v0.6 — autonomous DAG walker)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('has valid frontmatter with name cloverleaf-run-plan', () => {
+    expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-run-plan[\s\S]*?---/);
+  });
+
+  it('documents the --max-concurrent and --reset flags', () => {
+    expect(body).toMatch(/--max-concurrent/);
+    expect(body).toMatch(/--reset/);
+  });
+
+  it('defaults max_concurrent to 3', () => {
+    expect(body).toMatch(/default[:\s][^\n]*\b3\b|max_concurrent[:\s]+3/i);
+  });
+
+  it('guards against cycles via cloverleaf-cli dag-detect-cycle', () => {
+    expect(body).toContain('dag-detect-cycle');
+  });
+
+  it('uses cloverleaf-cli walk-state-read / walk-state-write for persistence', () => {
+    expect(body).toContain('walk-state-read');
+    expect(body).toContain('walk-state-write');
+  });
+
+  it('uses cloverleaf-cli dag-ready-tasks to compute schedulable tasks', () => {
+    expect(body).toContain('dag-ready-tasks');
+  });
+
+  it('spawns per-task sessions via claw-drive start_session (MCP) or CLI equivalent', () => {
+    expect(body).toMatch(/claw-drive.*start.?session|mcp__claw-drive__start_session/i);
+  });
+
+  it('monitors sessions via claw-drive watch (with --since for event-stream resumption)', () => {
+    expect(body).toMatch(/claw-drive watch/);
+    expect(body).toMatch(/--since/);
+  });
+
+  it('surfaces escalations immediately (not batched)', () => {
+    expect(body.toLowerCase()).toMatch(
+      /escalat[^\n]*immediat|surface[^\n]*(right away|immediat|as soon)|not[^\n]*queue.*escalation/,
+    );
+  });
+
+  it('drains final-gate prompts serially to the driver session', () => {
+    expect(body.toLowerCase()).toMatch(/final.gate[^\n]*(serial|queue|one at a time|one-at-a-time)/);
+  });
+
+  it('is resumable — attaches to live sessions on re-invocation', () => {
+    expect(body.toLowerCase()).toMatch(/resum|re.?attach|re.?invok/);
+  });
+
+  it('reports merged / escalated / awaiting / unreachable at exit', () => {
+    expect(body).toMatch(/merged/i);
+    expect(body).toMatch(/escalated/i);
+    expect(body).toMatch(/awaiting.?final.?gate/i);
+    expect(body).toMatch(/unreachable|blocked/i);
+  });
+
+  it('references the per-task /cloverleaf-run skill for each Session B', () => {
+    expect(body).toContain('cloverleaf-run');
+  });
+});
