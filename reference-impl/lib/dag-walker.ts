@@ -80,3 +80,54 @@ export function computeReadyTasks(
 
   return ready;
 }
+
+/**
+ * Returns `null` if the Plan's task_dag is acyclic. If a cycle is present, returns
+ * `{ cycle: string[] }` naming the task IDs involved in one cycle (order is the
+ * traversal order, which is a valid witness of the cycle).
+ *
+ * Uses Tarjan-style DFS with a white/grey/black colouring.
+ */
+export function detectCycle(plan: PlanDoc): { cycle: string[] } | null {
+  const adj: Record<string, string[]> = {};
+  for (const node of plan.task_dag.nodes) adj[node.id] = [];
+  for (const edge of plan.task_dag.edges) {
+    const from = edge.from.id;
+    if (!adj[from]) adj[from] = [];
+    adj[from].push(edge.to.id);
+  }
+
+  const WHITE = 0;
+  const GREY = 1;
+  const BLACK = 2;
+  const color: Record<string, number> = {};
+  for (const id of Object.keys(adj)) color[id] = WHITE;
+
+  const path: string[] = [];
+
+  function dfs(id: string): string[] | null {
+    color[id] = GREY;
+    path.push(id);
+    for (const next of adj[id] ?? []) {
+      if (color[next] === GREY) {
+        const start = path.indexOf(next);
+        return path.slice(start);
+      }
+      if (color[next] === WHITE) {
+        const cycle = dfs(next);
+        if (cycle) return cycle;
+      }
+    }
+    color[id] = BLACK;
+    path.pop();
+    return null;
+  }
+
+  for (const id of Object.keys(adj)) {
+    if (color[id] === WHITE) {
+      const cycle = dfs(id);
+      if (cycle) return { cycle };
+    }
+  }
+  return null;
+}

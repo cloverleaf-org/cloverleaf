@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeReadyTasks, type WalkState } from '../lib/dag-walker.js';
+import { computeReadyTasks, detectCycle, type WalkState } from '../lib/dag-walker.js';
 import type { PlanDoc } from '../lib/plan.js';
 
 function plan(edges: Array<[string, string]>, taskIds: string[]): PlanDoc {
@@ -111,5 +111,45 @@ describe('computeReadyTasks', () => {
     const p = plan([], ['CLV-19', 'CLV-17', 'CLV-18']);
     const ws = walkState({});
     expect(computeReadyTasks(p, ws, 3)).toEqual(['CLV-17', 'CLV-18', 'CLV-19']);
+  });
+});
+
+describe('detectCycle', () => {
+  it('returns null for an acyclic DAG', () => {
+    const p = plan([['CLV-17', 'CLV-20']], ['CLV-17', 'CLV-20']);
+    expect(detectCycle(p)).toBe(null);
+  });
+
+  it('returns the offending edge list for a simple 2-cycle', () => {
+    const p = plan(
+      [
+        ['CLV-17', 'CLV-18'],
+        ['CLV-18', 'CLV-17'],
+      ],
+      ['CLV-17', 'CLV-18'],
+    );
+    const cycle = detectCycle(p);
+    expect(cycle).not.toBe(null);
+    expect(cycle!.cycle.length).toBeGreaterThanOrEqual(2);
+    expect(cycle!.cycle).toEqual(expect.arrayContaining(['CLV-17', 'CLV-18']));
+  });
+
+  it('returns the cycle for a 3-cycle', () => {
+    const p = plan(
+      [
+        ['CLV-17', 'CLV-18'],
+        ['CLV-18', 'CLV-19'],
+        ['CLV-19', 'CLV-17'],
+      ],
+      ['CLV-17', 'CLV-18', 'CLV-19'],
+    );
+    const cycle = detectCycle(p);
+    expect(cycle).not.toBe(null);
+    expect(cycle!.cycle).toEqual(expect.arrayContaining(['CLV-17', 'CLV-18', 'CLV-19']));
+  });
+
+  it('returns null when there are only isolated nodes', () => {
+    const p = plan([], ['CLV-17', 'CLV-18']);
+    expect(detectCycle(p)).toBe(null);
   });
 });
