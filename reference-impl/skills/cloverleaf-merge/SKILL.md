@@ -71,9 +71,9 @@ description: Human gate for merging a Cloverleaf task. Branches on state — fro
      cloverleaf-cli advance-status <repo_root> ${TASK_ID} escalated agent
      ```
      Exit with a human-readable error explaining the conflict.
-   - Advance task status on main (commits `.cloverleaf/tasks/${TASK_ID}.json` + event):
+   - Advance task status on main (commits `.cloverleaf/tasks/${TASK_ID}.json` + event). The `final-gate → merged` transition is `allowed_actors: [human]` per the task state machine; the skill passes the gate + path as positional args:
      ```bash
-     cloverleaf-cli advance-status <repo_root> ${TASK_ID} merged agent
+     cloverleaf-cli advance-status <repo_root> ${TASK_ID} merged human final_approval_gate full_pipeline
      ```
 
 ### 4. Common: report
