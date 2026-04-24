@@ -654,3 +654,24 @@ describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
     expect(body).toContain('cloverleaf-cli');
   });
 });
+
+describe('cloverleaf-merge skill (v0.6 #F — Q&A at final-gate)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-merge', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('supports clarifying questions before y/N verdict', () => {
+    expect(body.toLowerCase()).toMatch(
+      /clarifying question|ask.*question|(treat|interpret).*(non.y|anything else|not.*y\/n).*as.*question/,
+    );
+  });
+
+  it('explicitly re-prompts y/N after answering a question', () => {
+    expect(body.toLowerCase()).toMatch(/re.?prompt|re.?ask|ask again|repeat.*prompt/);
+  });
+
+  it('only proceeds on y/Y/yes/YES — not on arbitrary text', () => {
+    expect(body).toMatch(/\by[/|,\s]+Y[/|,\s]+yes[/|,\s]+YES\b|y\/Y\/yes\/YES/);
+  });
+});
