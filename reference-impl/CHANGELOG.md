@@ -2,6 +2,59 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.6.0 — 2026-04-24
+
+First feature release after the CLV-15 / cross-browser-UI-review line of
+patches. Introduces an autonomous DAG walker that drives a Plan's task_dag
+through Delivery concurrently.
+
+### Added
+
+- **`/cloverleaf-run-plan <PLAN-ID>`** skill — autonomous DAG walker.
+  Reads an approved Plan, computes ready tasks, spawns one claw-drive
+  Session B per ready task (default `max_concurrent: 3`, configurable via
+  `--max-concurrent=N`), monitors them, surfaces only escalations and
+  per-task final-gate approvals to the human. Resumable across
+  invocations. `--reset` flag to wipe walk-state and start over.
+- `lib/dag-walker.ts` — `computeReadyTasks(plan, walkState, maxConcurrent)`
+  pure function for DAG scheduling; `detectCycle(plan)` Tarjan-style cycle
+  guard.
+- `lib/walk-state.ts` — atomic read/write of
+  `.cloverleaf/runs/plan/<PLAN-ID>/walk-state.json`.
+- Four new `cloverleaf-cli` subcommands: `dag-ready-tasks`,
+  `dag-detect-cycle`, `walk-state-read`, `walk-state-write`. The walker
+  skill body invokes these to bridge bash to the TypeScript library.
+
+### Changed
+
+- `/cloverleaf-merge` skill gains a Q&A affordance at the final-gate
+  prompt. Users can ask clarifying questions (which get answered from
+  pipeline context and re-prompted) before giving the `y/N` verdict.
+  Only `y/Y/yes/YES` proceeds to merge; `n/N/no/NO` declines. Any other
+  response is treated as a question. The walker depends on this
+  behaviour, but manual merges get the same affordance as a side-effect.
+
+### Tests
+
+547 tests passing, up from 506 in v0.5.5. New suites:
+
+- `tests/dag-walker.test.ts` — 13 tests (9 for `computeReadyTasks`, 4 for
+  `detectCycle`).
+- `tests/walk-state.test.ts` — 7 tests (path construction, round-trip,
+  atomic write, tmp-file cleanup, malformed JSON).
+- `tests/cli.test.ts` — +4 tests for the new walker subcommands.
+- `tests/skills.test.ts` — +13 tests asserting `/cloverleaf-run-plan`
+  skill-body shape + 3 tests for the `/cloverleaf-merge` Q&A loop.
+
+### Compatibility
+
+- Standard stays at 0.4.1. No schema, contract, or state-machine changes.
+- Existing `/cloverleaf-run <TASK-ID>` unchanged. The walker invokes it
+  per-task inside each Session B.
+- The `/cloverleaf-merge` change is additive — existing `y/Y/yes/YES`
+  and `n/N/no/NO` responses continue to work exactly as before. Only
+  arbitrary text was previously treated as decline; now it's a question.
+
 ## 0.5.5 — 2026-04-24
 
 Bundles the merged CLV-20 end-to-end integration test (the Plan CLV-15 join
