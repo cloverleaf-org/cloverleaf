@@ -497,3 +497,26 @@ describe('cli — next-work-item-id', () => {
     expect(stdout.trim()).toBe('CLV-13');
   });
 });
+
+describe('cli — prep-worktree', () => {
+  it('exits non-zero with usage when args are missing', () => {
+    const { exitCode, stderr } = run(['prep-worktree']);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toMatch(/prep-worktree requires <mainRoot> <worktreePath>/);
+  });
+
+  it('exits non-zero with a clear error when the worktree is not primed', () => {
+    // Missing package.json is enough for prep-worktree to bail — exercising the CLI wiring,
+    // not the lib itself (lib has its own unit tests).
+    const mainTmp = mkdtempSync(join(tmpdir(), 'cli-prep-main-'));
+    const wtTmp = mkdtempSync(join(tmpdir(), 'cli-prep-wt-'));
+    try {
+      const { exitCode, stderr } = run(['prep-worktree', mainTmp, wtTmp]);
+      expect(exitCode).not.toBe(0);
+      expect(stderr).toMatch(/package\.json|node_modules/);
+    } finally {
+      rmSync(mainTmp, { recursive: true, force: true });
+      rmSync(wtTmp, { recursive: true, force: true });
+    }
+  });
+});

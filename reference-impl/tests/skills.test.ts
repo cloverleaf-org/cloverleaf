@@ -271,6 +271,24 @@ describe('cloverleaf-merge skill (v0.4.1 #1)', () => {
   });
 });
 
+describe('cloverleaf-merge skill (v0.5.2 #A — final-gate actor bug)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-merge', 'SKILL.md'), 'utf-8');
+
+  it('full-pipeline final-gate → merged uses actor=human with gate + path positional args', () => {
+    // The task state machine declares `final-gate → merged` as allowed_actors: [human],
+    // so the skill must pass `human final_approval_gate full_pipeline`, not `agent`.
+    // Regression guard for two field repros (CLV-16, CLV-17) where the skill used `agent`
+    // and the CLI rejected with "Illegal transition final-gate → merged ... by agent".
+    expect(body).toMatch(/advance-status[^\n]*\bmerged human final_approval_gate full_pipeline\b/);
+  });
+
+  it('does not use actor=agent for any merged transition', () => {
+    // Fast lane uses `human human_merge fast_lane`; full pipeline uses `human final_approval_gate full_pipeline`.
+    // Neither should use `agent` for the `merged` transition.
+    expect(body).not.toMatch(/advance-status[^\n]*\bmerged agent\b/);
+  });
+});
+
 describe('no hardcoded plugin paths in skills (v0.4.1 #7)', () => {
   const SKILLS_DIR = resolve(__dirname, '..', 'skills');
   const names = readdirSync(SKILLS_DIR, { withFileTypes: true })

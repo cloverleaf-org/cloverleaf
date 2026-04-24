@@ -2,19 +2,96 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## 0.5.2 — 2026-04-24
+
+Bundles the CLV-16 + CLV-17 cross-browser groundwork with two dogfood-surfaced
+pipeline bug fixes (both reproduced on CLV-16 2026-04-22 and CLV-17 2026-04-24
+Delivery runs via claw-drive).
 
 ### Added
 
-- `UiReviewConfig` gains three new backward-compatible fields: `browsers` (array of `BrowserEngine` strings, default `["chromium"]`), `axe.browser` (string, default `"chromium"`), and `maxCombinations` (integer, default `90`). Configs that omit these keys continue to work unchanged — `applyDefaults()` fills them in at load time.
-- `BrowserEngine` type alias (`'chromium' | 'webkit' | 'firefox'`) exported from `lib/ui-review-config.ts`.
-- `install.sh` now runs `npx playwright install chromium webkit firefox` (all three browsers) after the existing chromium step, and on Linux also runs `npx playwright install-deps webkit` for webkit system dependencies.
-- `buildBaselinePath(repoRoot, browser, slug, viewport)` exported from `lib/visual-diff.ts` — constructs the canonical baseline path `.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`. Callers should use this helper instead of constructing paths manually.
+- `UiReviewConfig` gains three new backward-compatible fields: `browsers` (array
+  of `BrowserEngine` strings, default `["chromium"]`), `axe.browser` (string,
+  default `"chromium"`), and `maxCombinations` (integer, default `90`). Configs
+  that omit these keys continue to work unchanged — `applyDefaults()` fills
+  them in at load time.
+- `BrowserEngine` type alias (`'chromium' | 'webkit' | 'firefox'`) exported
+  from `lib/ui-review-config.ts`.
+- `install.sh` now runs `npx playwright install chromium webkit firefox` (all
+  three browsers) after the existing chromium step, and on Linux also runs
+  `npx playwright install-deps webkit` for webkit system dependencies.
+- `buildBaselinePath(repoRoot, browser, slug, viewport)` exported from
+  `lib/visual-diff.ts` — constructs the canonical baseline path
+  `.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`. Callers should use
+  this helper instead of constructing paths manually.
+- `cloverleaf-cli prep-worktree <mainRoot> <worktreePath>` (new subcommand) —
+  primes a freshly-created git worktree for the reference-impl test suites by
+  copying main's `standard/node_modules` and `reference-impl/node_modules`
+  into the worktree (preserving the `@cloverleaf/standard → ../../../standard`
+  relative symlink so it resolves to the worktree's own `standard/`), then
+  running `npm run build` inside the worktree's `standard/` so `dist/` comes
+  from the branch's own sources. Exposed via a new `prepWorktree()` export
+  from `lib/prep-worktree.ts`.
 
 ### Changed
 
-- Baseline storage layout migrated from flat (`.cloverleaf/baselines/{slug}-{viewport}.png`) to browser-subdirectory layout (`.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`) via `git mv` (CLV-17). The flat layout is **deprecated**; all new baselines must be placed under `baselines/{browser}/`. Existing chromium baselines have been moved to `baselines/chromium/`.
-- UI Reviewer prompt and `compareVisual` call-sites updated to construct `baselinePath` with the `{browser}` segment. Attachment label paths in reviewer output reference the new subdir form.
+- Baseline storage layout migrated from flat
+  (`.cloverleaf/baselines/{slug}-{viewport}.png`) to browser-subdirectory
+  layout (`.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`) via `git
+  mv` (CLV-17). The flat layout is **deprecated**; all new baselines must be
+  placed under `baselines/{browser}/`. Existing chromium baselines have been
+  moved to `baselines/chromium/`.
+- UI Reviewer prompt and `compareVisual` call-sites updated to construct
+  `baselinePath` with the `{browser}` segment. Attachment label paths in
+  reviewer output reference the new subdir form.
+- QA prompt (`prompts/qa.md`) now invokes `cloverleaf-cli prep-worktree`
+  immediately after `git worktree add`.
+- Reviewer prompt (`prompts/reviewer.md`) now invokes `cloverleaf-cli
+  prep-worktree` in its worktree recipe and runs `npm test` from
+  `reference-impl/` (rather than `npm install && npm test` at the worktree
+  root, which never resolved `@cloverleaf/standard`'s deps).
+- Vitest `testTimeout` bumped from the 5 s default to 15 s. CLI-level tests
+  chain three or more `npx tsx cli.ts` spawns (~1.8 s each); the default was
+  reliably exceeded by `advance-rfc`, `advance-spike`, and `advance-plan`
+  flows on a loaded machine.
+
+### Fixed
+
+- `/cloverleaf-merge` skill no longer calls `advance-status ... merged agent`
+  for the `final-gate → merged` transition. That transition is
+  `allowed_actors: [human]` per the task state machine, so the CLI correctly
+  rejected it with `Illegal transition final-gate → merged ... by agent`. The
+  skill now passes `human final_approval_gate full_pipeline` as positional
+  args. Driven sessions on CLV-16 and CLV-17 had to self-recover by reading
+  the CLI signature and retrying.
+- Reviewer and QA subagents running tests in a fresh git worktree no longer
+  fail with `Cannot find module '@cloverleaf/standard/validators/index.js'`.
+  Git worktrees don't inherit `node_modules`, and `npm install` in the
+  worktree's `reference-impl/` followed the `file:../standard` dep into a
+  `standard/` that had no built `dist/` and no runtime deps (`ajv-formats`
+  etc.). The new `prep-worktree` helper wires up both. QA subagents in the
+  CLV-16 and CLV-17 Delivery runs had to hand-apply two `cp -r` workarounds.
+
+### Tests
+
+410 tests passing (+30 from v0.5.1):
+
+- 6 unit tests for `prepWorktree` (node_modules copy, standard/dist build,
+  relative-symlink preservation, error paths).
+- 2 CLI tests for `prep-worktree` (usage + error wiring).
+- 2 skill-body regression tests for the merge-skill actor bug.
+- 2 prompt regression tests asserting QA/Reviewer prompts invoke
+  `prep-worktree`.
+- Plus CLV-17 regression tests (browser subdirectory baselines) carried over
+  from the v0.5 cross-browser work.
+
+### Compatibility
+
+- Standard stays at 0.4.1. No schema, contract, or state-machine changes.
+- `prepWorktree()` is a new library export; no existing APIs changed.
+- Skill body tests now forbid `advance-status ... merged agent` in
+  `cloverleaf-merge`. Downstream forks that patched the skill to retry with
+  `agent` will need to drop that patch.
 
 ## 0.5.1 — 2026-04-22
 
