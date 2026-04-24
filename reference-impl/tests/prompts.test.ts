@@ -44,6 +44,22 @@ describe('documenter prompt', () => {
     expect(body).toContain('reference-impl/');
     expect(body).toContain('site/');
   });
+
+  it('instructs the Documenter to stage ALL modified docs via git status before committing (v0.5.3 #C)', () => {
+    // Regression guard for the three-Delivery-repro bug (CLV-16, CLV-17, CLV-18): the
+    // Documenter consistently committed only CHANGELOG.md even when it had also edited
+    // README.md in the same worktree. Fix pushes the Documenter to read `git status`
+    // and explicitly stage every modified doc file before committing.
+    expect(body).toMatch(/git status/);
+    // Must mention staging every modified file, not only CHANGELOG.md.
+    expect(body.toLowerCase()).toMatch(/all (the )?modified|each modified|every (modified|edited)/);
+  });
+
+  it('warns about the specific CHANGELOG-only commit failure mode (v0.5.3 #C)', () => {
+    // The prompt should explicitly call out the README-omission failure mode so the
+    // subagent doesn't fall back into it the next time it runs.
+    expect(body.toLowerCase()).toMatch(/forgotten? readme|readme\.md[^\n]*committed only changelog|only changelog\.md when it edited both/);
+  });
 });
 
 describe('ui-reviewer prompt', () => {
