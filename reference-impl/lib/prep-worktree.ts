@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from 'node:fs';
+import { cpSync, existsSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 
@@ -45,11 +45,25 @@ export function prepWorktree(mainRoot: string, worktreePath: string): void {
 
   // verbatimSymlinks keeps relative symlink targets byte-identical, so the @cloverleaf/standard
   // link in reference-impl/node_modules/ resolves against the worktree after copy.
-  cpSync(mainStandardNm, wtStandardNm, { recursive: true, verbatimSymlinks: true });
-  cpSync(mainRefImplNm, wtRefImplNm, { recursive: true, verbatimSymlinks: true });
+  //
+  // primeCopy wipes the destination before cpSync. Two reasons:
+  //   1. Idempotence: a partial prior run (or a re-invocation after a test failure) may
+  //      leave partial state; we must not trip on it.
+  //   2. cpSync with verbatimSymlinks: true does not reliably overwrite an existing
+  //      symlink at the destination even with force: true (CLV-20 Reviewer repro was
+  //      EEXIST on vite/node_modules/.bin on second invocation).
+  primeCopy(mainStandardNm, wtStandardNm);
+  primeCopy(mainRefImplNm, wtRefImplNm);
 
   execSync('npm run build', {
     cwd: join(worktreePath, 'standard'),
     stdio: 'pipe',
   });
+}
+
+function primeCopy(src: string, dst: string): void {
+  if (existsSync(dst)) {
+    rmSync(dst, { recursive: true, force: true });
+  }
+  cpSync(src, dst, { recursive: true, verbatimSymlinks: true });
 }

@@ -117,4 +117,35 @@ describe('prepWorktree', () => {
     rmSync(join(wt, 'standard', 'package.json'));
     expect(() => prepWorktree(main, wt)).toThrowError(/standard\/package\.json/);
   });
+
+  it('is idempotent — running twice on the same worktree succeeds without EEXIST (v0.5.5 #E)', () => {
+    // CLV-20's Reviewer hit `Error: EEXIST, File exists
+    //   '/tmp/cl-review-CLV-20/reference-impl/node_modules/vite/node_modules/.bin'`
+    // when prep-worktree was invoked a second time on an already-partially-populated worktree.
+    // Root cause: Node's cpSync with verbatimSymlinks: true does not always overwrite an
+    // existing symlink at the destination, even with force: true (default). Fix: wipe the
+    // destination tree before recopying. This test guards the fix.
+    prepWorktree(main, wt);
+    expect(() => prepWorktree(main, wt)).not.toThrow();
+    // All artifacts still in place after the second run.
+    expect(existsSync(join(wt, 'standard', 'node_modules', 'some-dep', 'package.json'))).toBe(true);
+    expect(existsSync(join(wt, 'standard', 'dist', 'marker.txt'))).toBe(true);
+    expect(existsSync(join(wt, 'reference-impl', 'node_modules', 'vitest', 'package.json'))).toBe(true);
+    expect(readlinkSync(join(wt, 'reference-impl', 'node_modules', '@cloverleaf', 'standard'))).toBe('../../../standard');
+  });
+
+  it('survives a nested .bin symlink pattern in main (v0.5.5 #E)', () => {
+    // Mirrors what npm creates: vite/node_modules/.bin → ../../.bin (or similar). The
+    // CLV-20 regression was triggered specifically by this pattern; the synthetic fixture
+    // above didn't exercise it. Adding it here so the regression wouldn't slip through again.
+    mkdirSync(join(main, 'reference-impl', 'node_modules', 'vite', 'node_modules'), { recursive: true });
+    symlinkSync('../../.bin', join(main, 'reference-impl', 'node_modules', 'vite', 'node_modules', '.bin'));
+    mkdirSync(join(main, 'reference-impl', 'node_modules', '.bin'), { recursive: true });
+    writeFileSync(join(main, 'reference-impl', 'node_modules', '.bin', 'vite'), '#!/usr/bin/env node\n');
+
+    prepWorktree(main, wt);
+    // Second call on the same tree is the repro from CLV-20's Reviewer.
+    expect(() => prepWorktree(main, wt)).not.toThrow();
+    expect(readlinkSync(join(wt, 'reference-impl', 'node_modules', 'vite', 'node_modules', '.bin'))).toBe('../../.bin');
+  });
 });
