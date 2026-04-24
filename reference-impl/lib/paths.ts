@@ -33,3 +33,11 @@ export function spikesDir(repoRoot: string): string {
 export function plansDir(repoRoot: string): string {
   return resolve(cloverleafDir(repoRoot), 'plans');
 }
+
+export function runsDir(repoRoot: string): string {
+  return resolve(cloverleafDir(repoRoot), 'runs');
+}
+
+export function uiReviewRunDir(repoRoot: string, taskId: string): string {
+  return resolve(runsDir(repoRoot), taskId, 'ui-review');
+}

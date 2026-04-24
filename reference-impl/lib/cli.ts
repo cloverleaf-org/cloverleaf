@@ -13,6 +13,8 @@
  *   latest-feedback <repoRoot> <taskId>
  *   emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]
  *   ui-review-config --repo-root <repoRoot>
+ *   read-ui-review-state <repoRoot> <taskId>
+ *   write-ui-review-state <repoRoot> <taskId> <baselines_pending>
  *   plugin-root
  *   load-rfc <repoRoot> <id>
  *   save-rfc <repoRoot> <filePath>
@@ -48,6 +50,7 @@ import { loadSpike, saveSpike, advanceSpikeStatus, type SpikeDoc } from './spike
 import { loadPlan, savePlan, advancePlanStatus, materialiseTasksFromPlan, type PlanDoc } from './plan.js';
 import { loadDiscoveryConfig } from './discovery-config.js';
 import { prepWorktree } from './prep-worktree.js';
+import { readUiReviewState, writeUiReviewState } from './ui-review-state.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -67,6 +70,8 @@ function usage(msg?: string): never {
       '  latest-feedback <repoRoot> <taskId>\n' +
       '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n' +
       '  ui-review-config --repo-root <repoRoot>\n' +
+      '  read-ui-review-state <repoRoot> <taskId>\n' +
+      '  write-ui-review-state <repoRoot> <taskId> <baselines_pending>\n' +
       '  plugin-root\n' +
       '  load-rfc <repoRoot> <id>\n' +
       '  save-rfc <repoRoot> <filePath>\n' +
@@ -276,6 +281,23 @@ try {
       const config = loadUiReviewConfig(repoRoot);
       process.stdout.write(JSON.stringify(config, null, 2));
       process.exit(0);
+    }
+
+    case 'read-ui-review-state': {
+      const [repoRoot, taskId] = rest;
+      if (!repoRoot || !taskId) usage('read-ui-review-state requires <repoRoot> <taskId>');
+      const state = readUiReviewState(repoRoot, taskId);
+      process.stdout.write(JSON.stringify(state, null, 2) + '\n');
+      break;
+    }
+
+    case 'write-ui-review-state': {
+      const [repoRoot, taskId, pendingArg] = rest;
+      if (!repoRoot || !taskId || pendingArg === undefined)
+        usage('write-ui-review-state requires <repoRoot> <taskId> <baselines_pending>');
+      const baselines_pending = pendingArg === 'true' || pendingArg === '1';
+      writeUiReviewState(repoRoot, taskId, { baselines_pending });
+      break;
     }
 
     case 'plugin-root': {
