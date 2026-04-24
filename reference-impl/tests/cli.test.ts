@@ -521,6 +521,100 @@ describe('cli — prep-worktree', () => {
   });
 });
 
+describe('cli — dag-walker and walk-state', () => {
+  let repoRoot: string;
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cli-walker-'));
+    mkdirSync(join(repoRoot, '.cloverleaf', 'plans'), { recursive: true });
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'plans', 'CLV-15.json'),
+      JSON.stringify({
+        type: 'plan',
+        project: 'CLV',
+        id: 'CLV-15',
+        status: 'gate-approved',
+        owner: { kind: 'agent', id: 'plan' },
+        parent_rfc: { project: 'CLV', id: 'CLV-0' },
+        task_dag: {
+          nodes: [
+            { project: 'CLV', id: 'CLV-17' },
+            { project: 'CLV', id: 'CLV-18' },
+          ],
+          edges: [],
+        },
+        tasks: [],
+      }),
+    );
+  });
+  afterEach(() => rmSync(repoRoot, { recursive: true, force: true }));
+
+  it('dag-ready-tasks returns ready task ids as newline-separated list', () => {
+    const walkStateDir = join(repoRoot, '.cloverleaf', 'runs', 'plan', 'CLV-15');
+    mkdirSync(walkStateDir, { recursive: true });
+    writeFileSync(
+      join(walkStateDir, 'walk-state.json'),
+      JSON.stringify({
+        plan_id: 'CLV-15',
+        started: '2026-04-24T00:00:00Z',
+        max_concurrent: 3,
+        tasks: {},
+      }),
+    );
+    const { stdout, exitCode } = run(['dag-ready-tasks', repoRoot, 'CLV-15', '3']);
+    expect(exitCode).toBe(0);
+    expect(stdout.trim().split('\n').sort()).toEqual(['CLV-17', 'CLV-18']);
+  });
+
+  it('dag-detect-cycle exits 0 with empty stdout on acyclic plan', () => {
+    const { stdout, exitCode } = run(['dag-detect-cycle', repoRoot, 'CLV-15']);
+    expect(exitCode).toBe(0);
+    expect(stdout.trim()).toBe('');
+  });
+
+  it('walk-state-read prints JSON to stdout, exits 2 when file missing', () => {
+    const { exitCode: missingCode, stderr: missingErr } = run([
+      'walk-state-read',
+      repoRoot,
+      'CLV-15',
+    ]);
+    expect(missingCode).toBe(2);
+    expect(missingErr).toMatch(/walk-state.*not found/i);
+
+    const walkStateDir = join(repoRoot, '.cloverleaf', 'runs', 'plan', 'CLV-15');
+    mkdirSync(walkStateDir, { recursive: true });
+    const state = {
+      plan_id: 'CLV-15',
+      started: '2026-04-24T00:00:00Z',
+      max_concurrent: 3,
+      tasks: {},
+    };
+    writeFileSync(join(walkStateDir, 'walk-state.json'), JSON.stringify(state));
+    const { stdout, exitCode } = run(['walk-state-read', repoRoot, 'CLV-15']);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout)).toEqual(state);
+  });
+
+  it('walk-state-write reads JSON from file path argument and persists', () => {
+    const state = {
+      plan_id: 'CLV-15',
+      started: '2026-04-24T00:00:00Z',
+      max_concurrent: 2,
+      tasks: { 'CLV-17': { state: 'pending' } },
+    };
+    const p = join(repoRoot, 'input.json');
+    writeFileSync(p, JSON.stringify(state));
+    const { exitCode } = run(['walk-state-write', repoRoot, p]);
+    expect(exitCode).toBe(0);
+    const persisted = JSON.parse(
+      readFileSync(
+        join(repoRoot, '.cloverleaf', 'runs', 'plan', 'CLV-15', 'walk-state.json'),
+        'utf-8',
+      ),
+    );
+    expect(persisted.max_concurrent).toBe(2);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // CLV-19: read-ui-review-state / write-ui-review-state CLI commands
 // ---------------------------------------------------------------------------

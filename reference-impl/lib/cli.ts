@@ -29,6 +29,10 @@
  *   next-work-item-id <repoRoot> <project>
  *   discovery-config --repo-root <repoRoot>
  *   prep-worktree <mainRoot> <worktreePath>
+ *   dag-ready-tasks <repoRoot> <planId> <maxConcurrent>
+ *   dag-detect-cycle <repoRoot> <planId>
+ *   walk-state-read <repoRoot> <planId>
+ *   walk-state-write <repoRoot> <walkStateJsonPath>
  */
 
 import { readFileSync } from 'node:fs';
@@ -51,6 +55,8 @@ import { loadPlan, savePlan, advancePlanStatus, materialiseTasksFromPlan, type P
 import { loadDiscoveryConfig } from './discovery-config.js';
 import { prepWorktree } from './prep-worktree.js';
 import { readUiReviewState, writeUiReviewState } from './ui-review-state.js';
+import { computeReadyTasks, detectCycle } from './dag-walker.js';
+import { readWalkState, writeWalkState, walkStatePath } from './walk-state.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -85,7 +91,11 @@ function usage(msg?: string): never {
       '  materialise-tasks <repoRoot> <planId>\n' +
       '  next-work-item-id <repoRoot> <project>\n' +
       '  discovery-config --repo-root <repoRoot>\n' +
-      '  prep-worktree <mainRoot> <worktreePath>\n'
+      '  prep-worktree <mainRoot> <worktreePath>\n' +
+      '  dag-ready-tasks <repoRoot> <planId> <maxConcurrent>\n' +
+      '  dag-detect-cycle <repoRoot> <planId>\n' +
+      '  walk-state-read <repoRoot> <planId>\n' +
+      '  walk-state-write <repoRoot> <walkStateJsonPath>\n'
   );
   process.exit(2);
 }
@@ -404,6 +414,60 @@ try {
       const [mainRoot, worktreePath] = rest;
       if (!mainRoot || !worktreePath) usage('prep-worktree requires <mainRoot> <worktreePath>');
       prepWorktree(mainRoot, worktreePath);
+      break;
+    }
+
+    case 'dag-ready-tasks': {
+      const [repoRoot, planId, maxConcurrentStr] = rest;
+      if (!repoRoot || !planId || !maxConcurrentStr)
+        usage('dag-ready-tasks requires <repoRoot> <planId> <maxConcurrent>');
+      const maxConcurrent = parseInt(maxConcurrentStr, 10);
+      if (Number.isNaN(maxConcurrent) || maxConcurrent < 1)
+        die(`maxConcurrent must be a positive integer, got ${maxConcurrentStr}`);
+      const plan = loadPlan(repoRoot, planId);
+      const state = readWalkState(repoRoot, planId) ?? {
+        plan_id: planId,
+        started: new Date().toISOString(),
+        max_concurrent: maxConcurrent,
+        tasks: {},
+      };
+      const ready = computeReadyTasks(plan, state, maxConcurrent);
+      if (ready.length > 0) process.stdout.write(ready.join('\n') + '\n');
+      break;
+    }
+
+    case 'dag-detect-cycle': {
+      const [repoRoot, planId] = rest;
+      if (!repoRoot || !planId) usage('dag-detect-cycle requires <repoRoot> <planId>');
+      const plan = loadPlan(repoRoot, planId);
+      const cycle = detectCycle(plan);
+      if (cycle) {
+        process.stdout.write(cycle.cycle.join(' → ') + '\n');
+        process.exit(1);
+      }
+      break;
+    }
+
+    case 'walk-state-read': {
+      const [repoRoot, planId] = rest;
+      if (!repoRoot || !planId) usage('walk-state-read requires <repoRoot> <planId>');
+      const state = readWalkState(repoRoot, planId);
+      if (state === null) {
+        die(`walk-state not found for plan ${planId} at ${walkStatePath(repoRoot, planId)}`, 2);
+      }
+      process.stdout.write(JSON.stringify(state, null, 2) + '\n');
+      break;
+    }
+
+    case 'walk-state-write': {
+      const [repoRoot, walkStateJsonPath] = rest;
+      if (!repoRoot || !walkStateJsonPath)
+        usage('walk-state-write requires <repoRoot> <walkStateJsonPath>');
+      const raw = readFileSync(walkStateJsonPath, 'utf-8');
+      const state = JSON.parse(raw);
+      if (!state.plan_id || typeof state.plan_id !== 'string')
+        die('walk-state JSON must include plan_id (string)');
+      writeWalkState(repoRoot, state);
       break;
     }
 
