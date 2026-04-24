@@ -9,6 +9,8 @@ import {
   rfcsDir,
   spikesDir,
   plansDir,
+  runsDir,
+  uiReviewRunDir,
 } from '../lib/paths.js';
 
 describe('paths', () => {
@@ -26,5 +28,15 @@ describe('paths', () => {
     expect(rfcsDir(root)).toBe(resolve(root, '.cloverleaf', 'rfcs'));
     expect(spikesDir(root)).toBe(resolve(root, '.cloverleaf', 'spikes'));
     expect(plansDir(root)).toBe(resolve(root, '.cloverleaf', 'plans'));
+  });
+
+  it('resolves the runs directory', () => {
+    expect(runsDir(root)).toBe(resolve(root, '.cloverleaf', 'runs'));
+  });
+
+  it('resolves the ui-review run directory for a given taskId', () => {
+    expect(uiReviewRunDir(root, 'CLV-42')).toBe(
+      resolve(root, '.cloverleaf', 'runs', 'CLV-42', 'ui-review'),
+    );
   });
 });

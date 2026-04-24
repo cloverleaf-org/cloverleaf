@@ -520,3 +520,59 @@ describe('cli — prep-worktree', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-19: read-ui-review-state / write-ui-review-state CLI commands
+// ---------------------------------------------------------------------------
+
+describe('cli — read-ui-review-state / write-ui-review-state (CLV-19)', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cli-ui-state-'));
+  });
+
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('read-ui-review-state returns baselines_pending: false when state.json is absent', () => {
+    const { stdout, exitCode } = run(['read-ui-review-state', tmp, 'CLV-42']);
+    expect(exitCode).toBe(0);
+    const doc = JSON.parse(stdout);
+    expect(doc.baselines_pending).toBe(false);
+  });
+
+  it('write-ui-review-state true then read-ui-review-state returns baselines_pending: true', () => {
+    const { exitCode: wc } = run(['write-ui-review-state', tmp, 'CLV-42', 'true']);
+    expect(wc).toBe(0);
+    const { stdout, exitCode } = run(['read-ui-review-state', tmp, 'CLV-42']);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout).baselines_pending).toBe(true);
+  });
+
+  it('write-ui-review-state false then read returns baselines_pending: false', () => {
+    run(['write-ui-review-state', tmp, 'CLV-42', 'true']);
+    const { exitCode: wc } = run(['write-ui-review-state', tmp, 'CLV-42', 'false']);
+    expect(wc).toBe(0);
+    const { stdout } = run(['read-ui-review-state', tmp, 'CLV-42']);
+    expect(JSON.parse(stdout).baselines_pending).toBe(false);
+  });
+
+  it('write-ui-review-state creates intermediate directories automatically', () => {
+    const { exitCode } = run(['write-ui-review-state', tmp, 'CLV-42', 'true']);
+    expect(exitCode).toBe(0);
+    const stateFile = join(tmp, '.cloverleaf', 'runs', 'CLV-42', 'ui-review', 'state.json');
+    expect(JSON.parse(readFileSync(stateFile, 'utf-8')).baselines_pending).toBe(true);
+  });
+
+  it('read-ui-review-state exits nonzero with usage when args are missing', () => {
+    const { exitCode } = run(['read-ui-review-state']);
+    expect(exitCode).not.toBe(0);
+  });
+
+  it('write-ui-review-state exits nonzero with usage when args are missing', () => {
+    const { exitCode } = run(['write-ui-review-state', tmp, 'CLV-42']);
+    expect(exitCode).not.toBe(0);
+  });
+});

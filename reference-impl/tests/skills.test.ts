@@ -549,3 +549,98 @@ describe('cloverleaf-discover skill', () => {
     expect(body).toMatch(/invoke\s+`?\/cloverleaf-gate/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-19: baseline-approval sidecar gate in cloverleaf-ui-review skill
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-ui-review skill (CLV-19 — baseline-approval gate)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
+
+  it('reads the ui-review state sidecar after the subagent completes', () => {
+    expect(body).toMatch(/read-ui-review-state/);
+  });
+
+  it('references baselines_pending flag', () => {
+    expect(body).toContain('baselines_pending');
+  });
+
+  it('blocks ui-review → qa when baselines_pending is true', () => {
+    // Must NOT advance to qa when baselines_pending is true
+    expect(body).toMatch(/baselines_pending.*true|true.*baselines_pending/i);
+    expect(body).toMatch(/do NOT advance|not advance|leave.*ui-review|remains? in.*ui-review/i);
+  });
+
+  it('surfaces a human-readable message containing "baselines_pending" when baseline approval is required', () => {
+    expect(body).toMatch(/baselines_pending/);
+    // Must tell the human to run approve-baselines
+    expect(body).toMatch(/approve[-_]baselines|cloverleaf-approve-baselines/i);
+  });
+
+  it('advances to qa normally when baselines_pending is false', () => {
+    expect(body).toMatch(/baselines_pending.*false|false.*baselines_pending/i);
+    expect(body).toMatch(/advance-status[^\n]*qa/);
+  });
+
+  it('uses cloverleaf-cli read-ui-review-state command', () => {
+    expect(body).toContain('cloverleaf-cli read-ui-review-state');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-19: cloverleaf-approve-baselines skill
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-approve-baselines', 'SKILL.md'), 'utf-8');
+
+  it('has valid frontmatter with name cloverleaf-approve-baselines', () => {
+    expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-approve-baselines[\s\S]*?---/);
+  });
+
+  it('has a description mentioning baselines_pending and qa', () => {
+    expect(body).toMatch(/description:/);
+    expect(body).toMatch(/baselines_pending|baselines.*pending/i);
+    expect(body).toMatch(/qa/);
+  });
+
+  it('documents its trigger condition (baselines_pending: true)', () => {
+    expect(body).toMatch(/trigger condition|trigger/i);
+    expect(body).toMatch(/baselines_pending.*true|new-baseline|dimension-mismatch/i);
+  });
+
+  it('verifies task status is ui-review before acting', () => {
+    expect(body).toMatch(/status.*ui-review|ui-review.*status/);
+  });
+
+  it('reads state.json to check baselines_pending before proceeding', () => {
+    expect(body).toContain('read-ui-review-state');
+  });
+
+  it('writes baselines_pending: false via cloverleaf-cli write-ui-review-state', () => {
+    expect(body).toContain('write-ui-review-state');
+    expect(body).toMatch(/write-ui-review-state[^\n]*false/);
+  });
+
+  it('advances the task ui-review → qa after approval', () => {
+    expect(body).toMatch(/advance-status[^\n]*qa/);
+  });
+
+  it('commits the updated state before reporting', () => {
+    expect(body).toContain('git add .cloverleaf/');
+    expect(body).toContain('git commit');
+  });
+
+  it('documents the effect: baselines_pending cleared → qa', () => {
+    expect(body).toMatch(/baselines.*cleared|clear.*flag|baselines_pending.*false/i);
+    expect(body).toMatch(/qa/);
+  });
+
+  it('contains no hardcoded plugin paths', () => {
+    expect(body).not.toContain('~/.claude/plugins/cloverleaf/');
+  });
+
+  it('uses cloverleaf-cli (not hardcoded paths)', () => {
+    expect(body).toContain('cloverleaf-cli');
+  });
+});

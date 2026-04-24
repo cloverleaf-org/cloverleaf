@@ -386,3 +386,34 @@ describe('plan prompt', () => {
     expect(body).not.toMatch(/XXX|TBD/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-19: baseline-approval sidecar — ui-reviewer prompt contract
+// ---------------------------------------------------------------------------
+
+describe('ui-reviewer prompt (CLV-19 — state.json sidecar)', () => {
+  const body = readPrompt('ui-reviewer');
+
+  it('documents writing state.json with baselines_pending: true when any result is new-baseline or dimension-mismatch', () => {
+    expect(body).toMatch(/state\.json/);
+    expect(body).toMatch(/baselines_pending.*true|new-baseline.*dimension-mismatch|new-baseline or dimension-mismatch/i);
+  });
+
+  it('documents writing state.json with baselines_pending: false when no new-baseline or dimension-mismatch results', () => {
+    expect(body).toMatch(/baselines_pending.*false/);
+  });
+
+  it('writes state.json to .cloverleaf/runs/{taskId}/ui-review/state.json', () => {
+    expect(body).toMatch(/\.cloverleaf\/runs\/\{\{taskId\}\}\/ui-review\/state\.json|runs\/\{taskId\}\/ui-review\/state\.json/);
+  });
+
+  it('documents the sidecar as a gate read by the cloverleaf-ui-review skill', () => {
+    expect(body).toMatch(/cloverleaf-ui-review skill|skill.*gate|gate.*skill/i);
+    expect(body).toMatch(/baselines_pending/);
+  });
+
+  it('instructs writing state.json after all browser passes complete and before teardown', () => {
+    // Step 12 is the write-state step; step 13 is teardown — ordering must be preserved
+    expect(body).toMatch(/before teardown|after all browser passes/i);
+  });
+});

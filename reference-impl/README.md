@@ -41,6 +41,7 @@ v0.2 implements both paths of the Delivery track:
 - `/cloverleaf-document` — run Documenter *(new in v0.2)*
 - `/cloverleaf-review` — run Reviewer
 - `/cloverleaf-ui-review` — run UI Reviewer *(new in v0.2)*
+- `/cloverleaf-approve-baselines` — human baseline-approval gate; clears `baselines_pending` and advances `ui-review → qa` *(new in CLV-19)*
 - `/cloverleaf-qa` — run QA *(new in v0.2)*
 - `/cloverleaf-merge` — human gate (branches on state)
 - `/cloverleaf-run` — orchestrator (dispatches by `risk_class`)
@@ -145,7 +146,7 @@ The Reviewer never switches branches. It reads files via `git show` and runs tes
 
 ## Package layout
 
-- `lib/` — TypeScript library used by the CLI. State, events, feedback, IDs, paths. Includes `buildBaselinePath(repoRoot, browser, slug, viewport)` (`lib/visual-diff.ts`) for constructing canonical baseline paths under `.cloverleaf/baselines/{browser}/`. `lib/ui-browser.ts` exports `buildBrowserEscalationFinding` and `applyMaxCombinationsCap` (used by the UI Reviewer prompt for per-engine escalation and combination-count capping).
+- `lib/` — TypeScript library used by the CLI. State, events, feedback, IDs, paths. Includes `buildBaselinePath(repoRoot, browser, slug, viewport)` (`lib/visual-diff.ts`) for constructing canonical baseline paths under `.cloverleaf/baselines/{browser}/`. `lib/ui-browser.ts` exports `buildBrowserEscalationFinding` and `applyMaxCombinationsCap` (used by the UI Reviewer prompt for per-engine escalation and combination-count capping). `lib/ui-review-state.ts` exports `readUiReviewState`, `writeUiReviewState`, and `uiReviewStatePath` — the baseline-approval sidecar API for `.cloverleaf/runs/{taskId}/ui-review/state.json`.
 - `skills/` — Claude Code skill markdown files.
 - `prompts/` — Implementer/Reviewer subagent system prompts.
 - `examples/toy-repo/` — standalone demo repo.

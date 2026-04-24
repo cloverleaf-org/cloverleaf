@@ -100,7 +100,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 7. **Verify browser binaries** — before starting any browser session:
    - Check each engine in `{{ui_review_config}}.browsers` against `PLAYWRIGHT_BROWSERS_PATH`.
    - Collect all missing engines.
-   - If any engine is missing, call `buildBrowserEscalationFinding(engine, process.platform)` for each, teardown the worktree (step 11), and return `verdict: "escalate"` with those findings.
+   - If any engine is missing, call `buildBrowserEscalationFinding(engine, process.platform)` for each, teardown the worktree (step 13), and return `verdict: "escalate"` with those findings.
 
 8. **Per-browser outer loop** — for each `browser` in `{{ui_review_config}}.browsers`:
 
@@ -156,7 +156,21 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
     - `bounce` — ≥1 non-visual-diff, non-cap finding with severity `blocker` or `error`
     - `escalate` — preview server failed to start, OR axe threw ≥3 consecutive times, OR any required browser binary was absent.
 
-12. Teardown:
+12. **Write ui-review state sidecar** — after all browser passes complete and before teardown, determine whether any `compareVisual` call returned `new-baseline` or `dimension-mismatch` across all routes, viewports, and browsers in this run.
+
+    - If **yes**: write `{{repo_root}}/.cloverleaf/runs/{{taskId}}/ui-review/state.json` containing:
+      ```json
+      {"baselines_pending": true}
+      ```
+      (Create intermediate directories as needed.)
+    - If **no**: write `{{repo_root}}/.cloverleaf/runs/{{taskId}}/ui-review/state.json` containing:
+      ```json
+      {"baselines_pending": false}
+      ```
+
+    This sidecar is the baseline-approval gate read by the `cloverleaf-ui-review` skill. Writing `baselines_pending: false` explicitly (rather than omitting the file) lets the skill distinguish "no new baselines" from "reviewer did not run at all".
+
+13. Teardown:
     ```bash
     kill $SERVER_PID 2>/dev/null || true
     cd {{repo_root}}
@@ -166,7 +180,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 ## Tool constraints
 
 - Read-only for source files and tests.
-- You MAY write under `{{repo_root}}/.cloverleaf/baselines/` and `{{repo_root}}/.cloverleaf/runs/{taskId}/ui-review/` on the feature branch — these are the baselines and artifacts.
+- You MAY write under `{{repo_root}}/.cloverleaf/baselines/` and `{{repo_root}}/.cloverleaf/runs/{taskId}/ui-review/` on the feature branch — these are the baselines, artifacts, and the `state.json` sidecar.
 - Use `git worktree`: do NOT `git checkout` in the main working directory.
 - Always teardown the server and worktree, even on error.
 
