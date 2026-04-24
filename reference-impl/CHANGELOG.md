@@ -2,6 +2,21 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `lib/ui-review-state.ts` — new module with `UiReviewState` interface and three exports: `uiReviewStatePath(repoRoot, taskId)`, `readUiReviewState(repoRoot, taskId)`, `writeUiReviewState(repoRoot, taskId, state)`. Reads/writes the baseline-approval sidecar at `.cloverleaf/runs/{taskId}/ui-review/state.json`. Absent file is treated as `{ baselines_pending: false }`.
+- `lib/paths.ts` gains two new exported helpers: `runsDir(repoRoot)` and `uiReviewRunDir(repoRoot, taskId)` — canonical path constructors for the runs directory and per-task ui-review run directory.
+- `cloverleaf-cli read-ui-review-state <repoRoot> <taskId>` — reads and prints the ui-review state sidecar JSON to stdout.
+- `cloverleaf-cli write-ui-review-state <repoRoot> <taskId> <baselines_pending>` — writes `{ baselines_pending: true|false }` to the ui-review state sidecar, creating intermediate directories as needed.
+- `/cloverleaf-approve-baselines` skill (`skills/cloverleaf-approve-baselines/SKILL.md`) — human baseline-approval gate. Triggered when `cloverleaf-ui-review` reports `baselines_pending: true`. Presents new baseline images to the human for review, writes `baselines_pending: false` via `cloverleaf-cli write-ui-review-state`, then advances the task from `ui-review` → `qa`.
+
+### Changed
+
+- UI Reviewer prompt (`prompts/ui-reviewer.md`) now writes the `state.json` sidecar (step 12, before teardown). Sets `baselines_pending: true` if any `compareVisual` call returned `new-baseline` or `dimension-mismatch`; otherwise writes `baselines_pending: false`. Teardown is renumbered from step 12 to step 13.
+- `/cloverleaf-ui-review` skill reads the `state.json` sidecar after the subagent completes. If `baselines_pending` is `true`, the task stays in `ui-review` status and the skill reports that `/cloverleaf-approve-baselines` must be run before the task can advance to `qa`. If `baselines_pending` is `false` (or state.json is absent), the task advances to `qa` normally.
+
 ## 0.5.3 — 2026-04-24
 
 Bundles the merged CLV-18 cross-browser UI Reviewer work with a Documenter
