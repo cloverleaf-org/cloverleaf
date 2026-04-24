@@ -2,7 +2,10 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## 0.5.3 — 2026-04-24
+
+Bundles the merged CLV-18 cross-browser UI Reviewer work with a Documenter
+pipeline bug fix that was reproduced three consecutive Delivery runs.
 
 ### Added
 
@@ -21,6 +24,32 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
   - Visual-diff finding messages and metadata now include the `browser` dimension.
   - Output schema extended: `rule` may now be `"ui-review-cap"` or `"browser-missing"` in addition to the existing `"a11y.<rule-id>"` and `"visual-diff"` values.
   - `cloverleaf-cli prep-worktree` is now called immediately after `git worktree add` in the runtime procedure.
+- Documenter prompt (`prompts/documenter.md`) "Commit discipline" section rewritten. The prompt now instructs the Documenter subagent to run `git status --porcelain` in the worktree before committing, stage every modified doc file explicitly (or `git add -A` when only docs are modified), and self-check that `git status` is empty before returning. The previous phrasing ("One commit per file touched") allowed the subagent to commit only CHANGELOG.md while silently leaving README.md edits uncommitted.
+
+### Fixed
+
+- Documenter subagent no longer silently drops README edits when both
+  CHANGELOG.md and README.md are modified in the same worktree. This bug
+  was reproduced on three consecutive Delivery runs (CLV-16, CLV-17,
+  CLV-18) — each time the driver had to reject the commit and instruct the
+  subagent to include README.md explicitly. The v0.5.3 prompt rewrite
+  (above) forces an explicit `git status` read and an empty-status
+  self-check.
+
+### Tests
+
+443 tests passing (+2 from v0.5.2's 410; net includes CLV-18's additions and
+the 2 new documenter prompt regression assertions).
+
+### Compatibility
+
+- Standard stays at 0.4.1. No schema, contract, state-machine, or library-API
+  changes.
+- The Documenter prompt body gained two new assertions in
+  `tests/prompts.test.ts` (one positive, one negative around the
+  CHANGELOG-only failure mode) — downstream forks that rewrote the
+  Documenter prompt may need to reintroduce the `git status --porcelain`
+  phrasing and the CHANGELOG-only warning.
 
 ## 0.5.2 — 2026-04-24
 
