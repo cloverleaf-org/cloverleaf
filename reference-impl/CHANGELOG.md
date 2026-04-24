@@ -2,6 +2,26 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `lib/ui-browser.ts` — two new exported helpers:
+  - `buildBrowserEscalationFinding(engine, platform?)` — builds an `error`-severity Finding with `rule: "browser-missing"` naming the missing Playwright engine and its install command. On Linux, the message appends the `install-deps` hint.
+  - `applyMaxCombinationsCap(routes, viewportCount, browserCount, maxCombinations)` — enforces the `maxCombinations` cap: sorts affected routes by diff size (most-changed first), keeps the first `floor(maxCombinations / (viewports × browsers))` routes, and returns one `warning`-severity Finding with `rule: "ui-review-cap"` per skipped route.
+
+### Changed
+
+- UI Reviewer prompt (`prompts/ui-reviewer.md`) refactored for v0.5 multi-browser behavior:
+  - **Browser outer loop**: browser is now the outermost loop, wrapping the viewport × route loops. Engines are drawn from `config.browsers`.
+  - **Per-engine escalation**: before launching any browser session, all required engine binaries are verified. If any are absent, `verdict: "escalate"` is returned immediately with `buildBrowserEscalationFinding` findings for every missing engine.
+  - **axe-core chromium-only**: the axe pass runs exclusively on the engine named by `config.axe.browser` (default `"chromium"`). webkit and firefox passes produce no axe output and no axe findings, avoiding engine-specific false positives from Blink/WebKit/Gecko divergence (CLV-12).
+  - **maxCombinations cap**: before starting browser sessions, the reviewer computes `routes × viewports × browsers`. If the product exceeds `config.maxCombinations` (default 90), it applies `applyMaxCombinationsCap` and emits `ui-review-cap` warnings for each skipped route. `ui-review-cap` warnings are never gating.
+  - Baseline paths use the `{browser}` subdirectory (`.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`), consistent with CLV-17.
+  - Visual-diff finding messages and metadata now include the `browser` dimension.
+  - Output schema extended: `rule` may now be `"ui-review-cap"` or `"browser-missing"` in addition to the existing `"a11y.<rule-id>"` and `"visual-diff"` values.
+  - `cloverleaf-cli prep-worktree` is now called immediately after `git worktree add` in the runtime procedure.
+
 ## 0.5.2 — 2026-04-24
 
 Bundles the CLV-16 + CLV-17 cross-browser groundwork with two dogfood-surfaced
