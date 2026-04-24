@@ -150,6 +150,24 @@ describe('ui-reviewer prompt', () => {
     expect(body).toMatch(/baselinePath\s*=\s*\{\{repo_root\}\}\/\.cloverleaf\/baselines/);
   });
 
+  it('uses browser-subdirectory layout for baselinePath ({browser}/{slug}-{viewport}.png)', () => {
+    // Must reference the new layout: baselines/{browser}/{slug}-{viewport}.png
+    expect(body).toMatch(/\.cloverleaf\/baselines\/\{browser\}\/\{slug\}-\{viewport\}\.png/);
+    // Must NOT reference the deprecated flat layout: baselines/{slug}-{viewport}.png
+    expect(body).not.toMatch(/\.cloverleaf\/baselines\/\{[^b][^r][^o][^w][^s][^e][^r]\}/);
+  });
+
+  it('uses browser-subdirectory layout in attachment label paths', () => {
+    // Output schema attachment for "baseline" label must reference the new layout
+    expect(body).toMatch(/"baseline".*\.cloverleaf\/baselines\/\{browser\}/s);
+  });
+
+  it('documents deprecated flat layout as replaced by baselines/{browser}/', () => {
+    // The prompt should not contain the old flat pattern as an active path
+    // (i.e., baselines/{slug}-{viewport}.png directly)
+    expect(body).not.toMatch(/baselines\/\{slug\}-\{viewport\}\.png/);
+  });
+
   it('documents the axe.ignored allowlist (v0.4.1 #6)', () => {
     expect(body).toContain('axe.ignored');
     expect(body.toLowerCase()).toMatch(/allowlist|ignored/);
