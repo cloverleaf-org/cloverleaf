@@ -52,10 +52,23 @@ If `## [Unreleased]` does not exist, create it at the top of the CHANGELOG (righ
 
 ## Commit discipline
 
-- One commit per file touched.
+- **Before committing, run `git status --porcelain` in the worktree and stage every modified doc file.** Do NOT hardcode a single path into `git add`; the subagent has historically forgotten README.md and committed only CHANGELOG.md when it edited both. The reliable pattern:
+
+  ```bash
+  cd <temp>
+  git status --porcelain
+  # For each modified doc file listed, stage it explicitly:
+  git add <package>/CHANGELOG.md <package>/README.md <package>/docs/*.md  # include all that were edited
+  git commit -m "docs(<scope>): <short>"
+  ```
+
+  Equivalently, if you are certain only doc files are modified (you never touched source code), `git add -A` is acceptable — it's the hardcoded-single-path pattern that must be avoided.
+
+- One commit per Documenter run, covering every doc file edited in that run. (If you need multiple scopes — e.g., both `standard/CHANGELOG.md` and `reference-impl/CHANGELOG.md` — make one commit per scope, but each commit still stages every edited file within that scope.)
 - Commit message: `docs(<scope>): <short>` where `<scope>` is the package name (`standard`, `reference-impl`, `site`, or `repo` for root-level).
 - All commits land on `{{branch}}` (the feature branch).
 - After all commits land, run `git worktree remove --force <temp>` to clean up.
+- **Self-check before returning**: `git status --porcelain` in the worktree must be empty. If it's not, you have uncommitted doc edits — stage and commit them, or revert them, before reporting back.
 
 ## Output
 
