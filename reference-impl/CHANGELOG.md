@@ -2,6 +2,53 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.5.5 — 2026-04-24
+
+Bundles the merged CLV-20 end-to-end integration test (the Plan CLV-15 join
+node) with a `prep-worktree` idempotence fix surfaced by CLV-20's own
+Reviewer. Plan CLV-15 (cross-browser UI review, RFC CLV-9) is now fully
+delivered on `main`.
+
+### Fixed
+
+- `cloverleaf-cli prep-worktree` no longer fails with `EEXIST` when invoked
+  on a worktree that already has a partially-populated `node_modules` tree.
+  CLV-20's Reviewer hit `Error: EEXIST, File exists '.../vite/node_modules/.bin'`
+  on the second `prep-worktree` invocation. Root cause: Node's `cpSync`
+  with `verbatimSymlinks: true` does not reliably overwrite an existing
+  symlink at the destination, even with `force: true` (the default). The
+  v0.5.2 synthetic unit-test fixtures didn't exercise nested `.bin`
+  symlinks (as created by npm under `vite/node_modules/.bin → ../../.bin`),
+  so the regression slipped through. Fix introduces an internal
+  `primeCopy(src, dst)` helper that wipes `dst` before `cpSync`, making
+  `prep-worktree` idempotent.
+
+### Added
+
+- End-to-end integration test
+  (`reference-impl/tests/e2e.ui-review-cross-browser.test.ts`) — 638 lines,
+  17 tests. Exercises the cross-browser UI review pipeline using synthetic
+  PNG buffers (no real Playwright launch), wiring together `visual-diff`,
+  `ui-browser`, `axe-dedupe`, `ui-review-state`, `ui-review-config`, and
+  the task state machine. Covers: 3-browser matrix (chromium/webkit/firefox)
+  × per-browser baseline paths (`.cloverleaf/baselines/{browser}/...`),
+  per-engine escalation, axe-chromium-only rule, `maxCombinations` cap,
+  `baselines_pending` gate blocking `ui-review → qa`, and
+  `/cloverleaf-approve-baselines` clearing the flag. Completes CLV-20 (join
+  node of Plan CLV-15).
+
+### Tests
+
+506 tests passing (+19 from v0.5.4: 17 new from CLV-20 + 2 prep-worktree
+idempotence regression tests).
+
+### Compatibility
+
+- Standard stays at 0.4.1. No schema, contract, state-machine, or library-API
+  changes.
+- `prepWorktree()` internal helper `primeCopy` is not exported; callers of
+  the library API or CLI observe only that repeat invocations now succeed.
+
 ## 0.5.4 — 2026-04-24
 
 Bundles the merged CLV-19 baseline-approval sidecar with a follow-up typo
