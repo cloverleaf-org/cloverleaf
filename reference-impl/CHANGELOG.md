@@ -24,6 +24,15 @@ through Delivery concurrently.
 - Four new `cloverleaf-cli` subcommands: `dag-ready-tasks`,
   `dag-detect-cycle`, `walk-state-read`, `walk-state-write`. The walker
   skill body invokes these to bridge bash to the TypeScript library.
+- `scripts/acceptance-walker.sh` (run via `npm run acceptance:walker`) —
+  release-gate harness for the walker's data plane. Synthesises a tmp
+  Cloverleaf consumer repo with a 3-peer Plan and exercises the seven
+  CLI/walk-state behaviours that compose the walker's tick loop: cycle
+  detection on clean Plan, dag-ready-tasks at full and capped concurrency,
+  walk-state write+read round-trip, slot-accounting against a running
+  task, all-merged exit set, and cycle detection on a 2-cycle Plan. No
+  Claude tokens consumed; complements the manual dogfood for full
+  Session-orchestration validation.
 
 ### Changed
 
