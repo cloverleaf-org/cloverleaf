@@ -1,0 +1,16 @@
+{
+  "event_id": "4f1dd67c-8051-41bc-ba67-2641e673cac9",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-25T04:24:50.542Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-23"
+  },
+  "work_item_type": "spike",
+  "from_status": "pending",
+  "to_status": "running",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  }
+}
