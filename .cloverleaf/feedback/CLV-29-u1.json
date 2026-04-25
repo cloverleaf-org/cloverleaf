@@ -1,0 +1,63 @@
+{
+  "verdict": "bounce",
+  "summary": "Three serious axe violations on /start/ (color-contrast on .footnote, link-in-text-block on two inline anchors). These are pre-existing issues on a page CLV-29 does not modify; resolution likely requires either the .footnote text/link styling on /start/ or extending the axe.ignored allowlist in the UI review config.",
+  "findings": [
+    {
+      "severity": "error",
+      "rule": "a11y.color-contrast",
+      "message": "/start/ — .footnote fails WCAG 2 AA minimum color contrast. Pre-existing; not introduced by CLV-29's diff (which only touches site/src/components/FailureLanes.astro and site/src/content/guide/10-failure-handling.mdx). Either restyle .footnote on the /start/ page or allowlist this rule+target in .cloverleaf/config/ui-review-config.json axe.ignored.",
+      "metadata": {
+        "url": "http://localhost:36895/cloverleaf/start/",
+        "target": ".footnote",
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=playwright"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "a11y.link-in-text-block",
+      "message": "/start/ — link 'Chapter 7 of the guide' is not visually distinguishable from surrounding text without color. Pre-existing; same scope considerations as the color-contrast finding.",
+      "metadata": {
+        "url": "http://localhost:36895/cloverleaf/start/",
+        "target": "a[href$=\"guide/#chapter-7\"]",
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=playwright"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "a11y.link-in-text-block",
+      "message": "/start/ — external 'repository' anchor is not visually distinguishable from surrounding text without color. Pre-existing.",
+      "metadata": {
+        "url": "http://localhost:36895/cloverleaf/start/",
+        "target": "a[rel=\"noopener noreferrer\"][target=\"_blank\"][data-astro-cid-6vq2egjc=\"\"]",
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=playwright"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Baselines pending approval: /guide/ and /faq/ had dimension-mismatch (old baselines were viewport-only; new captures are full-page); /home/ and /start/ produced new baselines. /home/ visual diffs match cleanly. CLV-29's actual target page (/guide/10-failure-handling/) was not crawled in 'all' mode — the home → /guide/ → guide-index hop did not descend into chapter pages.",
+      "metadata": {
+        "baselines_pending": true,
+        "dimension_mismatches": [
+          "guide-mobile",
+          "guide-tablet",
+          "guide-desktop",
+          "faq-mobile",
+          "faq-tablet",
+          "faq-desktop"
+        ],
+        "new_baselines": [
+          "home-mobile",
+          "home-tablet",
+          "home-desktop",
+          "start-mobile",
+          "start-tablet",
+          "start-desktop"
+        ]
+      }
+    }
+  ]
+}
