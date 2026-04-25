@@ -1,62 +1,37 @@
 {
   "verdict": "bounce",
-  "summary": "Three serious axe violations on /start/ (color-contrast on .footnote, link-in-text-block on two inline anchors). These are pre-existing issues on a page CLV-29 does not modify; resolution likely requires either the .footnote text/link styling on /start/ or extending the axe.ignored allowlist in the UI review config.",
+  "summary": "FailureLanes.astro renders unstyled in /guide/ because it is missing from the mdxComponents map in site/src/pages/guide.astro. Astro drops scoped <style> blocks for MDX-imported components that aren't passed via <Content components={mdxComponents} />. The file's own comment (lines 21-25) documents this exact failure mode for the existing components.",
   "findings": [
     {
       "severity": "error",
-      "rule": "a11y.color-contrast",
-      "message": "/start/ — .footnote fails WCAG 2 AA minimum color contrast. Pre-existing; not introduced by CLV-29's diff (which only touches site/src/components/FailureLanes.astro and site/src/content/guide/10-failure-handling.mdx). Either restyle .footnote on the /start/ page or allowlist this rule+target in .cloverleaf/config/ui-review-config.json axe.ignored.",
+      "rule": "layout.css-missing",
+      "message": "FailureLanes.astro <style> block is dropped from the rendered guide page. .failure-lanes computes display:block / grid-template-columns:none — the 1fr 1fr 1fr grid AC fails. Cause: site/src/pages/guide.astro defines a `mdxComponents` const (lines 26-29) registered with `<Content components={mdxComponents} />` so Astro includes the scoped CSS for components used inside MDX. The iter-1 Implementer added the import inside 10-failure-handling.mdx but did not register FailureLanes in guide.astro's map. Fix: in site/src/pages/guide.astro, add `import FailureLanes from '../components/FailureLanes.astro';` to the front-matter imports (alphabetical order: between Eyebrow and FloatingLegend if you want strict sort, or simply alongside the others) and add `FailureLanes` to the mdxComponents object literal. Optionally remove the now-redundant `import FailureLanes` inside 10-failure-handling.mdx (the components map handles it) — but leaving it is harmless. Verify by re-running `npm run build` in site/ and confirming the rendered /guide/ page has display:grid on .failure-lanes.",
+      "location": {
+        "file": "site/src/pages/guide.astro",
+        "line": 26
+      },
       "metadata": {
-        "url": "http://localhost:36895/cloverleaf/start/",
-        "target": ".footnote",
-        "impact": "serious",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=playwright"
-      }
-    },
-    {
-      "severity": "error",
-      "rule": "a11y.link-in-text-block",
-      "message": "/start/ — link 'Chapter 7 of the guide' is not visually distinguishable from surrounding text without color. Pre-existing; same scope considerations as the color-contrast finding.",
-      "metadata": {
-        "url": "http://localhost:36895/cloverleaf/start/",
-        "target": "a[href$=\"guide/#chapter-7\"]",
-        "impact": "serious",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=playwright"
-      }
-    },
-    {
-      "severity": "error",
-      "rule": "a11y.link-in-text-block",
-      "message": "/start/ — external 'repository' anchor is not visually distinguishable from surrounding text without color. Pre-existing.",
-      "metadata": {
-        "url": "http://localhost:36895/cloverleaf/start/",
-        "target": "a[rel=\"noopener noreferrer\"][target=\"_blank\"][data-astro-cid-6vq2egjc=\"\"]",
-        "impact": "serious",
-        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=playwright"
+        "url": "/cloverleaf/guide/",
+        "computed_style": {
+          "display": "block",
+          "grid-template-columns": "none"
+        },
+        "expected_style": {
+          "display": "grid",
+          "grid-template-columns": "1fr 1fr 1fr"
+        },
+        "fix_files": [
+          "site/src/pages/guide.astro"
+        ]
       }
     },
     {
       "severity": "info",
-      "rule": "visual-diff",
-      "message": "Baselines pending approval: /guide/ and /faq/ had dimension-mismatch (old baselines were viewport-only; new captures are full-page); /home/ and /start/ produced new baselines. /home/ visual diffs match cleanly. CLV-29's actual target page (/guide/10-failure-handling/) was not crawled in 'all' mode — the home → /guide/ → guide-index hop did not descend into chapter pages.",
+      "rule": "a11y",
+      "message": "All raw axe findings (6 across crawled pages) are now suppressed by the iter-2 allowlist. The /start/ debt is correctly out of gating.",
       "metadata": {
-        "baselines_pending": true,
-        "dimension_mismatches": [
-          "guide-mobile",
-          "guide-tablet",
-          "guide-desktop",
-          "faq-mobile",
-          "faq-tablet",
-          "faq-desktop"
-        ],
-        "new_baselines": [
-          "home-mobile",
-          "home-tablet",
-          "home-desktop",
-          "start-mobile",
-          "start-tablet",
-          "start-desktop"
-        ]
+        "axe_raw": 6,
+        "axe_after_allowlist": 0
       }
     }
   ]
