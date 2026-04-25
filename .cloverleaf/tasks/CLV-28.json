@@ -1,0 +1,42 @@
+{
+  "id": "CLV-28",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Chapter 9: DecisionGate component + render in 09-risk.mdx",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-21"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-23"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-25"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "site/src/components/DecisionGate.astro exists as a net-new file.",
+    "site/src/content/guide/09-risk.mdx imports and renders DecisionGate.",
+    "npm run build in site/ succeeds with zero warnings.",
+    "Visual baselines are captured for /guide/ at chromium, webkit, and firefox × 375px, 768px, and 1280px viewports.",
+    "Mobile (375px) renders a stacked single-column layout via @media (max-width: 600px)."
+  ],
+  "acceptance_criteria": [
+    "DecisionGate renders an inputs column with four labelled items (touched code paths, schemas, author identity, project rules) converging on a centred 'Risk Classifier' decision box.",
+    "Two output boxes — Fast Lane and Full Pipeline — appear side-by-side on desktop, reached by diverging arrows from the Risk Classifier node.",
+    "At 600px and below, the three zones (inputs, decision, outputs) collapse to stacked full-width cards.",
+    "No existing component file (TrackDiagram.astro, SingleTrack.astro, SignatureLoop.astro, StepRow.astro, StepArrow.astro, FlowArrow.astro, FloatingLegend.astro, Callout.astro, Popover.astro, StepIcon.astro) is modified.",
+    "Visual diff of existing baselines for chapters 3, 4, 5, and all other pages (/, /start, /faq) is clean — no regressions."
+  ],
+  "risk_class": "high"
+}

@@ -1,0 +1,42 @@
+{
+  "id": "CLV-29",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Chapter 10: FailureLanes component + render in 10-failure-handling.mdx",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-21"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-24"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-25"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "site/src/components/FailureLanes.astro exists as a net-new file.",
+    "site/src/content/guide/10-failure-handling.mdx imports and renders FailureLanes.",
+    "npm run build in site/ succeeds with zero warnings.",
+    "Visual baselines are captured for /guide/ at chromium, webkit, and firefox × 375px, 768px, and 1280px viewports.",
+    "Mobile (375px) renders a stacked single-column layout via @media (max-width: 600px)."
+  ],
+  "acceptance_criteria": [
+    "FailureLanes renders three side-by-side lanes on desktop (grid-template-columns: 1fr 1fr 1fr): mechanical, quality, and strategic.",
+    "Each lane contains a category label in the track-label monospace style, a brief response-shape description as body text, and an escalation-destination badge (same agent / Implementer / Discovery).",
+    "At 600px and below, the three lanes collapse to a stacked single-column layout of full-width cards.",
+    "No existing component file (TrackDiagram.astro, SingleTrack.astro, SignatureLoop.astro, StepRow.astro, StepArrow.astro, FlowArrow.astro, FloatingLegend.astro, Callout.astro, Popover.astro, StepIcon.astro) is modified.",
+    "Visual diff of existing baselines for chapters 3, 4, 5, and all other pages (/, /start, /faq) is clean — no regressions."
+  ],
+  "risk_class": "high"
+}

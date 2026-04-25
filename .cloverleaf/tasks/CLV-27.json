@@ -1,0 +1,42 @@
+{
+  "id": "CLV-27",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Chapter 7: AgentMatrix component + render in 07-agents.mdx",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-21"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-22"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-25"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "site/src/components/AgentMatrix.astro exists as a net-new file.",
+    "site/src/content/guide/07-agents.mdx imports and renders AgentMatrix.",
+    "npm run build in site/ succeeds with zero warnings.",
+    "Visual baselines are captured for /guide/ at chromium, webkit, and firefox × 375px, 768px, and 1280px viewports.",
+    "Mobile (375px) renders a stacked single-column layout via @media (max-width: 600px)."
+  ],
+  "acceptance_criteria": [
+    "AgentMatrix renders a Discovery column (Researcher, Plan agents) and a Delivery column (Implementer, Reviewer, UI Reviewer, QA, Documenter agents) with clearly labelled column headers.",
+    "No FlowArrow is present in the AgentMatrix output — phase-membership is expressed as classification, not bidirectional flow.",
+    "At 600px and below, AgentMatrix collapses to a stacked single-column layout of full-width white-surface cards matching SingleTrack's aesthetic.",
+    "No existing component file (TrackDiagram.astro, SingleTrack.astro, SignatureLoop.astro, StepRow.astro, StepArrow.astro, FlowArrow.astro, FloatingLegend.astro, Callout.astro, Popover.astro, StepIcon.astro) is modified.",
+    "Visual diff of existing baselines for chapters 3, 4, 5, and all other pages (/, /start, /faq) is clean — no regressions."
+  ],
+  "risk_class": "high"
+}
