@@ -40,16 +40,20 @@ export function formatReason(opts: { gate?: string; path?: string }): string | u
 
 /**
  * Emits a status-transition event to `.cloverleaf/events/`.
- * File name: `<PROJECT>-<NNN>-status.json` where NNN is the next per-project
+ * File name: `<workItemId>-<NNN>-status.json` where NNN is the next per-work-item
  * sequential number derived from existing event files.
+ *
+ * The filename scopes the counter to a single work item (v0.6 change), so
+ * parallel Delivery sessions on sibling tasks produce non-colliding event
+ * filenames that merge cleanly.
  *
  * Returns the absolute path of the written file.
  */
 export function emitStatusTransition(repoRoot: string, params: StatusTransitionParams): string {
   const { project, workItemType, workItemId, from, to, actor } = params;
-  const seq = nextEventId(repoRoot, project);
+  const seq = nextEventId(repoRoot, workItemId);
   const seqStr = String(seq).padStart(3, '0');
-  const filename = `${project}-${seqStr}-status.json`;
+  const filename = `${workItemId}-${seqStr}-status.json`;
   const filePath = join(eventsDir(repoRoot), filename);
 
   // Build reason from gate and/or path if provided (schema only allows reason, not gate/path at top level).
@@ -77,15 +81,16 @@ export function emitStatusTransition(repoRoot: string, params: StatusTransitionP
 
 /**
  * Emits a gate-decision event to `.cloverleaf/events/`.
- * File name: `<PROJECT>-<NNN>-gate.json`.
+ * File name: `<workItemId>-<NNN>-gate.json`. Counter is scoped to the work item
+ * (v0.6 change — see `emitStatusTransition` for rationale).
  *
  * Returns the absolute path of the written file.
  */
 export function emitGateDecision(repoRoot: string, params: GateDecisionParams): string {
   const { project, workItemId, gate, decision, actor, reasoning } = params;
-  const seq = nextEventId(repoRoot, project);
+  const seq = nextEventId(repoRoot, workItemId);
   const seqStr = String(seq).padStart(3, '0');
-  const filename = `${project}-${seqStr}-gate.json`;
+  const filename = `${workItemId}-${seqStr}-gate.json`;
   const filePath = join(eventsDir(repoRoot), filename);
 
   const doc: Record<string, unknown> = {

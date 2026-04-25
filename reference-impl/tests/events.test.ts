@@ -25,7 +25,9 @@ describe('events', () => {
       to: 'tactical-plan',
       actor: 'agent',
     });
-    expect(path).toMatch(/ACME-001-status\.json$/);
+    // v0.6: filename is `<workItemId>-<NNN>-status.json` — scopes the counter
+    // to the work item so parallel Delivery sessions don't collide on filename.
+    expect(path).toMatch(/ACME-001-001-status\.json$/);
     const doc = JSON.parse(readFileSync(path, 'utf-8'));
     expect(doc.event_type).toBe('status_transition');
     expect(doc.work_item_id).toEqual({ project: 'ACME', id: 'ACME-001' });
@@ -36,7 +38,7 @@ describe('events', () => {
     expect(typeof doc.event_id).toBe('string');
   });
 
-  it('emits sequential event IDs per project', () => {
+  it('emits sequential event IDs scoped per work item (v0.6)', () => {
     emitStatusTransition(repoRoot, {
       project: 'ACME', workItemType: 'task', workItemId: 'ACME-001',
       from: 'pending', to: 'tactical-plan', actor: 'agent',
@@ -45,7 +47,7 @@ describe('events', () => {
       project: 'ACME', workItemType: 'task', workItemId: 'ACME-001',
       from: 'tactical-plan', to: 'implementing', actor: 'agent',
     });
-    expect(path2).toMatch(/ACME-002-status\.json$/);
+    expect(path2).toMatch(/ACME-001-002-status\.json$/);
   });
 
   it('emits gate decision events with the -gate suffix', () => {
@@ -57,7 +59,7 @@ describe('events', () => {
       decision: 'approve',
       actor: 'human',
     });
-    expect(path).toMatch(/ACME-001-gate\.json$/);
+    expect(path).toMatch(/ACME-001-001-gate\.json$/);
     const doc = JSON.parse(readFileSync(path, 'utf-8'));
     expect(doc.event_type).toBe('gate_decision');
     expect(doc.gate).toBe('human_merge');
@@ -65,16 +67,39 @@ describe('events', () => {
     expect(doc.approver.kind).toBe('human');
   });
 
-  it('isolates per-project counters', () => {
+  it('isolates counters per work item — sibling tasks do not share a counter (v0.6)', () => {
     emitStatusTransition(repoRoot, {
       project: 'ACME', workItemType: 'task', workItemId: 'ACME-001',
       from: 'pending', to: 'tactical-plan', actor: 'agent',
     });
     const path = emitStatusTransition(repoRoot, {
-      project: 'FOO', workItemType: 'task', workItemId: 'FOO-001',
+      project: 'ACME', workItemType: 'task', workItemId: 'ACME-002',
       from: 'pending', to: 'tactical-plan', actor: 'agent',
     });
-    expect(path).toMatch(/FOO-001-status\.json$/);
+    // ACME-002's first event is 001 — not 002 — because the counter is
+    // scoped to the work item. This is what makes the v0.6 walker safe:
+    // three parallel worktrees emitting events for tasks ACME-001, -002,
+    // -003 produce filenames `ACME-001-001-…`, `ACME-002-001-…`,
+    // `ACME-003-001-…` — no cross-task collision on merge.
+    expect(path).toMatch(/ACME-002-001-status\.json$/);
+  });
+
+  it('does NOT collide when two sibling work items are emitted independently (v0.6 walker regression guard)', () => {
+    // Regression for the walker-dogfood-2 bug: global per-project counter
+    // produced add/add merge conflicts when parallel worktrees for ACC-2,
+    // ACC-3, ACC-4 each generated events ACC-001..005 and tried to merge
+    // back to main. With per-work-item scoping, each worktree's filenames
+    // are unique from the others' by virtue of the workItemId prefix.
+    emitStatusTransition(repoRoot, {
+      project: 'ACC', workItemType: 'task', workItemId: 'ACC-2',
+      from: 'pending', to: 'tactical-plan', actor: 'agent',
+    });
+    emitStatusTransition(repoRoot, {
+      project: 'ACC', workItemType: 'task', workItemId: 'ACC-3',
+      from: 'pending', to: 'tactical-plan', actor: 'agent',
+    });
+    const files = readdirSync(join(repoRoot, '.cloverleaf', 'events')).sort();
+    expect(files).toEqual(['ACC-2-001-status.json', 'ACC-3-001-status.json']);
   });
 
   it('creates events directory if it does not exist', () => {

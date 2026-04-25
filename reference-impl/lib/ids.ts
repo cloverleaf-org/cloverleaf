@@ -13,10 +13,16 @@ export function nextTaskId(repoRoot: string, project: string): string {
   return `${project}-${String(next).padStart(3, '0')}`;
 }
 
-export function nextEventId(repoRoot: string, project: string): number {
+export function nextEventId(repoRoot: string, workItemId: string): number {
   const dir = eventsDir(repoRoot);
   if (!existsSync(dir)) return 1;
-  const re = new RegExp(`^${escapeRegex(project)}-(\\d+)-(status|gate)\\.json$`);
+  // Per-work-item sequence. Filenames are `<workItemId>-<NNN>-<status|gate>.json`,
+  // which keeps counters scoped to a single task / RFC / Spike / Plan — this matters
+  // for the v0.6 DAG walker's parallel mode, where multiple worktrees emit events
+  // simultaneously. A global per-project counter (the pre-v0.6 scheme) produced
+  // filename collisions when the walker merged sibling feature branches. Per-work-item
+  // scoping means each task's counter is independent; merges union cleanly.
+  const re = new RegExp(`^${escapeRegex(workItemId)}-(\\d+)-(status|gate)\\.json$`);
   const nums = readdirSync(dir)
     .map((f) => f.match(re))
     .filter((m): m is RegExpMatchArray => !!m)
