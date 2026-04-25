@@ -1,0 +1,114 @@
+---
+interface Lane {
+  category: string;
+  description: string;
+  escalation: string;
+}
+
+const lanes: Lane[] = [
+  {
+    category: 'mechanical',
+    description: 'Build breaks, lint errors, test flakes, transient infra issues. Auto-retry with the same agent, up to N attempts.',
+    escalation: 'same agent',
+  },
+  {
+    category: 'quality',
+    description: 'Reviewer rejections, QA findings, documentation gaps. Bounce once back to Implementer with rejection rationale.',
+    escalation: 'Implementer',
+  },
+  {
+    category: 'strategic',
+    description: 'Task is wrong, RFC is incomplete, or a key assumption was false. Escalate immediately; the rest of the batch continues.',
+    escalation: 'Discovery',
+  },
+];
+---
+<div class="failure-lanes">
+  {lanes.map((lane) => (
+    <div class="lane">
+      <div class="lane-header">
+        <span class="track-label">{lane.category}</span>
+      </div>
+      <p class="lane-description">{lane.description}</p>
+      <div class="lane-footer">
+        <span class="escalation-label">escalates to</span>
+        <span class="escalation-badge">{lane.escalation}</span>
+      </div>
+    </div>
+  ))}
+</div>
+
+<style>
+  .failure-lanes {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin: var(--space-4) 0;
+  }
+
+  .lane {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .lane-header {
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .track-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .lane-description {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--color-text-body);
+    flex: 1;
+  }
+
+  .lane-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .escalation-label {
+    font-size: 11px;
+    color: var(--color-text-muted);
+  }
+
+  .escalation-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--color-accent);
+    background: var(--color-divider);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    padding: 2px 8px;
+  }
+
+  @media (max-width: 600px) {
+    .failure-lanes {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lane {
+      width: 100%;
+    }
+  }
+</style>
