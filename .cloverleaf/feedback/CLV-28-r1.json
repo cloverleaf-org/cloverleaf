@@ -1,0 +1,14 @@
+{
+  "verdict": "bounce",
+  "summary": "AC2 requires the Fast Lane and Full Pipeline output boxes to appear side-by-side on desktop, but the implementation stacks them vertically (flex-direction: column) inside the outputs zone. This is a structural mismatch with the stated acceptance criterion.",
+  "findings": [
+    {
+      "severity": "blocker",
+      "message": "The two output boxes (Fast Lane, Full Pipeline) are stacked vertically via flex-direction: column on .dg-outputs. AC2 explicitly requires them 'side-by-side on desktop'. The outputs zone should use flex-direction: row (or a two-row grid) for viewport widths above 600px.",
+      "location": {
+        "file": "site/src/components/DecisionGate.astro",
+        "line": 244
+      }
+    }
+  ]
+}
