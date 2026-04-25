@@ -15,7 +15,11 @@ through Delivery concurrently.
   Session B per ready task (default `max_concurrent: 3`, configurable via
   `--max-concurrent=N`), monitors them, surfaces only escalations and
   per-task final-gate approvals to the human. Resumable across
-  invocations. `--reset` flag to wipe walk-state and start over.
+  invocations. `--reset` flag to wipe walk-state and start over. Each
+  task runs in a dedicated git worktree (`/tmp/walker-<PLAN-ID>-<TASK-ID>`)
+  so parallel Sessions don't race on HEAD; the walker itself performs
+  the final `git merge --no-ff` on main in the primary repo after human
+  approval. Session B does NOT invoke `/cloverleaf-merge` in walker mode.
 - `lib/dag-walker.ts` — `computeReadyTasks(plan, walkState, maxConcurrent)`
   pure function for DAG scheduling; `detectCycle(plan)` Tarjan-style cycle
   guard.
@@ -42,6 +46,13 @@ through Delivery concurrently.
   Only `y/Y/yes/YES` proceeds to merge; `n/N/no/NO` declines. Any other
   response is treated as a question. The walker depends on this
   behaviour, but manual merges get the same affordance as a side-effect.
+- Event filenames scoped per work item (`<workItemId>-<NNN>-<type>.json`
+  instead of the old global per-project `<PROJECT>-<NNN>-<type>.json`).
+  The global counter collided across parallel Delivery worktrees at
+  merge time. Per-work-item scoping makes sibling-task events unique by
+  construction so they merge cleanly. `lib/ids.ts::nextEventId(repoRoot,
+  workItemId)` is the new signature; the previous `(repoRoot, project)`
+  form is replaced.
 
 ### Tests
 

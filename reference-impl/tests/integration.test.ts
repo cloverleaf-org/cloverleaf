@@ -37,15 +37,17 @@ describe('integration: tight-loop pass case', () => {
     expect(task.status).toBe('automated-gates');
 
     const events = readdirSync(join(repoRoot, '.cloverleaf', 'events')).sort();
+    // v0.6: event filenames are `<workItemId>-<NNN>-<type>.json` (per-work-item counter)
+    // so parallel Delivery worktrees don't collide on filename at merge time.
     expect(events).toEqual([
-      'DEMO-001-status.json',
-      'DEMO-002-status.json',
-      'DEMO-003-status.json',
-      'DEMO-004-status.json',
-      'DEMO-005-status.json',
+      'DEMO-001-001-status.json',
+      'DEMO-001-002-status.json',
+      'DEMO-001-003-status.json',
+      'DEMO-001-004-status.json',
+      'DEMO-001-005-status.json',
     ]);
 
-    const firstEvent = JSON.parse(readFileSync(join(repoRoot, '.cloverleaf', 'events', 'DEMO-001-status.json'), 'utf-8'));
+    const firstEvent = JSON.parse(readFileSync(join(repoRoot, '.cloverleaf', 'events', 'DEMO-001-001-status.json'), 'utf-8'));
     expect(firstEvent.from_status).toBe('pending');
     expect(firstEvent.to_status).toBe('tactical-plan');
   });
