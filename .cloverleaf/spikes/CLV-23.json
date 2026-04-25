@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-23",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "For chapter 9 (Risk classification), no existing component expresses binary bran",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-21"
+  },
+  "question": "For chapter 9 (Risk classification), no existing component expresses binary branching with multiple inputs converging on a decision node. Does SingleTrack extended with a fork annotation satisfy the concept, or does a new DecisionGate component provide a materially clearer rendering without exceeding the diagram budget?",
+  "method": "research"
+}

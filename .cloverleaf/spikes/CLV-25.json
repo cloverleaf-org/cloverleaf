@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-25",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "What minimum viewport width should trigger a collapse from each new diagram's gr",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-21"
+  },
+  "question": "What minimum viewport width should trigger a collapse from each new diagram's grid/flex layout to a list or table fallback? The existing components contain no @media breakpoints in their scoped styles and global.css declares no breakpoints; the correct threshold must be established before implementation to ensure mobile-responsive behaviour at 375px.",
+  "method": "research"
+}

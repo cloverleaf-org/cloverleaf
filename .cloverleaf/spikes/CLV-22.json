@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-22",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "For chapter 7 (Agents), does TrackDiagram.astro's fixed two-column left/right la",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-21"
+  },
+  "question": "For chapter 7 (Agents), does TrackDiagram.astro's fixed two-column left/right layout with a FlowArrow centre column cleanly express agents grouped by Discovery vs Delivery phase, or is a new AgentMatrix component (two labelled columns, no cross-track arrow) necessary to avoid visual distortion?",
+  "method": "research"
+}

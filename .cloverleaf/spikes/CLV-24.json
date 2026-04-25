@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-24",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "For chapter 10 (Failure handling), does the three-category structure (mechanical",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-21"
+  },
+  "question": "For chapter 10 (Failure handling), does the three-category structure (mechanical / quality / strategic) fit best as three sequential SingleTrack instances, a three-column TrackDiagram variant, or a new stacked layout? What component shape keeps the diagram self-contained without exceeding the ~13-diagram cap?",
+  "method": "research"
+}
