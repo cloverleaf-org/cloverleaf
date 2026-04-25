@@ -84,8 +84,16 @@ Report:
 
 ## Rules
 
-- Only proceed on explicit `y`, `Y`, `yes`, `YES`. Anything else: abort without state change.
+- Only proceed on explicit `y/Y/yes/YES`. Anything else is treated as either a decline (`n/N/no/NO`) or a clarifying question (see below).
 - The skill does NOT push the branch or open a PR.
 - Fast lane and full pipeline use distinct gates — the state machine records which path was taken.
 - Full-pipeline merges perform a real `git merge --no-ff` before advancing state — the feature branch's code, baselines, and feedback commits all land on main.
 - If the user declines, no state change and no commit.
+
+## Clarifying questions at final-gate
+
+If the user's response to the "Confirm merge? (y/N)" prompt is **not** one of `y/Y/yes/YES` or `n/N/no/NO`, treat it as a clarifying question. Answer it from the pipeline context available to you — the Reviewer/UI Reviewer/QA summaries, the diff, the task's ACs, the feedback files — and then **re-prompt** with the same y/N question.
+
+Loop this until the user gives a definitive y or n. Do not perform the merge until you see `y/Y/yes/YES`. Do not mark the task declined until you see `n/N/no/NO`.
+
+This keeps manual merges and walker-driven merges (`/cloverleaf-run-plan`) consistent: the user gets to interrogate the summary before committing.

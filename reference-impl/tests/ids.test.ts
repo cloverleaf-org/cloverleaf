@@ -43,21 +43,28 @@ describe('ids', () => {
     });
   });
 
-  describe('nextEventId', () => {
-    it('returns 001 when no events exist', () => {
-      expect(nextEventId(repoRoot, 'ACME')).toBe(1);
+  describe('nextEventId (v0.6: scoped per work item)', () => {
+    it('returns 1 when no events exist for the work item', () => {
+      expect(nextEventId(repoRoot, 'ACME-001')).toBe(1);
     });
 
-    it('returns the next sequential number', () => {
-      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'ACME-001-status.json'), '{}');
-      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'ACME-002-gate.json'), '{}');
-      expect(nextEventId(repoRoot, 'ACME')).toBe(3);
+    it('returns max+1 based on existing events for that work item', () => {
+      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'ACME-001-001-status.json'), '{}');
+      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'ACME-001-002-gate.json'), '{}');
+      expect(nextEventId(repoRoot, 'ACME-001')).toBe(3);
     });
 
-    it('ignores other projects and non-matching files', () => {
-      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'FOO-001-status.json'), '{}');
+    it('ignores events for other work items (per-work-item counter is isolated)', () => {
+      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'ACME-001-001-status.json'), '{}');
+      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'ACME-001-002-status.json'), '{}');
+      // ACME-002's counter is independent — starts from 1.
+      expect(nextEventId(repoRoot, 'ACME-002')).toBe(1);
+    });
+
+    it('ignores non-matching filenames', () => {
+      writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'FOO-001-001-status.json'), '{}');
       writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'evt-001-status.json'), '{}');
-      expect(nextEventId(repoRoot, 'ACME')).toBe(1);
+      expect(nextEventId(repoRoot, 'ACME-001')).toBe(1);
     });
   });
 

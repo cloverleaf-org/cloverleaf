@@ -5,3 +5,5 @@ export * from './events.js';
 export * from './feedback.js';
 export * from './validate.js';
 export * from './ui-review-state.js';
+export * from './dag-walker.js';
+export * from './walk-state.js';
