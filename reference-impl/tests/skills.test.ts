@@ -741,4 +741,44 @@ describe('cloverleaf-run-plan skill (v0.6 — autonomous DAG walker)', () => {
   it('references the per-task /cloverleaf-run skill for each Session B', () => {
     expect(body).toContain('cloverleaf-run');
   });
+
+  // v0.6 #G — worktree isolation per Session B.
+  // The first dogfood surfaced the fact that parallel Sessions B sharing one
+  // working directory race on git checkout / commit and corrupt branches.
+  // The walker MUST spin a dedicated git worktree per task, pass it as cwd
+  // to the session, and perform the final merge itself on main (Session B
+  // does NOT invoke /cloverleaf-merge, which would try to checkout main in
+  // its worktree and fail because main is held by the primary repo).
+  it('spawns Session B with cwd pointing at a dedicated git worktree (v0.6 #G)', () => {
+    // Must set up a per-task worktree BEFORE start_session.
+    expect(body).toMatch(/git[^\n]*worktree add/);
+    // Session's cwd must be the worktree (not the repo root). The skill body
+    // shows `cwd`: `$WT` in the start_session parameter list.
+    expect(body.toLowerCase()).toMatch(/cwd[^\n]*\$wt|cwd[^\n]*worktree|cwd[^\n]*\/tmp\/walker/);
+  });
+
+  it('instructs Session B to NOT invoke /cloverleaf-merge (v0.6 #G)', () => {
+    // The scenario brief template (or walker rules) must explicitly tell
+    // Session B to stop before /cloverleaf-merge. The walker owns the merge.
+    expect(body.toLowerCase()).toMatch(
+      /do not invoke[^\n]*cloverleaf-merge|not invoke[^\n]*cloverleaf-merge|session b must not invoke|don'?t invoke[^\n]*cloverleaf-merge/,
+    );
+  });
+
+  it('walker performs the real git merge --no-ff on main in the primary repo (v0.6 #G)', () => {
+    // On y approval, the walker must run git merge --no-ff in the primary repo.
+    expect(body).toMatch(/git merge --no-ff cloverleaf\/<TASK-ID>/);
+    // The walker also advances state to merged and commits, in the primary repo.
+    expect(body).toMatch(/advance-status[^\n]*<TASK-ID>[^\n]*merged human/);
+  });
+
+  it('tears down the worktree after a successful merge (v0.6 #G)', () => {
+    expect(body).toMatch(/git[^\n]*worktree remove/);
+  });
+
+  it('serialises merges on main (no concurrent merges, even for independent branches)', () => {
+    expect(body.toLowerCase()).toMatch(
+      /sequential.*main|serial.*main|one (prompt|decision).*next|concurrent[^\n]*merge[^\n]*race|two[^\n]*(concurrent|parallel).*merge/,
+    );
+  });
 });
