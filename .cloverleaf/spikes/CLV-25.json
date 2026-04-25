@@ -2,16 +2,18 @@
   "type": "spike",
   "project": "CLV",
   "id": "CLV-25",
-  "status": "pending",
+  "status": "completed",
   "owner": {
     "kind": "agent",
     "id": "researcher"
   },
-  "title": "What minimum viewport width should trigger a collapse from each new diagram's gr",
+  "title": "What minimum viewport width should trigger a collapse from each new diagram's grid/flex layout to a list or table fallback?",
   "parent_rfc": {
     "project": "CLV",
     "id": "CLV-21"
   },
   "question": "What minimum viewport width should trigger a collapse from each new diagram's grid/flex layout to a list or table fallback? The existing components contain no @media breakpoints in their scoped styles and global.css declares no breakpoints; the correct threshold must be established before implementation to ensure mobile-responsive behaviour at 375px.",
-  "method": "research"
+  "method": "research",
+  "findings": "Confirmed: global.css (site/src/styles/global.css lines 1-84) declares zero @media rules — only custom properties and base resets. A ripgrep of all site/src/**/*.astro files also returns zero @media matches, so the claim in the brief that 'the existing diagrams use specific breakpoints (per site/src/styles/)' is inaccurate; there are currently no breakpoints anywhere in the codebase. The canonical viewport widths used by the UI-review pipeline are defined in .cloverleaf/config/ui-review.json: mobile 375x667, tablet 768x1024, desktop 1280x800. Existing baselines in .cloverleaf/baselines/chromium/ confirm these three sizes only. The content column is constrained to max-width 760px with padding: 60px 32px on guide.astro (lines 62-66), yielding a usable content width of 311px at 375px viewport and 704px at 768px viewport. TrackDiagram.astro (line 43) uses grid-template-columns: 1fr 80px 1fr, requiring at minimum ~420px to render both side columns usably; SingleTrack.astro uses max-width: 360px and is already single-column. The three new components (AgentMatrix, DecisionGate, FailureLanes) do not yet exist. The guide.astro table-of-contents (lines 88-95) also uses grid-template-columns: 1fr 1fr with no breakpoint, confirming the pattern of multi-column grids with no mobile handling throughout.",
+  "recommendation": "Use a single shared breakpoint of max-width: 600px for all three new components (AgentMatrix, DecisionGate, FailureLanes). This value sits cleanly between the two tested viewport extremes (375px mobile, 768px tablet), ensuring the collapse fires on all real mobile devices (320-430px) while leaving the full multi-column layout intact at tablet and above. At 375px the usable content width is only 311px — far too narrow for any two- or three-column grid — so the breakpoint must fire well above 375px; 600px is the natural midpoint. A single threshold is correct rather than per-component thresholds because all three components live in the same 760px content column and face the same constraint. The fallback shape should be stacked single-column div cards (not an HTML table), each styled to match SingleTrack's pattern: full-width, white surface, 1px border-radius var(--radius-lg), 18-20px padding — preserving the existing aesthetic and the zero-JS constraint. Inside the @media (max-width: 600px) block, set the grid/flex container to display: flex; flex-direction: column and remove any fixed column widths; arrow connectors (FlowArrow-style SVGs) between columns should be hidden or replaced with a simple horizontal rule at mobile width."
 }
