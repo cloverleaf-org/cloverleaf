@@ -2,7 +2,7 @@
   "type": "spike",
   "project": "CLV",
   "id": "CLV-22",
-  "status": "pending",
+  "status": "completed",
   "owner": {
     "kind": "agent",
     "id": "researcher"
@@ -13,5 +13,7 @@
     "id": "CLV-21"
   },
   "question": "For chapter 7 (Agents), does TrackDiagram.astro's fixed two-column left/right layout with a FlowArrow centre column cleanly express agents grouped by Discovery vs Delivery phase, or is a new AgentMatrix component (two labelled columns, no cross-track arrow) necessary to avoid visual distortion?",
-  "method": "research"
+  "method": "research",
+  "findings": "TrackDiagram.astro (site/src/components/TrackDiagram.astro, lines 5-16 and 40-46) hardcodes a grid-template-columns of 1fr 80px 1fr and always renders a FlowArrow centre column between the two tracks; the FlowArrow (site/src/components/FlowArrow.astro, lines 8-13) displays two facing arrows labelled 'tasks' and 'feedback', semantically encoding a bidirectional flow relationship between left and right sides. Chapter 7's agent table (site/src/content/guide/07-agents.mdx, lines 7-19) needs static phase membership (Discovery: 2 agents; Delivery: 5 agents), not a flow handoff — so the FlowArrow centre column would misrepresent the relationship and the 2-vs-5 agent count asymmetry would produce unequal column heights within equal 1fr widths. By contrast, ch3 (site/src/content/guide/03-two-tracks.mdx, lines 27-57) uses TrackDiagram correctly: both columns hold sequential StepRow+StepArrow pipelines and the FlowArrow meaningfully encodes the Discovery-to-Delivery task handoff and the Delivery-to-Discovery feedback loop. The docs/briefs/guide-diagrams.md brief (line 68-70) itself flags this as an open question, and line 113-115 explicitly prohibits refactoring existing components, ruling out suppressing the FlowArrow from within TrackDiagram. StepRow's variant prop ('agent'|'gate') and StepArrow (site/src/components/StepRow.astro, site/src/components/StepArrow.astro) are designed for ordered pipeline steps, not unordered agent-card lists, so reusing those primitives inside TrackDiagram for ch7 would also be semantically wrong.",
+  "recommendation": "A new AgentMatrix component is necessary for chapter 7. It should render two labelled columns (Discovery / Delivery) with no centre arrow column, using a simple two-column flex or grid layout without FlowArrow, so the phase-membership relationship reads as classification rather than flow. Each cell can list agent names as simple rows or cards. This is the minimum-viable shape that avoids both the semantic distortion of the bidirectional arrow and the visual imbalance from the 2-vs-5 agent count asymmetry. The RFC Plan should scope AgentMatrix as a net-new primitive alongside (not replacing) TrackDiagram, consistent with the brief's non-goal of leaving existing components unmodified."
 }
