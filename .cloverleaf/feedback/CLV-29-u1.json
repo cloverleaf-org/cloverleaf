@@ -1,0 +1,38 @@
+{
+  "verdict": "bounce",
+  "summary": "FailureLanes.astro renders unstyled in /guide/ because it is missing from the mdxComponents map in site/src/pages/guide.astro. Astro drops scoped <style> blocks for MDX-imported components that aren't passed via <Content components={mdxComponents} />. The file's own comment (lines 21-25) documents this exact failure mode for the existing components.",
+  "findings": [
+    {
+      "severity": "error",
+      "rule": "layout.css-missing",
+      "message": "FailureLanes.astro <style> block is dropped from the rendered guide page. .failure-lanes computes display:block / grid-template-columns:none — the 1fr 1fr 1fr grid AC fails. Cause: site/src/pages/guide.astro defines a `mdxComponents` const (lines 26-29) registered with `<Content components={mdxComponents} />` so Astro includes the scoped CSS for components used inside MDX. The iter-1 Implementer added the import inside 10-failure-handling.mdx but did not register FailureLanes in guide.astro's map. Fix: in site/src/pages/guide.astro, add `import FailureLanes from '../components/FailureLanes.astro';` to the front-matter imports (alphabetical order: between Eyebrow and FloatingLegend if you want strict sort, or simply alongside the others) and add `FailureLanes` to the mdxComponents object literal. Optionally remove the now-redundant `import FailureLanes` inside 10-failure-handling.mdx (the components map handles it) — but leaving it is harmless. Verify by re-running `npm run build` in site/ and confirming the rendered /guide/ page has display:grid on .failure-lanes.",
+      "location": {
+        "file": "site/src/pages/guide.astro",
+        "line": 26
+      },
+      "metadata": {
+        "url": "/cloverleaf/guide/",
+        "computed_style": {
+          "display": "block",
+          "grid-template-columns": "none"
+        },
+        "expected_style": {
+          "display": "grid",
+          "grid-template-columns": "1fr 1fr 1fr"
+        },
+        "fix_files": [
+          "site/src/pages/guide.astro"
+        ]
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "a11y",
+      "message": "All raw axe findings (6 across crawled pages) are now suppressed by the iter-2 allowlist. The /start/ debt is correctly out of gating.",
+      "metadata": {
+        "axe_raw": 6,
+        "axe_after_allowlist": 0
+      }
+    }
+  ]
+}
