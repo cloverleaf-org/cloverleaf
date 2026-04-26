@@ -1,0 +1,138 @@
+---
+// AgentMatrix: two-column phase classification for chapter 7 (Agents).
+// Discovery (2 agents) left | Delivery (5 agents) right.
+// No FlowArrow — phase membership is classification, not flow.
+// Mobile (≤600px): stacked single-column cards matching SingleTrack aesthetic.
+---
+<div class="agent-matrix">
+  <div class="matrix-col">
+    <div class="col-header">
+      <span class="col-label">Discovery</span>
+    </div>
+    <ul class="agent-list">
+      <li class="agent-card">
+        <span class="agent-name">Researcher</span>
+        <span class="agent-role">Authors RFCs and runs Spikes</span>
+      </li>
+      <li class="agent-card">
+        <span class="agent-name">Plan</span>
+        <span class="agent-role">Decomposes approved RFCs into Tasks</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="matrix-col">
+    <div class="col-header">
+      <span class="col-label">Delivery</span>
+    </div>
+    <ul class="agent-list">
+      <li class="agent-card">
+        <span class="agent-name">Implementer</span>
+        <span class="agent-role">Picks up Tasks, writes code</span>
+      </li>
+      <li class="agent-card">
+        <span class="agent-name">Reviewer</span>
+        <span class="agent-role">Code review in fresh context</span>
+      </li>
+      <li class="agent-card agent-card--optional">
+        <span class="agent-name">UI Reviewer</span>
+        <span class="agent-role">Frontend-specific review</span>
+        <span class="agent-meta">full pipeline</span>
+      </li>
+      <li class="agent-card agent-card--optional">
+        <span class="agent-name">QA</span>
+        <span class="agent-role">Functional test execution</span>
+        <span class="agent-meta">full pipeline</span>
+      </li>
+      <li class="agent-card agent-card--optional">
+        <span class="agent-name">Documenter</span>
+        <span class="agent-role">Updates AI-facing docs after every change</span>
+        <span class="agent-meta">full pipeline</span>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<style>
+  .agent-matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 28px 0;
+  }
+
+  .matrix-col {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+  }
+
+  .col-header {
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .col-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .agent-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .agent-card {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 10px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-divider);
+    border-radius: var(--radius-md);
+  }
+
+  .agent-name {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--color-ink);
+    line-height: 1.3;
+  }
+
+  .agent-role {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+  }
+
+  .agent-meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--color-text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  @media (max-width: 600px) {
+    .agent-matrix {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .matrix-col {
+      width: 100%;
+    }
+  }
+</style>

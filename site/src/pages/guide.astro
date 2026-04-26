@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Eyebrow from '../components/Eyebrow.astro';
+import AgentMatrix from '../components/AgentMatrix.astro';
 import Callout from '../components/Callout.astro';
 import Code from '../components/Code.astro';
 import FloatingLegend from '../components/FloatingLegend.astro';
@@ -24,7 +25,7 @@ const chapters = (await getCollection('guide')).sort(
 // from …`) have their <style> blocks dropped at build time — markup renders
 // but layout breaks.
 const mdxComponents = {
-  Callout, Code, FloatingLegend, FlowArrow, Popover,
+  AgentMatrix, Callout, Code, FloatingLegend, FlowArrow, Popover,
   SignatureLoop, SingleTrack, StepArrow, StepIcon, StepRow, TrackDiagram,
 };
 ---

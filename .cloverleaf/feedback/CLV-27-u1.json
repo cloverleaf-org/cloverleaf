@@ -1,0 +1,42 @@
+{
+  "verdict": "bounce",
+  "summary": "3 NEW color-contrast errors (serious/WCAG 2 AA) on .agent-meta in AgentMatrix.astro; 3 pre-existing /start/ violations are out of scope for CLV-27.",
+  "findings": [
+    {
+      "severity": "error",
+      "rule": "a11y.color-contrast",
+      "message": ".agent-meta text in AgentMatrix.astro fails WCAG 2 AA contrast ratio. var(--color-text-subtle) at 9px font-size on the 'full pipeline' label of UI Reviewer/QA/Documenter cards. Fix: use a higher-contrast color variable, raise font-size, or restyle. Three target instances (children 3, 4, 5 of the Delivery .agent-list).",
+      "location": {
+        "file": "site/src/components/AgentMatrix.astro"
+      },
+      "metadata": {
+        "route": "/cloverleaf/guide/",
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/color-contrast?application=playwright",
+        "targets": [
+          ".agent-card--optional:nth-child(3) > .agent-meta",
+          ".agent-card--optional:nth-child(4) > .agent-meta",
+          ".agent-card--optional:nth-child(5) > .agent-meta"
+        ],
+        "component": "AgentMatrix.astro"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "out-of-scope",
+      "message": "PRE-EXISTING (not caused by CLV-27): .footnote color-contrast and link-in-text-block violations on /cloverleaf/start/. Do NOT modify start.astro in this task — track separately.",
+      "metadata": {
+        "route": "/cloverleaf/start/",
+        "preExisting": true
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Visual baselines captured (informational). /cloverleaf/ matched; /cloverleaf/guide/ dimension-mismatch (page grew due to AgentMatrix); /cloverleaf/start/ new-baseline; /cloverleaf/faq/ dimension-mismatch. baselines_pending=true.",
+      "metadata": {
+        "baselinesPending": true
+      }
+    }
+  ]
+}
