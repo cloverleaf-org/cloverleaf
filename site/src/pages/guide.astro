@@ -27,11 +27,7 @@ const chapters = (await getCollection('guide')).sort(
 // from …`) have their <style> blocks dropped at build time — markup renders
 // but layout breaks.
 const mdxComponents = {
-<<<<<<< HEAD
-  AgentMatrix, Callout, Code, DecisionGate, FloatingLegend, FlowArrow, Popover,
-=======
-  Callout, Code, FailureLanes, FloatingLegend, FlowArrow, Popover,
->>>>>>> bb30fd6 (fix: register FailureLanes in guide.astro mdxComponents map [CLV-29])
+  AgentMatrix, Callout, Code, DecisionGate, FailureLanes, FloatingLegend, FlowArrow, Popover,
   SignatureLoop, SingleTrack, StepArrow, StepIcon, StepRow, TrackDiagram,
 };
 ---
