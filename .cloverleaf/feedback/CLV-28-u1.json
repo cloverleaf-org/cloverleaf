@@ -1,0 +1,78 @@
+{
+  "verdict": "bounce",
+  "summary": "UI Reviewer found 3 pre-existing axe-core a11y errors on /start/ that aren't allowlisted in .cloverleaf/config/ui-review.json. CLV-28's RFC is net-new-only so start.astro can't be modified — extend axe.ignored instead to match the established consumer pattern (see commit 0a5b0be, which allowlisted pre-existing /guide/ contrast issues the same way).",
+  "findings": [
+    {
+      "severity": "error",
+      "rule": "a11y.color-contrast",
+      "message": "Pre-existing color-contrast violation on /start/ at .footnote. Target is in start.astro (out of CLV-28 scope per RFC's net-new-only constraint). Resolve by appending {\"ruleId\":\"color-contrast\",\"target\":\".footnote\"} to axe.ignored in .cloverleaf/config/ui-review.json.",
+      "metadata": {
+        "ruleId": "color-contrast",
+        "target": ".footnote",
+        "route": "/start/",
+        "preExisting": true,
+        "fix": "append to axe.ignored"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "a11y.link-in-text-block",
+      "message": "Pre-existing link-in-text-block violation on /start/ at a[href$=\"guide/#chapter-7\"]. Target is in start.astro (out of CLV-28 scope). Resolve by appending {\"ruleId\":\"link-in-text-block\",\"target\":\"a[href$=\\\"guide/#chapter-7\\\"]\"} to axe.ignored.",
+      "metadata": {
+        "ruleId": "link-in-text-block",
+        "target": "a[href$=\"guide/#chapter-7\"]",
+        "route": "/start/",
+        "preExisting": true,
+        "fix": "append to axe.ignored"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "a11y.link-in-text-block",
+      "message": "Pre-existing link-in-text-block violation on /start/ at the GitHub repository link with rel=noopener target=_blank. Target is in start.astro (out of CLV-28 scope). Resolve by appending {\"ruleId\":\"link-in-text-block\",\"target\":\"a[rel=\\\"noopener noreferrer\\\"][target=\\\"_blank\\\"][data-astro-cid-6vq2egjc=\\\"\\\"]\"} to axe.ignored.",
+      "metadata": {
+        "ruleId": "link-in-text-block",
+        "target": "a[rel=\"noopener noreferrer\"][target=\"_blank\"][data-astro-cid-6vq2egjc=\"\"]",
+        "route": "/start/",
+        "preExisting": true,
+        "fix": "append to axe.ignored"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Visual diff: /faq/ @ mobile [chromium] — 6.77% pixels differ (informational, not gating). Likely font-rendering noise between implementer's chrome-devtools baseline capture and Playwright headless. Re-capturing /faq/ baselines using the same Playwright capture script would normalize this. faq.astro was not modified by CLV-28.",
+      "metadata": {
+        "route": "/faq/",
+        "viewport": "mobile",
+        "browser": "chromium",
+        "diffRatio": 0.0677,
+        "status": "diff"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Visual diff: /faq/ @ tablet [chromium] — 5.19% pixels differ (informational). Same root cause as mobile.",
+      "metadata": {
+        "route": "/faq/",
+        "viewport": "tablet",
+        "browser": "chromium",
+        "diffRatio": 0.0519,
+        "status": "diff"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Visual diff: /faq/ @ desktop [chromium] — 3.15% pixels differ (informational). Same root cause as mobile.",
+      "metadata": {
+        "route": "/faq/",
+        "viewport": "desktop",
+        "browser": "chromium",
+        "diffRatio": 0.0315,
+        "status": "diff"
+      }
+    }
+  ]
+}

@@ -1,0 +1,237 @@
+---
+// DecisionGate — fan-in → decision node → fan-out diagram for chapter 9.
+// Three zones: inputs column, centred Risk Classifier decision box, two output boxes.
+// Collapses to stacked single-column cards at @media (max-width: 600px).
+---
+<div class="decision-gate" aria-label="Risk classification decision gate">
+
+  <!-- Zone 1: Inputs -->
+  <div class="dg-zone dg-inputs" aria-label="Inputs">
+    <div class="dg-zone-label">Inputs</div>
+    <div class="dg-input-item">
+      <span class="dg-input-dot" aria-hidden="true"></span>
+      <span>Touched code paths</span>
+    </div>
+    <div class="dg-input-item">
+      <span class="dg-input-dot" aria-hidden="true"></span>
+      <span>Touched schemas</span>
+    </div>
+    <div class="dg-input-item">
+      <span class="dg-input-dot" aria-hidden="true"></span>
+      <span>Author identity</span>
+    </div>
+    <div class="dg-input-item">
+      <span class="dg-input-dot" aria-hidden="true"></span>
+      <span>Project rules</span>
+    </div>
+  </div>
+
+  <!-- Converging arrow: inputs → decision (desktop only) -->
+  <div class="dg-arrow dg-arrow-in" aria-hidden="true">
+    <svg class="dg-arrow-svg" viewBox="0 0 40 80" preserveAspectRatio="none">
+      <path d="M 0,10 Q 38,10 38,40 Q 38,70 0,70" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M 0,25 Q 34,25 34,40 Q 34,55 0,55" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M 0,40 L 38,40" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <polygon points="38,40 32,36.5 32,43.5" fill="currentColor"/>
+    </svg>
+  </div>
+
+  <!-- Zone 2: Decision node -->
+  <div class="dg-zone dg-decision" aria-label="Decision node">
+    <div class="dg-zone-label">Classifier</div>
+    <div class="dg-decision-box">
+      <svg class="dg-diamond" viewBox="0 0 48 48" width="32" height="32" aria-hidden="true">
+        <polygon points="24,4 44,24 24,44 4,24" fill="none" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      <span class="dg-decision-label">Risk Classifier</span>
+    </div>
+  </div>
+
+  <!-- Diverging arrow: decision → outputs (desktop only) -->
+  <div class="dg-arrow dg-arrow-out" aria-hidden="true">
+    <svg class="dg-arrow-svg" viewBox="0 0 40 80" preserveAspectRatio="none">
+      <path d="M 2,40 Q 2,10 40,10" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M 2,40 Q 2,70 40,70" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <polygon points="40,10 34,6.5 34,13.5" fill="currentColor"/>
+      <polygon points="40,70 34,66.5 34,73.5" fill="currentColor"/>
+    </svg>
+  </div>
+
+  <!-- Zone 3: Outputs -->
+  <div class="dg-zone dg-outputs" aria-label="Outputs">
+    <div class="dg-zone-label">Output</div>
+    <div class="dg-output-item dg-fast-lane">
+      <span class="dg-output-badge">Fast Lane</span>
+      <span class="dg-output-desc">Implementer → Reviewer → Approval</span>
+    </div>
+    <div class="dg-output-item dg-full-pipeline">
+      <span class="dg-output-badge">Full Pipeline</span>
+      <span class="dg-output-desc">+ Documenter, UI Reviewer, QA</span>
+    </div>
+  </div>
+
+</div>
+
+<style>
+  .decision-gate {
+    display: grid;
+    grid-template-columns: 1fr 44px 1fr 44px 1fr;
+    align-items: center;
+    gap: 0;
+    margin: 0 0 36px;
+    font-family: var(--font-sans);
+  }
+
+  /* ── Shared zone card ── */
+  .dg-zone {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    align-self: stretch;
+  }
+
+  .dg-zone-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--color-accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  /* ── Inputs zone ── */
+  .dg-input-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    font-size: 13px;
+    color: var(--color-text-body);
+    line-height: 1.4;
+  }
+
+  .dg-input-dot {
+    flex-shrink: 0;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    border: 1.5px solid var(--color-accent);
+    background: transparent;
+  }
+
+  /* ── Converging / diverging arrows ── */
+  .dg-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+    color: var(--color-arrow-muted);
+    padding: 4px 0;
+  }
+
+  .dg-arrow-svg {
+    width: 40px;
+    height: 100%;
+    min-height: 60px;
+    max-height: 120px;
+    display: block;
+  }
+
+  /* ── Decision zone ── */
+  .dg-decision {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dg-decision-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 8px;
+    flex: 1;
+    justify-content: center;
+    color: var(--color-accent);
+  }
+
+  .dg-diamond {
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+
+  .dg-decision-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--color-accent);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* ── Outputs zone ── */
+  .dg-outputs {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .dg-output-item {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .dg-fast-lane { border-left: 3px solid var(--color-accent); }
+  .dg-full-pipeline { border-left: 3px solid var(--color-text-muted); }
+
+  .dg-output-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+  }
+
+  .dg-output-desc {
+    font-size: 11.5px;
+    color: var(--color-text-muted);
+    line-height: 1.35;
+  }
+
+  /* ── Mobile collapse: max-width 600px ── */
+  @media (max-width: 600px) {
+    .decision-gate {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Hide SVG connector arrows at mobile */
+    .dg-arrow {
+      display: none;
+    }
+
+    /* Make all zones full-width stacked cards */
+    .dg-zone {
+      width: 100%;
+    }
+
+    /* Stack output items within outputs zone */
+    .dg-outputs {
+      flex-direction: column;
+      gap: 8px;
+    }
+  }
+</style>

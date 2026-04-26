@@ -15,7 +15,10 @@
     "dedupeBy": ["ruleId", "target"],
     "ignored": [
       { "ruleId": "color-contrast", "target": ".step-meta" },
-      { "ruleId": "color-contrast", "target": "[data-astro-cid-jptz7ure] .step-meta" }
+      { "ruleId": "color-contrast", "target": "[data-astro-cid-jptz7ure] .step-meta" },
+      { "ruleId": "color-contrast", "target": ".footnote" },
+      { "ruleId": "link-in-text-block", "target": "a[href$=\"guide/#chapter-7\"]" },
+      { "ruleId": "link-in-text-block", "target": "a[rel=\"noopener noreferrer\"][target=\"_blank\"][data-astro-cid-6vq2egjc=\"\"]" }
     ]
   }
 }
