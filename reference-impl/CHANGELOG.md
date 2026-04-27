@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `cloverleaf-cli write-baseline <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>` — new subcommand that copies a screenshot file to the canonical baseline path (`.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`), creating intermediate directories as needed. Includes the CLV-38 guard: exits non-zero with a descriptive error when the task's `ui-review/state.json` has `baselines_pending: true`, preventing the UI Reviewer from bypassing the human baseline-approval gate. Prints the destination path on stdout on success.
+
 ## 0.6.1 — 2026-04-27
 
 Focused patch release addressing seven bugs surfaced by the v0.6.0 dogfood run

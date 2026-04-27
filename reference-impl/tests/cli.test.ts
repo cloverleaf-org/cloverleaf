@@ -670,3 +670,121 @@ describe('cli — read-ui-review-state / write-ui-review-state (CLV-19)', () => 
     expect(exitCode).not.toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-38: write-baseline guard — refuses writes when baselines_pending is true
+// ---------------------------------------------------------------------------
+
+describe('cli — write-baseline guard (CLV-38)', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cli-write-baseline-'));
+  });
+
+  afterEach(() => {
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('exits nonzero with a descriptive error when baselines_pending is true (v0.6.1 guard present)', () => {
+    // Set baselines_pending: true to simulate an unreviewed UI Reviewer run
+    run(['write-ui-review-state', tmp, 'CLV-42', 'true']);
+
+    // Create a dummy source PNG
+    const srcFile = join(tmp, 'candidate.png');
+    writeFileSync(srcFile, Buffer.from([0x89, 0x50, 0x4e, 0x47])); // PNG magic bytes
+
+    const { exitCode, stderr } = run([
+      'write-baseline',
+      tmp,
+      'CLV-42',
+      'chromium',
+      'index',
+      'desktop',
+      srcFile,
+    ]);
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toMatch(/baselines_pending.*true|refused.*baselines_pending/i);
+  });
+
+  it('succeeds and copies the file when baselines_pending is false (gate cleared)', () => {
+    // Set baselines_pending: false to simulate post-approval state
+    run(['write-ui-review-state', tmp, 'CLV-42', 'false']);
+
+    const srcFile = join(tmp, 'candidate.png');
+    writeFileSync(srcFile, Buffer.from('fake-png-content'));
+
+    const { exitCode, stdout } = run([
+      'write-baseline',
+      tmp,
+      'CLV-42',
+      'chromium',
+      'index',
+      'desktop',
+      srcFile,
+    ]);
+
+    expect(exitCode).toBe(0);
+    // stdout should be the destination path
+    const destPath = stdout.trim();
+    expect(destPath).toContain('.cloverleaf/baselines/chromium/index-desktop.png');
+    expect(readFileSync(destPath, 'utf-8')).toBe('fake-png-content');
+  });
+
+  it('succeeds when state.json is absent (no prior UI Reviewer run — baselines_pending defaults to false)', () => {
+    // No state.json exists — readUiReviewState returns { baselines_pending: false }
+    const srcFile = join(tmp, 'candidate.png');
+    writeFileSync(srcFile, Buffer.from('fake-png-content'));
+
+    const { exitCode } = run([
+      'write-baseline',
+      tmp,
+      'CLV-42',
+      'chromium',
+      'index',
+      'desktop',
+      srcFile,
+    ]);
+
+    expect(exitCode).toBe(0);
+  });
+
+  it('creates intermediate baselines subdirectory automatically', () => {
+    run(['write-ui-review-state', tmp, 'CLV-42', 'false']);
+
+    const srcFile = join(tmp, 'shot.png');
+    writeFileSync(srcFile, Buffer.from('png-data'));
+
+    run(['write-baseline', tmp, 'CLV-42', 'webkit', 'faq', 'mobile', srcFile]);
+
+    const expectedPath = join(tmp, '.cloverleaf', 'baselines', 'webkit', 'faq-mobile.png');
+    expect(readFileSync(expectedPath, 'utf-8')).toBe('png-data');
+  });
+
+  it('exits nonzero with usage when required args are missing', () => {
+    const { exitCode, stderr } = run(['write-baseline', tmp, 'CLV-42']);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toMatch(/write-baseline requires/i);
+  });
+
+  it('guard is independent of the task: CLV-27 retroactive write is not blocked when state.json is absent', () => {
+    // CLV-27 is already merged; its .cloverleaf/runs/CLV-27/ui-review/state.json
+    // does not exist in a fresh consumer repo. The guard must NOT refuse writes
+    // for a task whose state file is absent (absence = baselines_pending: false).
+    const srcFile = join(tmp, 'legacy.png');
+    writeFileSync(srcFile, Buffer.from('legacy-baseline'));
+
+    const { exitCode } = run([
+      'write-baseline',
+      tmp,
+      'CLV-27',
+      'chromium',
+      'guide',
+      'desktop',
+      srcFile,
+    ]);
+
+    expect(exitCode).toBe(0);
+  });
+});
