@@ -1,0 +1,44 @@
+{
+  "verdict": "bounce",
+  "summary": "The core prep-worktree walker-mode fix (findPrimaryRoot) is correct and its two new tests are well-formed, but the cloverleaf/CLV-37 branch is based on a stale main (merge-base 65a95be — pre-CLV-34-merge); current main HEAD is ffcf25b. The diff against main therefore appears to revert CLV-34's package.json bump (0.6.1 → 0.6.0), delete 157 lines of tests/skills.test.ts, and strip the conflict-marker guard / walk-state-write logic from skills/cloverleaf-run-plan/SKILL.md. AC4 (prep-worktree.ts is the sole modified file) cannot be satisfied as long as the branch base is stale. Rebase cloverleaf/CLV-37 onto current main before re-review. Also a minor warning on findPrimaryRoot's error clarity.",
+  "findings": [
+    {
+      "severity": "blocker",
+      "message": "Stale branch base. cloverleaf/CLV-37 was branched from 65a95be (before CLV-34 merged into main). Current main is ffcf25b. Rebase cloverleaf/CLV-37 onto main so the diff reflects only the prep-worktree.ts walker-mode fix; without that, AC4 cannot be honoured. Expected to be a clean rebase since CLV-34 did not touch reference-impl/lib/prep-worktree.ts or reference-impl/tests/prep-worktree.test.ts.",
+      "location": {
+        "file": "reference-impl/package.json",
+        "line": 3
+      }
+    },
+    {
+      "severity": "blocker",
+      "message": "Apparent revert in reference-impl/package.json (0.6.1 → 0.6.0) is a stale-base artifact: CLV-34 set 0.6.1 on main but its commit is not in this branch's history. After rebase, this delta should disappear.",
+      "location": {
+        "file": "reference-impl/package.json",
+        "line": 3
+      }
+    },
+    {
+      "severity": "blocker",
+      "message": "Apparent deletion of 157 lines from reference-impl/tests/skills.test.ts is the same stale-base artifact (those lines are CLV-34's regression tests on main). After rebase onto current main, they should re-appear in the branch.",
+      "location": {
+        "file": "reference-impl/tests/skills.test.ts"
+      }
+    },
+    {
+      "severity": "blocker",
+      "message": "Apparent strip of the XDG_CACHE_HOME-based worktree path, conflict-marker grep guard, and walk-state-write drain from reference-impl/skills/cloverleaf-run-plan/SKILL.md is the same stale-base artifact (CLV-34's content). After rebase, this delta should disappear.",
+      "location": {
+        "file": "reference-impl/skills/cloverleaf-run-plan/SKILL.md"
+      }
+    },
+    {
+      "severity": "warning",
+      "message": "findPrimaryRoot returns null only when BOTH directories are missing at every ancestor. The original two-separate-checks code emitted distinct error messages naming whichever specific directory was missing (`main missing standard/node_modules` vs `main missing reference-impl/node_modules`). After this change, only the `standard/node_modules` variant is ever emitted, even when standard exists everywhere but reference-impl does not. Consider preserving the diagnostic distinction — for example, after the walk, if no candidate matches, separately check ancestors for each individually and report the first mismatch with its specific path.",
+      "location": {
+        "file": "reference-impl/lib/prep-worktree.ts",
+        "line": 66
+      }
+    }
+  ]
+}
