@@ -2,7 +2,7 @@
   "type": "spike",
   "project": "CLV",
   "id": "CLV-31",
-  "status": "pending",
+  "status": "completed",
   "owner": {
     "kind": "agent",
     "id": "researcher"
@@ -13,5 +13,7 @@
     "id": "CLV-30"
   },
   "question": "What should the canonical walker worktree base path be for v0.6.1? The dogfood landed on ~/.cache/cloverleaf/walker/<plan-id>-<task-id>/ as a working workaround. Should the shipped default be that path, $XDG_CACHE_HOME/cloverleaf/walker/ for portability, or <repoRoot>/.cloverleaf/runs/walker/ for consumer-locality? The answer determines what is written into the SKILL.md template for bug #1 and whether the acceptance harness needs to create the ~/.cache directory hierarchy in CI.",
-  "method": "research"
+  "method": "research",
+  "findings": "The claw-drive `isInsideHome` validation (confirmed in `/home/ren/Workspace/claw-drive/src/lib/paths.ts` lines 78–84) resolves the path against `os.homedir()` and requires the result to start with `$HOME/` or equal `$HOME`. It makes no reference to `XDG_CACHE_HOME`, so any path under `$HOME` passes — including `~/.cache/...`, `~/.cloverleaf/...`, and any consumer repo rooted under `$HOME`. The current SKILL.md template hard-codes `WT=\"/tmp/walker-<PLAN-ID>-<TASK-ID>\"` (line 80), which fails the constraint because `/tmp` is not under `$HOME`; this is bug #1. The dogfood worked around it manually with `~/.cache/cloverleaf/walker/CLV-26-CLV-{27,28,29}/` (confirmed in the debrief), which passed validation. The acceptance harness (`reference-impl/scripts/acceptance-walker.sh`) uses `mktemp -d -t cloverleaf-walker-acceptance.XXXXXX` and never calls `start_session`, so the `/tmp` path slipped through undetected. The `<repoRoot>/.cloverleaf/runs/walker/` candidate would pass validation when the repo is under `$HOME` (true for this project), but it co-locates ephemeral worktrees with the `.cloverleaf/runs/plan/` state directory, creates a naming collision risk, and requires a `.gitignore` entry; it is also brittle for consumers whose repo root is on a separate mount outside `$HOME`. The bare `$XDG_CACHE_HOME/cloverleaf/walker/` form is problematic because `$XDG_CACHE_HOME` is unset in this environment (confirmed via shell inspection — the variable expands to the empty string), so a naive shell substitution would produce a relative or broken path; only the fallback form `${XDG_CACHE_HOME:-$HOME/.cache}` is safe. The dogfood-validated path `~/.cache/cloverleaf/walker/` is precisely the XDG Base Directory default for cache data (`$XDG_CACHE_HOME` defaults to `$HOME/.cache` per the spec), semantically correct (worktrees are ephemeral build artifacts), unambiguously inside `$HOME`, and requires no gitignore maintenance.",
+  "recommendation": "Ship `${XDG_CACHE_HOME:-$HOME/.cache}/cloverleaf/walker/<PLAN-ID>-<TASK-ID>` as the v0.6.1 default. In SKILL.md step 5b, replace the current `WT=\"/tmp/walker-<PLAN-ID>-<TASK-ID>\"` line with `WT=\"${XDG_CACHE_HOME:-$HOME/.cache}/cloverleaf/walker/<PLAN-ID>-<TASK-ID>\"` and add `mkdir -p \"$(dirname \"$WT\")\"` before the `git worktree add` call so the directory hierarchy is created on first use. The acceptance harness does not need to create the `~/.cache` hierarchy because it never calls `start_session`; however, add a comment noting that real integration tests must pre-create the base directory or use `mkdir -p`. Do not use `<repoRoot>/.cloverleaf/runs/walker/` — it conflates ephemeral worktrees with persistent plan state and is fragile for off-`$HOME` repos."
 }
