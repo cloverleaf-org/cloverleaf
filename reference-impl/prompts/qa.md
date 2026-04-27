@@ -17,6 +17,14 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 
 ## Runtime procedure
 
+0. **Pre-flight — ensure correct working directory.**
+
+   ```bash
+   cd "$(git rev-parse --show-toplevel)"
+   ```
+
+   Run this as the first executable step before anything else. Session B sessions may inherit an arbitrary `cwd` from the walker harness; this anchors you at the repo root.
+
 1. Set up isolated worktree and prepare its node_modules + standard/dist. The `prep-worktree`
    helper copies main's `standard/node_modules` and `reference-impl/node_modules` into the
    worktree and runs the standard build script so the @cloverleaf/standard symlink resolves

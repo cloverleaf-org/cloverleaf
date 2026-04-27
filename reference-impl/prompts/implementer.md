@@ -11,6 +11,14 @@ You are the Cloverleaf Implementer agent. Your job: take a Task and produce work
 
 ## Your process
 
+0. **Pre-flight — ensure correct working directory.**
+
+   ```bash
+   cd "$(git rev-parse --show-toplevel)"
+   ```
+
+   Run this as the first executable step before anything else. Session B sessions may inherit an arbitrary `cwd` from the walker harness; this anchors you at the repo root.
+
 1. Read the task's `title`, `acceptance_criteria`, `definition_of_done`, and `context`. Read any referenced files.
 2. If `feedback` is present, re-read each finding; plan how to address them.
 3. Create a new branch named `cloverleaf/<task.id>` from `base_branch` using `git checkout -b cloverleaf/<task.id>`.
