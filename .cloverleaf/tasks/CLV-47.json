@@ -1,0 +1,27 @@
+{
+  "type": "task",
+  "id": "CLV-47",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "title": ".gitattributes merge=union for reference-impl/CHANGELOG.md",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-44"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/CHANGELOG.md merge=union` line is present in `.gitattributes` at the repo root (file created if absent; any existing lines preserved verbatim)",
+    "Regression test simulates two branches each appending a distinct `## [Unreleased]` bullet, performs a merge, then asserts both bullets are present in the result and no conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) appear"
+  ],
+  "acceptance_criteria": [
+    "After merging two branches with concurrent distinct CHANGELOG bullets, both entries are present and no conflict markers exist in the file",
+    "Any pre-existing lines in `.gitattributes` are not removed or altered by the change",
+    "Regression test passes in CI"
+  ],
+  "risk_class": "high"
+}

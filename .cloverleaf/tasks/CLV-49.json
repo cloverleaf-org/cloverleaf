@@ -1,0 +1,33 @@
+{
+  "type": "task",
+  "id": "CLV-49",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "title": "Release prep: CHANGELOG, package.json v0.6.2, tag, GitHub Release, npm publish",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-44"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/CHANGELOG.md` `## [Unreleased]` section renamed to `## 0.6.2 — 2026-04-27` and bullet order normalized if interleaved by merge=union",
+    "`## 0.6.2 — 2026-04-27` section lists all three fixes: install.sh cross-browser flag, merge=union CHANGELOG strategy, and Session B CWD drift fix",
+    "`reference-impl/package.json` version field bumped from `0.6.1` to `0.6.2`",
+    "Git tag `reference-impl-v0.6.2` created and pushed",
+    "GitHub Release published for tag `reference-impl-v0.6.2` with release notes drawn from the CHANGELOG section",
+    "`npm publish` executed for the `reference-impl` package at version `0.6.2`"
+  ],
+  "acceptance_criteria": [
+    "`reference-impl/CHANGELOG.md` contains a `## 0.6.2 — 2026-04-27` section with entries for all three CLV-44 fixes and no `## [Unreleased]` section remains",
+    "`reference-impl/package.json` reports `\"version\": \"0.6.2\"`",
+    "`git tag` output includes `reference-impl-v0.6.2`",
+    "GitHub Release page for `reference-impl-v0.6.2` is publicly visible with release notes",
+    "npm registry shows version `0.6.2` of the reference-impl package as the latest published release"
+  ],
+  "risk_class": "high"
+}

@@ -1,0 +1,31 @@
+{
+  "type": "task",
+  "id": "CLV-48",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "title": "Session B CWD drift fix in SKILL.md and agent prompts",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-44"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/skills/cloverleaf-run-plan/SKILL.md` Session B scenario brief embeds the absolute `$WORKTREE_ROOT` variable and includes `cd \"$WORKTREE_ROOT\"` as the first preflight instruction in that scenario",
+    "`prompts/implementer.md` gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable line",
+    "`prompts/documenter.md` gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable line",
+    "`prompts/reviewer.md` gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable line",
+    "`prompts/ui-reviewer.md` gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable line",
+    "`prompts/qa.md` gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable line"
+  ],
+  "acceptance_criteria": [
+    "A Session B subagent launched from an arbitrary working directory will execute `cd \"$WORKTREE_ROOT\"` before any task steps as specified in SKILL.md",
+    "Each of the five agent prompts contains `cd \"$(git rev-parse --show-toplevel)\"` as the first executable instruction, verifiable by grep",
+    "SKILL.md Session B scenario brief references `$WORKTREE_ROOT` explicitly in the brief text"
+  ],
+  "risk_class": "high"
+}

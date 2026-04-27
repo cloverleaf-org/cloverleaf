@@ -1,0 +1,36 @@
+{
+  "type": "task",
+  "id": "CLV-46",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "title": "install.sh --with-cross-browser flag",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-44"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-41"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "`--with-cross-browser` flag parsed from `\"$@\"` at the top of `reference-impl/install.sh`",
+    "When flag is present on Linux, `npx playwright install-deps webkit firefox` is invoked instead of `npx playwright install-deps webkit`",
+    "When flag is absent, existing webkit-only behavior is preserved unchanged",
+    "When flag is absent, an informational note is printed explaining how to enable cross-browser support",
+    "Shell-mock regression test added under `reference-impl/tests/` or `reference-impl/scripts/` covering both flag-present and flag-absent code paths"
+  ],
+  "acceptance_criteria": [
+    "Running `install.sh --with-cross-browser` on Linux installs both webkit and firefox Playwright deps without error",
+    "Running `install.sh` without the flag installs webkit deps only and prints the informational note",
+    "Regression test passes without external network access (shell mocking / stubs) and is runnable in CI"
+  ],
+  "risk_class": "high"
+}
