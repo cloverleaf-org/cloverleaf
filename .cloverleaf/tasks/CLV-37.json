@@ -1,7 +1,7 @@
 {
   "id": "CLV-37",
   "type": "task",
-  "status": "review",
+  "status": "implementing",
   "owner": {
     "kind": "agent",
     "id": "implementer"
