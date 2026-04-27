@@ -311,6 +311,50 @@ describe('reviewer prompt (v0.5.2 #B — worktree prep)', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// CLV-35: bug #2 — worktree add must use --detach <path> <sha> to avoid
+// "fatal: branch … is already checked out" when running inside a walker
+// worktree where named branches (feature + main) are already checked out.
+// ---------------------------------------------------------------------------
+
+describe('reviewer prompt (CLV-35 — worktree add --detach)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'prompts', 'reviewer.md'), 'utf-8');
+
+  it('every git worktree add command line uses --detach (CLV-35)', () => {
+    // Check each line that starts with `git worktree add` (i.e., actual command invocations,
+    // not prose references). None may be missing --detach.
+    const lines = body.split('\n');
+    const commandLines = lines.filter(l => /^\s*git worktree add/.test(l));
+    expect(commandLines.length).toBeGreaterThan(0); // sanity: prompt must have at least one
+    for (const line of commandLines) {
+      expect(line).toMatch(/git worktree add\s+--detach/);
+    }
+  });
+
+  it('does not contain a named-branch worktree add targeting main or cloverleaf/ (CLV-35)', () => {
+    expect(body).not.toMatch(/git worktree add\s+(?!--detach)\S+\s+(main|cloverleaf\/)/);
+  });
+});
+
+describe('qa prompt (CLV-35 — worktree add --detach)', () => {
+  const body = readPrompt('qa');
+
+  it('every git worktree add command line uses --detach (CLV-35)', () => {
+    // Check each line that starts with `git worktree add` (i.e., actual command invocations,
+    // not prose references). None may be missing --detach.
+    const lines = body.split('\n');
+    const commandLines = lines.filter(l => /^\s*git worktree add/.test(l));
+    expect(commandLines.length).toBeGreaterThan(0); // sanity: prompt must have at least one
+    for (const line of commandLines) {
+      expect(line).toMatch(/git worktree add\s+--detach/);
+    }
+  });
+
+  it('does not contain a named-branch worktree add targeting main or cloverleaf/ (CLV-35)', () => {
+    expect(body).not.toMatch(/git worktree add\s+(?!--detach)\S+\s+(main|cloverleaf\/)/);
+  });
+});
+
 describe('researcher prompt', () => {
   const body = readPrompt('researcher');
 

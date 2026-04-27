@@ -24,9 +24,12 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
    '@cloverleaf/standard/validators/index.js'` because git worktrees don't inherit node_modules.)
    ```bash
    TMPDIR=$(mktemp -d)
-   git worktree add "$TMPDIR" {{branch}}
+   SHA=$(git rev-parse {{branch}})
+   git worktree add --detach "$TMPDIR" "$SHA"
    cloverleaf-cli prep-worktree {{repo_root}} "$TMPDIR"
    ```
+
+   Use `--detach` with a SHA rather than a branch name: the calling context (e.g., the walker) may already have `{{branch}}` checked out in another worktree, causing `git worktree add` to fail with "fatal: branch … is already checked out". Detaching at a SHA bypasses this constraint entirely.
 
 2. Inspect the changed files (from the diff). For each QA rule whose `match` patterns match ≥1 changed file, queue its command.
 
