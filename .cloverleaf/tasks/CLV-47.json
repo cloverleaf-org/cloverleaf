@@ -2,7 +2,7 @@
   "type": "task",
   "id": "CLV-47",
   "project": "CLV",
-  "status": "implementing",
+  "status": "review",
   "owner": {
     "kind": "agent",
     "id": "implementer"
