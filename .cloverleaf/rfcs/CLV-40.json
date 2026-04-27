@@ -2,7 +2,7 @@
   "type": "rfc",
   "project": "CLV",
   "id": "CLV-40",
-  "status": "approved",
+  "status": "abandoned",
   "owner": {
     "kind": "agent",
     "id": "researcher"

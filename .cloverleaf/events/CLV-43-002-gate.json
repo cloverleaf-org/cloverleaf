@@ -1,0 +1,16 @@
+{
+  "event_id": "093b216d-c7e1-4c39-8f71-f0c1c3ffb99f",
+  "event_type": "gate_decision",
+  "occurred_at": "2026-04-27T21:08:52.784Z",
+  "gate": "task_batch_gate",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-43"
+  },
+  "decision": "reject",
+  "approver": {
+    "kind": "human",
+    "id": "local-user"
+  },
+  "comment": "Switching from extensions-based custodian to git .gitattributes merge=union for CHANGELOG.md. Simpler, git-native, zero new vocab. Plan needs re-breakdown after RFC revision."
+}
