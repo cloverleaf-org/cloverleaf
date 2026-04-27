@@ -67,7 +67,7 @@ run; v0.6.1 eliminates every one.
   emitted immediately after a successful `git merge --no-ff` in the drain step,
   recording `state: "merged"` and the `merge_commit` SHA in walk-state.
 
-- `cloverleaf-cli prep-worktree` no longer fails when `mainRoot` is a walker worktree path (a peer worktree with no installed deps). A new `findPrimaryRoot(startDir)` helper walks up parent directories until it finds one containing both `standard/node_modules` and `reference-impl/node_modules`, and `prepWorktree` now resolves the actual primary repo root via this helper before copying node_modules. If the walk reaches the filesystem root without a match, the existing "main missing standard/node_modules" error is thrown. 2 regression tests added in `tests/prep-worktree.test.ts`. [CLV-37]
+- `cloverleaf-cli prep-worktree` no longer fails when `mainRoot` is a walker worktree path (a peer worktree with no installed deps). A new `findPrimaryRoot(startDir)` helper walks up parent directories until it finds one containing both `standard/node_modules` and `reference-impl/node_modules`, and `prepWorktree` now resolves the actual primary repo root via this helper before copying node_modules. If the walk exhausts without a both-match, the helper re-walks for each subdirectory individually and throws a precise error naming the specific missing directory (e.g. "main missing reference-impl/node_modules at <path>"), preserving the prior diagnostic granularity. 5 regression tests added in `tests/prep-worktree.test.ts` (walker-mode happy path, two AC guards, and three diagnostic-branch tests). [CLV-37]
 
 ### Migration note (upgrading from v0.6.0)
 
