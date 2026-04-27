@@ -4,6 +4,10 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 
 ## [Unreleased]
 
+### Added
+
+- `.gitattributes` created at repo root with `reference-impl/CHANGELOG.md merge=union` — prevents merge conflicts when concurrent branches each append entries to `## [Unreleased]` in `reference-impl/CHANGELOG.md`.
+
 ## [reference-impl 0.1.1] — 2026-04-20
 
 Bug-fix release addressing issues surfaced by the v0.1.0 end-to-end demo and final code review.
