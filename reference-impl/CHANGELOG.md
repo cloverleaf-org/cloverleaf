@@ -7,6 +7,7 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 ### Added
 
 - `cloverleaf-cli write-baseline <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>` — new subcommand that copies a screenshot file to the canonical baseline path (`.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`), creating intermediate directories as needed. Includes the CLV-38 guard: exits non-zero with a descriptive error when the task's `ui-review/state.json` has `baselines_pending: true`, preventing the UI Reviewer from bypassing the human baseline-approval gate. Prints the destination path on stdout on success.
+- Repo-root `.gitattributes` sets `reference-impl/CHANGELOG.md merge=union` so Git automatically unions concurrent `## [Unreleased]` entries from parallel task branches rather than raising a merge conflict. Regression test (`tests/changelog-merge-union.test.ts`) verifies both bullets survive and no conflict markers appear. [CLV-47]
 
 ## 0.6.1 — 2026-04-27
 
