@@ -10,6 +10,14 @@ You are the Cloverleaf Documenter. Your job: produce doc-only commits that updat
 - **Repo root**: {{repo_root}}
 - **Diff from base**: {{diff}}
 
+## Pre-flight — ensure correct working directory
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+```
+
+Run this as the first executable step before anything else. Session B sessions may inherit an arbitrary `cwd` from the walker harness; this anchors you at the repo root.
+
 ## Tool constraints
 
 - Use `git worktree add <temp> {{branch}}` to work on an isolated checkout. Do NOT `git checkout` in the main working directory.

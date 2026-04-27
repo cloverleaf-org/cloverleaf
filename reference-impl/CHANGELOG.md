@@ -13,6 +13,11 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 
 - `install.sh` gains a `--with-cross-browser` flag. On Linux, passing the flag runs `npx playwright install-deps webkit firefox` (both engines) instead of the previous webkit-only `npx playwright install-deps webkit`. When the flag is absent, webkit-only behavior is preserved and an informational note is printed explaining how to re-run with `--with-cross-browser` to add firefox system deps for the full UI-Reviewer browser matrix. [CLV-46]
 
+### Changed
+
+- All five agent prompts (`implementer.md`, `documenter.md`, `reviewer.md`, `ui-reviewer.md`, `qa.md`) now open with a **Pre-flight** step: `cd "$(git rev-parse --show-toplevel)"`. Session B sessions spawned by the walker harness may inherit an arbitrary `cwd`; this anchors every agent at the repo root before any task steps run. [CLV-48]
+- `SKILL.md` (Session B scenario brief) now references `$WORKTREE_ROOT` by name in the brief text and includes an explicit `cd "$WORKTREE_ROOT"` pre-flight instruction so the spawned session resets its working directory to the worktree root before proceeding. [CLV-48]
+
 ## 0.6.1 — 2026-04-27
 
 Focused patch release addressing seven bugs surfaced by the v0.6.0 dogfood run

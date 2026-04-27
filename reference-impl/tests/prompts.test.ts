@@ -500,3 +500,90 @@ describe('ui-reviewer prompt (CLV-19 — state.json sidecar)', () => {
     expect(body).toMatch(/before teardown|after all browser passes/i);
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-48: Session B CWD drift fix — all five agent prompts must contain
+// `cd "$(git rev-parse --show-toplevel)"` as the first executable instruction.
+// ---------------------------------------------------------------------------
+
+describe('CLV-48 — CWD drift fix: all agent prompts contain cd preflight', () => {
+  const PROMPT_NAMES = ['implementer', 'documenter', 'reviewer', 'ui-reviewer', 'qa'] as const;
+
+  for (const name of PROMPT_NAMES) {
+    it(`${name}.md contains cd "$(git rev-parse --show-toplevel)" as first executable instruction`, () => {
+      const body = readPrompt(name);
+      // Must contain the exact command.
+      expect(body).toContain('cd "$(git rev-parse --show-toplevel)"');
+      // The command must appear before any other bash commands that would depend on cwd.
+      // Verify it appears in the early portion of the file (before the main task steps).
+      const cdIndex = body.indexOf('cd "$(git rev-parse --show-toplevel)"');
+      expect(cdIndex).toBeGreaterThan(-1);
+    });
+  }
+
+  it('implementer.md has the cd preflight before its main task steps (step 1)', () => {
+    const body = readPrompt('implementer');
+    const cdIndex = body.indexOf('cd "$(git rev-parse --show-toplevel)"');
+    // Step 1 starts the actual process steps; cd preflight must appear before step 1
+    const step1Index = body.indexOf('\n1. Read the task');
+    expect(cdIndex).toBeLessThan(step1Index);
+  });
+
+  it('reviewer.md has the cd preflight before its main task steps (step 1)', () => {
+    const body = readPrompt('reviewer');
+    const cdIndex = body.indexOf('cd "$(git rev-parse --show-toplevel)"');
+    const step1Index = body.indexOf('\n1. Read the task');
+    expect(cdIndex).toBeLessThan(step1Index);
+  });
+
+  it('qa.md has the cd preflight before the worktree setup step (step 1)', () => {
+    const body = readPrompt('qa');
+    const cdIndex = body.indexOf('cd "$(git rev-parse --show-toplevel)"');
+    const step1Index = body.indexOf('\n1. Set up isolated worktree');
+    expect(cdIndex).toBeLessThan(step1Index);
+  });
+
+  it('ui-reviewer.md has the cd preflight before the affected_routes early-exit check (step 1)', () => {
+    const body = readPrompt('ui-reviewer');
+    const cdIndex = body.indexOf('cd "$(git rev-parse --show-toplevel)"');
+    const step1Index = body.indexOf('{{affected_routes}}');
+    expect(cdIndex).toBeLessThan(step1Index);
+  });
+});
+
+describe('CLV-48 — CWD drift fix: SKILL.md Session B scenario brief uses $WORKTREE_ROOT', () => {
+  const { readFileSync } = require('node:fs');
+  const { resolve } = require('node:path');
+  const skillBody = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('Session B scenario brief text explicitly references $WORKTREE_ROOT', () => {
+    // The brief must embed the $WORKTREE_ROOT variable so Session B knows
+    // the absolute path it was launched into.
+    expect(skillBody).toContain('$WORKTREE_ROOT');
+  });
+
+  it('Session B scenario brief includes `cd "$WORKTREE_ROOT"` as the first preflight instruction', () => {
+    // The brief must contain the explicit cd instruction so Session B runs it
+    // before any task steps, regardless of inherited cwd.
+    expect(skillBody).toContain('cd "$WORKTREE_ROOT"');
+  });
+
+  it('$WORKTREE_ROOT appears in the session brief template section (not just prose)', () => {
+    // Extract the "Session brief template" section from the skill body.
+    const sectionMatch = skillBody.match(/## Session brief template\n([\s\S]*?)(?:\n## |$)/);
+    expect(sectionMatch).not.toBeNull();
+    const sectionBody = sectionMatch![1];
+    // The section must contain a fenced code block with $WORKTREE_ROOT and the cd instruction.
+    expect(sectionBody).toContain('$WORKTREE_ROOT');
+    expect(sectionBody).toContain('cd "$WORKTREE_ROOT"');
+    // Verify they appear inside a code fence (not just in prose).
+    const fenceMatch = sectionBody.match(/^```[^\n]*\n([\s\S]*?)\n^```/m);
+    expect(fenceMatch).not.toBeNull();
+    const fenceContent = fenceMatch![1];
+    expect(fenceContent).toContain('$WORKTREE_ROOT');
+    expect(fenceContent).toContain('cd "$WORKTREE_ROOT"');
+  });
+});

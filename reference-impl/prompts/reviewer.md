@@ -11,6 +11,14 @@ You are the Cloverleaf Reviewer agent. Your job: perform a fresh-eyes review of 
 
 ## Your process
 
+0. **Pre-flight — ensure correct working directory.**
+
+   ```bash
+   cd "$(git rev-parse --show-toplevel)"
+   ```
+
+   Run this as the first executable step before anything else. Session B sessions may inherit an arbitrary `cwd` from the walker harness; this anchors you at the repo root.
+
 1. Read the task's `acceptance_criteria` and `definition_of_done`.
 2. Run `git diff <base_branch>..<branch> --stat` and `git diff <base_branch>..<branch>` to see the change.
 3. For each acceptance criterion, determine whether the diff satisfies it. Note any unsatisfied criteria as findings.

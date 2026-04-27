@@ -184,8 +184,12 @@ The walker constructs a per-task `scenario_brief` roughly like:
 
 ```
 You are driving <TASK-ID> Delivery via /cloverleaf-run inside a dedicated
-git worktree at <worktree_path>. The worktree is checked out to branch
+git worktree rooted at $WORKTREE_ROOT. The worktree is checked out to branch
 cloverleaf/<TASK-ID> (already created from main). Task risk_class: <class>.
+
+**Pre-flight: before any task steps, run `cd "$WORKTREE_ROOT"` to ensure your
+working directory is the worktree root, not whatever directory the session
+inherited.**
 
 Plan: invoke `/cloverleaf-run <TASK-ID>`.
 
