@@ -1,0 +1,15 @@
+{
+  "event_id": "fd087b54-c9a4-4894-ad3d-c4481f5e728b",
+  "event_type": "gate_decision",
+  "occurred_at": "2026-04-27T15:46:43.870Z",
+  "gate": "rfc_strategy_gate",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-30"
+  },
+  "decision": "approve",
+  "approver": {
+    "kind": "human",
+    "id": "local-user"
+  }
+}
