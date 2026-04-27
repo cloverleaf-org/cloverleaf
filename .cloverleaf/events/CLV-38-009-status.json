@@ -1,0 +1,17 @@
+{
+  "event_id": "fd5ef527-4868-4231-9493-dfd7687b6179",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-27T17:38:09.333Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-38"
+  },
+  "work_item_type": "task",
+  "from_status": "final-gate",
+  "to_status": "merged",
+  "actor": {
+    "kind": "human",
+    "id": "local-user"
+  },
+  "reason": "gate=final_approval_gate; path=full_pipeline"
+}
