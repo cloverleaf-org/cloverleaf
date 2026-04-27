@@ -292,4 +292,97 @@ describe('prepWorktree', () => {
       rmSync(grandparent, { recursive: true, force: true });
     }
   });
+
+  it('findPrimaryRoot diagnostic: reports missing reference-impl/node_modules when standard/node_modules exists but reference-impl/node_modules does not (CLV-37)', () => {
+    // standard/node_modules is present but reference-impl/node_modules is absent.
+    // The error should name reference-impl/node_modules specifically.
+    const root = mkdtempSync(join(tmpdir(), 'cl-prep-diag-std-'));
+    try {
+      mkdirSync(join(root, 'standard', 'node_modules'), { recursive: true });
+      writeFileSync(join(root, 'standard', 'node_modules', 'marker'), 'x');
+      // reference-impl/ dir exists but has no node_modules/
+      mkdirSync(join(root, 'reference-impl'), { recursive: true });
+      writeFileSync(join(root, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+      const wtDir = mkdtempSync(join(tmpdir(), 'cl-prep-diag-wt-'));
+      try {
+        mkdirSync(join(wtDir, 'standard'), { recursive: true });
+        writeFileSync(
+          join(wtDir, 'standard', 'package.json'),
+          JSON.stringify({ name: '@cloverleaf/standard', scripts: { build: 'mkdir -p dist' } }) + '\n',
+        );
+        mkdirSync(join(wtDir, 'reference-impl'), { recursive: true });
+        writeFileSync(join(wtDir, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+        expect(() => prepWorktree(root, wtDir)).toThrowError(/main missing reference-impl\/node_modules/);
+        expect(() => prepWorktree(root, wtDir)).not.toThrowError(/main missing standard\/node_modules/);
+      } finally {
+        rmSync(wtDir, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('findPrimaryRoot diagnostic: reports missing standard/node_modules when reference-impl/node_modules exists but standard/node_modules does not (CLV-37)', () => {
+    // reference-impl/node_modules is present but standard/node_modules is absent.
+    // The error should name standard/node_modules specifically.
+    const root = mkdtempSync(join(tmpdir(), 'cl-prep-diag-ri-'));
+    try {
+      mkdirSync(join(root, 'reference-impl', 'node_modules'), { recursive: true });
+      writeFileSync(join(root, 'reference-impl', 'node_modules', 'marker'), 'x');
+      writeFileSync(join(root, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+      // standard/ dir exists but has no node_modules/
+      mkdirSync(join(root, 'standard'), { recursive: true });
+
+      const wtDir = mkdtempSync(join(tmpdir(), 'cl-prep-diag-wt-'));
+      try {
+        mkdirSync(join(wtDir, 'standard'), { recursive: true });
+        writeFileSync(
+          join(wtDir, 'standard', 'package.json'),
+          JSON.stringify({ name: '@cloverleaf/standard', scripts: { build: 'mkdir -p dist' } }) + '\n',
+        );
+        mkdirSync(join(wtDir, 'reference-impl'), { recursive: true });
+        writeFileSync(join(wtDir, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+        expect(() => prepWorktree(root, wtDir)).toThrowError(/main missing standard\/node_modules/);
+        expect(() => prepWorktree(root, wtDir)).not.toThrowError(/main missing reference-impl\/node_modules/);
+      } finally {
+        rmSync(wtDir, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('findPrimaryRoot diagnostic: reports standard/node_modules error against mainRoot when neither directory is found anywhere (CLV-37)', () => {
+    // Neither standard/node_modules nor reference-impl/node_modules exist anywhere.
+    // Error should reference standard/node_modules at the original mainRoot argument.
+    const emptyRoot = mkdtempSync(join(tmpdir(), 'cl-prep-diag-empty-'));
+    try {
+      // No node_modules anywhere under emptyRoot
+      mkdirSync(join(emptyRoot, 'standard'), { recursive: true });
+      mkdirSync(join(emptyRoot, 'reference-impl'), { recursive: true });
+      writeFileSync(join(emptyRoot, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+      const wtDir = mkdtempSync(join(tmpdir(), 'cl-prep-diag-wt-'));
+      try {
+        mkdirSync(join(wtDir, 'standard'), { recursive: true });
+        writeFileSync(
+          join(wtDir, 'standard', 'package.json'),
+          JSON.stringify({ name: '@cloverleaf/standard', scripts: { build: 'mkdir -p dist' } }) + '\n',
+        );
+        mkdirSync(join(wtDir, 'reference-impl'), { recursive: true });
+        writeFileSync(join(wtDir, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+        // Should throw the standard/node_modules fallback error naming the original emptyRoot.
+        expect(() => prepWorktree(emptyRoot, wtDir)).toThrowError(/main missing standard\/node_modules/);
+        expect(() => prepWorktree(emptyRoot, wtDir)).toThrowError(new RegExp(emptyRoot.replace(/[/\\]/g, '[/\\\\]')));
+      } finally {
+        rmSync(wtDir, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(emptyRoot, { recursive: true, force: true });
+    }
+  });
 });

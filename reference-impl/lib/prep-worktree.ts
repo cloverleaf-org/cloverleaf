@@ -50,6 +50,49 @@ function findPrimaryRoot(startDir: string): string | null {
   }
 }
 
+/**
+ * Walk up from `startDir` to find the nearest ancestor where the given `subdir` exists.
+ * Returns the ancestor path, or null if the filesystem root is reached without a match.
+ */
+function findNearestAncestorWithSubdir(startDir: string, subdir: string): string | null {
+  let candidate = startDir;
+  while (true) {
+    if (existsSync(join(candidate, subdir))) {
+      return candidate;
+    }
+    const parent = dirname(candidate);
+    if (parent === candidate) {
+      return null;
+    }
+    candidate = parent;
+  }
+}
+
+/**
+ * Build a diagnostic error message when `findPrimaryRoot` fails to find an ancestor with
+ * both `standard/node_modules` and `reference-impl/node_modules`. Walks up separately for
+ * each subdirectory to produce a precise message naming the specific missing directory.
+ */
+function buildMissingNodeModulesError(mainRoot: string): Error {
+  const hasStandard = findNearestAncestorWithSubdir(mainRoot, join('standard', 'node_modules'));
+  const hasRefImpl = findNearestAncestorWithSubdir(mainRoot, join('reference-impl', 'node_modules'));
+
+  if (hasStandard !== null && hasRefImpl === null) {
+    // standard/node_modules exists somewhere in the tree but reference-impl/node_modules does not.
+    const missing = join(hasStandard, 'reference-impl', 'node_modules');
+    return new Error(`main missing reference-impl/node_modules at ${missing} — run \`npm ci\` in main's reference-impl/ first`);
+  }
+  if (hasRefImpl !== null && hasStandard === null) {
+    // reference-impl/node_modules exists somewhere in the tree but standard/node_modules does not.
+    const missing = join(hasRefImpl, 'standard', 'node_modules');
+    return new Error(`main missing standard/node_modules at ${missing} — run \`npm ci\` in main's standard/ first`);
+  }
+  // Neither found (or both missing): fall back to reporting standard/node_modules against the
+  // original mainRoot argument (preserves prior behaviour for the truly-empty case).
+  const mainStandardNm = join(mainRoot, 'standard', 'node_modules');
+  return new Error(`main missing standard/node_modules at ${mainStandardNm} — run \`npm ci\` in main's standard/ first`);
+}
+
 export function prepWorktree(mainRoot: string, worktreePath: string): void {
   const wtStandardPkg = join(worktreePath, 'standard', 'package.json');
   const wtRefImplPkg = join(worktreePath, 'reference-impl', 'package.json');
@@ -65,8 +108,7 @@ export function prepWorktree(mainRoot: string, worktreePath: string): void {
   // directory containing both standard/node_modules and reference-impl/node_modules.
   const resolvedMain = findPrimaryRoot(mainRoot);
   if (resolvedMain === null) {
-    const mainStandardNm = join(mainRoot, 'standard', 'node_modules');
-    throw new Error(`main missing standard/node_modules at ${mainStandardNm} — run \`npm ci\` in main's standard/ first`);
+    throw buildMissingNodeModulesError(mainRoot);
   }
 
   const mainStandardNm = join(resolvedMain, 'standard', 'node_modules');
