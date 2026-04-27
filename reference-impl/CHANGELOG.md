@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- Reviewer and QA prompts now use `git worktree add --detach <path> <sha>` rather than a named-branch form, fixing a "fatal: branch … is already checked out" error when the prompts run inside a walker worktree (bug #2 from v0.6 walker dogfood). 4 regression tests added in `tests/prompts.test.ts`. [CLV-35]
+
 ## 0.6.0 — 2026-04-24
 
 First feature release after the CLV-15 / cross-browser-UI-review line of

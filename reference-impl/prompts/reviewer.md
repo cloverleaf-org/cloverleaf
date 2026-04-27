@@ -45,13 +45,16 @@ A `pass` verdict MAY have an empty `findings` array or omit it. A `bounce` verdi
 
   ```bash
   MAIN=$(pwd)
-  git worktree add /tmp/cl-review-<task-id> cloverleaf/<task-id>
+  SHA=$(git rev-parse cloverleaf/<task-id>)
+  git worktree add --detach /tmp/cl-review-<task-id> "$SHA"
   cloverleaf-cli prep-worktree "$MAIN" /tmp/cl-review-<task-id>
   cd /tmp/cl-review-<task-id>/reference-impl
   npm test
   cd -
   git worktree remove /tmp/cl-review-<task-id>
   ```
+
+  Use `--detach` with a SHA rather than a branch name: when running inside a walker worktree, the feature branch (and main) may already be checked out in another worktree, causing `git worktree add` to fail with "fatal: branch … is already checked out". Detaching at a SHA bypasses this constraint entirely.
 
   This keeps `.cloverleaf/` on main intact.
 - Severities (per the Cloverleaf feedback schema): `blocker` = wrong behavior / missing AC / broken tests; `error` = notable defect that should be fixed but doesn't break AC; `warning` = should fix; `info` = nit / style. Use `blocker` and `error` for bounces.
