@@ -8,6 +8,11 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 
 - `cloverleaf-cli write-baseline <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>` — new subcommand that copies a screenshot file to the canonical baseline path (`.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`), creating intermediate directories as needed. Includes the CLV-38 guard: exits non-zero with a descriptive error when the task's `ui-review/state.json` has `baselines_pending: true`, preventing the UI Reviewer from bypassing the human baseline-approval gate. Prints the destination path on stdout on success.
 
+### Changed
+
+- All five agent prompts (`implementer.md`, `documenter.md`, `reviewer.md`, `ui-reviewer.md`, `qa.md`) now open with a **Pre-flight** step: `cd "$(git rev-parse --show-toplevel)"`. Session B sessions spawned by the walker harness may inherit an arbitrary `cwd`; this anchors every agent at the repo root before any task steps run. [CLV-48]
+- `SKILL.md` (Session B scenario brief) now references `$WORKTREE_ROOT` by name in the brief text and includes an explicit `cd "$WORKTREE_ROOT"` pre-flight instruction so the spawned session resets its working directory to the worktree root before proceeding. [CLV-48]
+
 ## 0.6.1 — 2026-04-27
 
 Focused patch release addressing seven bugs surfaced by the v0.6.0 dogfood run
