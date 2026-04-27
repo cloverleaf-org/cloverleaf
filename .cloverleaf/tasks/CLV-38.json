@@ -1,0 +1,30 @@
+{
+  "id": "CLV-38",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "CLI baseline guard: refuse writes under .cloverleaf/baselines/ when baselines_pending is true (bug #5)",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-30"
+    },
+    "spikes": []
+  },
+  "definition_of_done": [
+    "cloverleaf-cli (via a guard in reference-impl/lib/cli.ts or reference-impl/lib/ui-review-state.ts) exits non-zero with a descriptive error message when asked to write a file under .cloverleaf/baselines/ and the task's .cloverleaf/runs/<taskId>/ui-review/state.json has baselines_pending: true",
+    "The guard is enforced at the CLI layer independently of prompt text, so no prompt change is required to activate it",
+    "Changes pass the existing reference-impl test suite; a new unit test covers the guard rejection path"
+  ],
+  "acceptance_criteria": [
+    "cloverleaf-cli write-ui-review-state (or the relevant baseline-write command) exits with a non-zero code and a descriptive error when baselines_pending is true in the task's ui-review state (RFC AC #9)",
+    "The guard cannot be bypassed by omitting a prompt instruction; it is enforced in TypeScript CLI code",
+    "A unit test in reference-impl/tests/ fails against v0.6.0 behavior (no guard) and passes against v0.6.1 behavior (guard present) (RFC AC #1)",
+    "Retroactive baseline writes for already-merged tasks (e.g., CLV-27) are not affected; the guard applies only to the active task's state file"
+  ],
+  "risk_class": "high"
+}

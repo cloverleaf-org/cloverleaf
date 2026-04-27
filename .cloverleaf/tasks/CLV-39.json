@@ -1,0 +1,37 @@
+{
+  "id": "CLV-39",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "acceptance-walker.sh: add scenarios for INVALID_CWD path, worktree-add collision, and prep-worktree walker mode (bugs #1, #2, #4)",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-30"
+    },
+    "spikes": [
+      {
+        "project": "CLV",
+        "id": "CLV-31"
+      }
+    ]
+  },
+  "definition_of_done": [
+    "reference-impl/scripts/acceptance-walker.sh contains a scenario (or documented stub comment) for bug #1: probing that the walker skill now emits a WT path under $HOME and not /tmp/, causing INVALID_CWD if the old template were used",
+    "reference-impl/scripts/acceptance-walker.sh contains a scenario (or documented stub comment) for bug #2: asserting that no git worktree add ... main (named-branch) form appears in the Reviewer or QA prompts",
+    "reference-impl/scripts/acceptance-walker.sh contains a scenario (or documented stub comment) for bug #4: calling prep-worktree with a walker-worktree mainRoot and asserting it succeeds using the corrected node_modules resolution logic",
+    "All new scenarios pass (or stubs include an explanatory comment where a live claw-drive session is required)"
+  ],
+  "acceptance_criteria": [
+    "acceptance-walker.sh is updated per RFC AC #2: scenarios or stub comments cover bugs #1, #2, and #4; any gap is documented with a comment explaining why it cannot be exercised without a live claw-drive session",
+    "Bug #1 scenario: the script verifies that the WT variable in SKILL.md matches the XDG_CACHE_HOME pattern (static grep) or runs a mock invocation that would fail with INVALID_CWD against the old /tmp path",
+    "Bug #2 scenario: the script verifies that reviewer.md and qa.md contain no 'git worktree add.*main' pattern (static grep)",
+    "Bug #4 scenario: the script calls cloverleaf-cli prep-worktree with a simulated walker worktree path (or documents why the live call cannot be made) and asserts success",
+    "The acceptance script exits 0 on a fresh checkout after CLV-34 and CLV-37 are merged to main (RFC AC #2)"
+  ],
+  "risk_class": "high"
+}

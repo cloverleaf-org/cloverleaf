@@ -1,0 +1,28 @@
+{
+  "id": "CLV-36",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "UI Reviewer prompt: relocate Playwright script to node_modules-resolvable directory (bug #3)",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-30"
+    },
+    "spikes": []
+  },
+  "definition_of_done": [
+    "reference-impl/prompts/ui-reviewer.md no longer writes the Playwright script to /tmp/; the script file is placed in a directory co-located with the worktree or reference-impl/ where node_modules/playwright is resolvable by Node",
+    "Changes pass the existing reference-impl test suite"
+  ],
+  "acceptance_criteria": [
+    "grep -n '/tmp/' reference-impl/prompts/ui-reviewer.md returns no matches for the Playwright script path (reproduces bug #3)",
+    "The updated prompt instructs placement of the script file in a directory where node_modules/playwright is present (e.g., inside the worktree root or reference-impl/) so Node module resolution succeeds",
+    "A manual review of the prompt confirms the script invocation uses a path within the worktree rather than /tmp/"
+  ],
+  "risk_class": "high"
+}

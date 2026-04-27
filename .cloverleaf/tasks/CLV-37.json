@@ -1,0 +1,30 @@
+{
+  "id": "CLV-37",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "prep-worktree walker-mode: resolve primary-repo node_modules when called from inside a walker worktree (bug #4)",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-30"
+    },
+    "spikes": []
+  },
+  "definition_of_done": [
+    "reference-impl/lib/prep-worktree.ts no longer unconditionally uses its first argument as the node_modules source root; it either walks up from the provided mainRoot to find a directory containing both standard/node_modules and reference-impl/node_modules, or it accepts an explicit --primary-root flag passed via cli.ts",
+    "cloverleaf-cli prep-worktree succeeds when mainRoot is a walker worktree path (a peer worktree without installed deps) by locating the actual primary repo root",
+    "Changes pass the existing reference-impl test suite"
+  ],
+  "acceptance_criteria": [
+    "Calling prep-worktree with a mainRoot that is a fresh walker worktree (no node_modules) succeeds by walking up to find the actual primary repo root (reproduces bug #4)",
+    "Calling prep-worktree with the actual primary repo root continues to work as before (regression guard)",
+    "The error message 'main missing standard/node_modules' is not emitted when called from a walker context where node_modules exist in a parent directory",
+    "reference-impl/lib/prep-worktree.ts is the sole file modified (no changes to standard/ or unrelated CLI commands)"
+  ],
+  "risk_class": "high"
+}

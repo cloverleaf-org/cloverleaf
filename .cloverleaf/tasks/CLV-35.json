@@ -1,0 +1,29 @@
+{
+  "id": "CLV-35",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Reviewer and QA prompts: switch git worktree add to --detach <path> <sha> (bug #2)",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-30"
+    },
+    "spikes": []
+  },
+  "definition_of_done": [
+    "reference-impl/prompts/reviewer.md uses git worktree add --detach <path> <sha> exclusively; no git worktree add ... main or any named-branch form that could be held by the primary repo remains",
+    "reference-impl/prompts/qa.md uses git worktree add --detach <path> <sha> exclusively; no git worktree add ... main or any named-branch form that could be held by the primary repo remains",
+    "Changes pass the existing reference-impl test suite"
+  ],
+  "acceptance_criteria": [
+    "grep -n 'worktree add' reference-impl/prompts/reviewer.md shows only --detach forms; no match on 'worktree add.*main' (RFC AC #8)",
+    "grep -n 'worktree add' reference-impl/prompts/qa.md shows only --detach forms; no match on 'worktree add.*main' (RFC AC #8)",
+    "A simulated walker run inside a repo where main is already checked out does not produce 'fatal: branch ... is already checked out' errors from either the Reviewer or QA subagent prompt (RFC AC #8)"
+  ],
+  "risk_class": "high"
+}
