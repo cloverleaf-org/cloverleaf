@@ -17,10 +17,10 @@ You are the Cloverleaf UI Reviewer. Your job: review a task's UI changes at mult
 
 You operate in two filesystem locations — keep them straight:
 
-- `<worktree>` — the ephemeral worktree at `$TMPDIR` (set up in step 2 of the Runtime procedure). You run the dev server here and execute Playwright here.
+- `<worktree>` — the ephemeral worktree at `$WT` (set up in step 2 of the Runtime procedure). You run the dev server here and execute Playwright here. Any standalone `.mjs` driver scripts must be placed INSIDE `$WT/site/` so that Node can resolve `playwright` from `$WT/site/node_modules/`; do NOT write them outside the worktree where no `node_modules` is present.
 - `<repoRoot>` — the main repository root at `{{repo_root}}` (always an absolute path). This is the ONLY location where baselines, diff PNGs, candidate PNGs, and artifacts are written.
 
-**All `compareVisual` paths MUST be rooted at `{{repo_root}}`, NOT at `$TMPDIR`.**
+**All `compareVisual` paths MUST be rooted at `{{repo_root}}`, NOT at `$WT`.**
 
 The rationale: baselines on `{{repo_root}}/.cloverleaf/baselines/` get picked up by subsequent `git add` + `git commit` steps in the UI Reviewer, which run on the feature branch. The merge skill (v0.4.1+) then merges those commits to main via `git merge --no-ff`. Writing to the worktree's `.cloverleaf/` would strand the files and `git worktree remove --force` would discard them on teardown.
 
@@ -71,18 +71,20 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 
 2. Set up an isolated worktree of the feature branch:
    ```bash
-   TMPDIR=$(mktemp -d)
-   git worktree add "$TMPDIR" {{branch}}
-   npx cloverleaf-cli prep-worktree {{repo_root}} "$TMPDIR"
+   WT=$(mktemp -d)
+   git worktree add "$WT" {{branch}}
+   npx cloverleaf-cli prep-worktree {{repo_root}} "$WT"
    ```
 
 3. For this repo, UI lives in `site/` (or another directory if ui-paths.json scopes it elsewhere). Install dependencies and start the dev server:
    ```bash
-   cd "$TMPDIR/site"
+   cd "$WT/site"
    npm ci
    npm run dev -- --port={{preview_port}} &
    SERVER_PID=$!
    ```
+
+   > **Playwright script placement (Bug #3 fix):** If you need to write a standalone `.mjs` driver script at any point, place it **inside the worktree** (e.g., `$WT/site/playwright-driver.mjs`) and run it from there (`node "$WT/site/playwright-driver.mjs"`). Node's ESM module resolution walks up from the script's own directory — a script placed outside the worktree (where `node_modules/playwright` was installed by `npm ci`) cannot resolve the `playwright` import and will fail.
 
 4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, kill it and return verdict `escalate`.
 
@@ -113,7 +115,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
       - Navigate to `http://localhost:{{preview_port}}<base><route>`. If 404, retry without the base.
       - `page.screenshot({ fullPage: false })` → candidate PNG buffer.
       - Compute slug for the route (lowercase, strip leading/trailing slashes, replace slashes with hyphens; `/` → `index`).
-      - Note: use `{{repo_root}}` (the absolute main-repo path), NOT `$TMPDIR` or the worktree. See the "Paths" section.
+      - Note: use `{{repo_root}}` (the absolute main-repo path), NOT `$WT` or the worktree. See the "Paths" section.
       - Call `compareVisual` (from `lib/visual-diff.ts`) with:
         - `baselinePath = {{repo_root}}/.cloverleaf/baselines/{browser}/{slug}-{viewport}.png`
         - `candidateBuf = <candidate PNG>`
@@ -174,7 +176,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
     ```bash
     kill $SERVER_PID 2>/dev/null || true
     cd {{repo_root}}
-    git worktree remove --force "$TMPDIR"
+    git worktree remove --force "$WT"
     ```
 
 ## Tool constraints
