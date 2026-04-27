@@ -1,0 +1,248 @@
+{
+  "id": "CLV-43",
+  "type": "plan",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "project": "CLV",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-40"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-44"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-45"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-46"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-47"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-46"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-45"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-44"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-47"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-45"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-47"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "CLV-44",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-43"
+      },
+      "title": "install.sh: add --with-cross-browser flag to install webkit/firefox system deps",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-40"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-41"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "reference-impl/install.sh parses --with-cross-browser from \"$@\" at the top of the script, before any other argument processing",
+        "When --with-cross-browser is present on Linux, `npx playwright install-deps webkit firefox` is invoked, replacing the current unconditional `install-deps webkit`-only call",
+        "When --with-cross-browser is absent on Linux, the existing `npx playwright install-deps webkit` behavior is preserved unchanged, and the script prints the informational note: \"(Pass --with-cross-browser to also install webkit/firefox system deps for cross-browser UI review.)\"",
+        "On non-Linux platforms, no additional bash guard is needed inside the flagged branch — playwright's own installer handles non-apt platforms as a graceful no-op (warning + exit 0); the flag does not introduce a new failure mode",
+        "README.md documents the --with-cross-browser flag with a note: pass --with-cross-browser when .cloverleaf/config/ui-review.json sets browsers to include webkit or firefox",
+        "A shell-mock regression test in reference-impl/tests/ (or reference-impl/scripts/) asserts that `npx playwright install-deps webkit firefox` is invoked when --with-cross-browser is present and that only `npx playwright install-deps webkit` (not install-deps firefox) is invoked when the flag is absent",
+        "All changes pass the existing reference-impl test suite (npm test in reference-impl/)"
+      ],
+      "acceptance_criteria": [
+        "install.sh --with-cross-browser invokes `npx playwright install-deps webkit firefox` on Linux (RFC CLV-40 AC #1, spike CLV-41 recommendation)",
+        "install.sh without --with-cross-browser on Linux invokes only `npx playwright install-deps webkit` (not firefox) and prints the informational note (RFC CLV-40 AC #2)",
+        "The shell-mock regression test passes: with --with-cross-browser the mock records `install-deps webkit firefox`; without it the mock records only `install-deps webkit` (RFC CLV-40 AC #4)",
+        "`grep 'with-cross-browser' reference-impl/install.sh` returns at least one match confirming the flag is parsed",
+        "On non-Linux platforms the flagged path does not fail — playwright's graceful no-op is sufficient; no additional bash guard is needed per spike CLV-41 finding #2"
+      ],
+      "risk_class": "high",
+      "extensions": {
+        "clv.changelog-suppressed": true
+      }
+    },
+    {
+      "id": "CLV-45",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-43"
+      },
+      "title": "Documenter CHANGELOG conflict: dual-flag annotation in plan.md, suppression preflight in documenter.md, --ours fallback in SKILL.md",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-40"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-42"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "reference-impl/prompts/plan.md gains a ~4-line addition instructing the Plan agent to emit extensions[\"clv.version-bump-custodian\"]: true on the custodian task AND extensions[\"clv.changelog-suppressed\"]: true on each non-custodian sibling task at breakdown time",
+        "reference-impl/prompts/documenter.md gains a ~6-line preflight block inserted after the cd preflight already added by CLV-46: if task.extensions[\"clv.changelog-suppressed\"] === true, return {\"commits_added\": 0, \"files_changed\": [], \"summary\": \"CHANGELOG suppressed: custodian sibling handles version bump and release section.\"} immediately without touching CHANGELOG.md",
+        "reference-impl/prompts/documenter.md's preflight also handles task.extensions[\"clv.version-bump-custodian\"]: when true, the Documenter writes the ## <version> CHANGELOG section as directed by the task's definition_of_done rather than ## [Unreleased]",
+        "reference-impl/skills/cloverleaf-run-plan/SKILL.md rebase step uses -X ours (or git checkout --ours) for reference-impl/CHANGELOG.md when a conflict is detected during walker rebase, as a belt-and-suspenders fallback for Documenter versions predating this fix",
+        "A regression test in reference-impl/tests/ verifies the Documenter CHANGELOG-skip behavior: given a synthesized task JSON with extensions[\"clv.changelog-suppressed\"]: true, the expected output has commits_added: 0 and no CHANGELOG.md entry in files_changed",
+        "The cd preflight already present in reference-impl/prompts/documenter.md from CLV-46 is NOT removed or moved; the CHANGELOG suppression logic is added as a subsequent block",
+        "All changes pass the existing reference-impl test suite (npm test in reference-impl/)"
+      ],
+      "acceptance_criteria": [
+        "`grep 'clv.changelog-suppressed' reference-impl/prompts/plan.md` returns a match confirming the dual-flag emission instruction (RFC CLV-40 AC #5, spike CLV-42 Option B)",
+        "The documenter.md preflight block checks task.extensions[\"clv.changelog-suppressed\"] and exits early with {commits_added: 0, files_changed: [], summary: \"CHANGELOG suppressed...\"} when the flag is true (RFC CLV-40 AC #6)",
+        "The documenter.md preflight block writes ## <version> (not ## [Unreleased]) when task.extensions[\"clv.version-bump-custodian\"] is true (RFC CLV-40 AC #7)",
+        "`grep 'ours' reference-impl/skills/cloverleaf-run-plan/SKILL.md` returns a match confirming the -X ours or --ours directive for CHANGELOG (RFC CLV-40 AC #9)",
+        "The regression test passes: a mock task JSON with extensions[\"clv.changelog-suppressed\"]: true produces commits_added: 0 with no CHANGELOG.md in files_changed (RFC CLV-40 AC #8)",
+        "reference-impl/prompts/documenter.md still contains the `cd $(git rev-parse --show-toplevel)` preflight line from CLV-46 (must not be removed — regression guard)"
+      ],
+      "risk_class": "high",
+      "extensions": {
+        "clv.changelog-suppressed": true
+      }
+    },
+    {
+      "id": "CLV-46",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-43"
+      },
+      "title": "Session B CWD drift fix: WORKTREE_ROOT injection in SKILL.md + cd preflight in all five agent prompts",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-40"
+        },
+        "spikes": []
+      },
+      "definition_of_done": [
+        "reference-impl/skills/cloverleaf-run-plan/SKILL.md embeds the absolute $WORKTREE_ROOT path in the Session B scenario brief, with an explicit instruction that Session B's first preflight step must execute `cd \"$WORKTREE_ROOT\"` before any git command",
+        "reference-impl/prompts/implementer.md gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable preflight line",
+        "reference-impl/prompts/documenter.md gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable preflight line (downstream task CLV-45 will add CHANGELOG suppression logic after this line — do not preempt or remove it)",
+        "reference-impl/prompts/reviewer.md gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable preflight line",
+        "reference-impl/prompts/ui-reviewer.md gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable preflight line",
+        "reference-impl/prompts/qa.md gains `cd \"$(git rev-parse --show-toplevel)\"` as its first executable preflight line",
+        "All changes pass the existing reference-impl test suite (npm test in reference-impl/)"
+      ],
+      "acceptance_criteria": [
+        "`grep 'WORKTREE_ROOT' reference-impl/skills/cloverleaf-run-plan/SKILL.md` returns a match confirming the absolute path is injected into the Session B brief and cd instruction is present (RFC CLV-40 AC #10)",
+        "`grep 'cd.*git rev-parse.*show-toplevel' reference-impl/prompts/implementer.md reference-impl/prompts/reviewer.md reference-impl/prompts/ui-reviewer.md reference-impl/prompts/qa.md` returns matches in all four files (RFC CLV-40 AC #11)",
+        "`grep 'cd.*git rev-parse.*show-toplevel' reference-impl/prompts/documenter.md` returns a match confirming the preflight is present (RFC CLV-40 AC #11)",
+        "All five prompts have the cd preflight as the first executable line, not buried mid-file",
+        "The existing reference-impl test suite passes unchanged (npm test in reference-impl/)"
+      ],
+      "risk_class": "high",
+      "extensions": {
+        "clv.changelog-suppressed": true
+      }
+    },
+    {
+      "id": "CLV-47",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-43"
+      },
+      "title": "v0.6.2 release prep: CHANGELOG ## 0.6.2 section, package.json bump, GitHub Release, npm publish",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-40"
+        },
+        "spikes": []
+      },
+      "definition_of_done": [
+        "reference-impl/CHANGELOG.md contains a ## 0.6.2 section listing all three bug fixes: cross-browser system deps (v0.6 dogfood item #3, fixed in CLV-44), Documenter CHANGELOG conflict (v0.6.1 dogfood item #12, fixed in CLV-45), and Session B CWD drift (v0.6.1 dogfood item #13, fixed in CLV-46)",
+        "reference-impl/package.json version field is 0.6.2",
+        "@cloverleaf/standard version remains at 0.4.1 and standard/package.json is NOT modified",
+        "Tag reference-impl-v0.6.2 is created on the merge commit",
+        "A GitHub Release is published under reference-impl-v0.6.2 with a human-readable summary of the three bug fixes",
+        "npm publish is executed for @cloverleaf/reference-impl@0.6.2",
+        "All changes pass the existing reference-impl test suite (npm test in reference-impl/)"
+      ],
+      "acceptance_criteria": [
+        "reference-impl/CHANGELOG.md has a ## 0.6.2 section covering all three bug fixes (RFC CLV-40 AC #14)",
+        "`node -e \"console.log(require('./package.json').version)\"` in reference-impl/ returns 0.6.2 (RFC CLV-40 AC #13)",
+        "standard/package.json is unchanged; `node -e \"console.log(require('./package.json').version)\"` in standard/ returns 0.4.1 (RFC CLV-40 AC #15)",
+        "`git tag --list 'reference-impl-v0.6.2'` returns the tag and `gh release view reference-impl-v0.6.2` succeeds (RFC CLV-40 AC #16)",
+        "`npm view @cloverleaf/reference-impl version` returns 0.6.2 after publish (RFC CLV-40 AC #16)",
+        "No CHANGELOG.md diff appears in any of CLV-44, CLV-45, or CLV-46 Documenter outputs — enforced by Plan DAG single-custodian structure and clv.changelog-suppressed extensions on non-custodian tasks"
+      ],
+      "risk_class": "high",
+      "extensions": {
+        "clv.version-bump-custodian": true
+      }
+    }
+  ]
+}
