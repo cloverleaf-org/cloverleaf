@@ -15,6 +15,7 @@
  *   ui-review-config --repo-root <repoRoot>
  *   read-ui-review-state <repoRoot> <taskId>
  *   write-ui-review-state <repoRoot> <taskId> <baselines_pending>
+ *   write-baseline <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>
  *   plugin-root
  *   load-rfc <repoRoot> <id>
  *   save-rfc <repoRoot> <filePath>
@@ -35,7 +36,8 @@
  *   walk-state-write <repoRoot> <walkStateJsonPath>
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { execSync } from 'node:child_process';
 import { loadTask } from './task.js';
 import { advanceStatus } from './task.js';
@@ -55,6 +57,7 @@ import { loadPlan, savePlan, advancePlanStatus, materialiseTasksFromPlan, type P
 import { loadDiscoveryConfig } from './discovery-config.js';
 import { prepWorktree } from './prep-worktree.js';
 import { readUiReviewState, writeUiReviewState } from './ui-review-state.js';
+import { buildBaselinePath } from './visual-diff.js';
 import { computeReadyTasks, detectCycle } from './dag-walker.js';
 import { readWalkState, writeWalkState, walkStatePath } from './walk-state.js';
 
@@ -78,6 +81,7 @@ function usage(msg?: string): never {
       '  ui-review-config --repo-root <repoRoot>\n' +
       '  read-ui-review-state <repoRoot> <taskId>\n' +
       '  write-ui-review-state <repoRoot> <taskId> <baselines_pending>\n' +
+      '  write-baseline <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>\n' +
       '  plugin-root\n' +
       '  load-rfc <repoRoot> <id>\n' +
       '  save-rfc <repoRoot> <filePath>\n' +
@@ -307,6 +311,30 @@ try {
         usage('write-ui-review-state requires <repoRoot> <taskId> <baselines_pending>');
       const baselines_pending = pendingArg === 'true' || pendingArg === '1';
       writeUiReviewState(repoRoot, taskId, { baselines_pending });
+      break;
+    }
+
+    case 'write-baseline': {
+      const [repoRoot, taskId, browser, slug, viewport, sourceFile] = rest;
+      if (!repoRoot || !taskId || !browser || !slug || !viewport || !sourceFile)
+        usage(
+          'write-baseline requires <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>'
+        );
+      // Guard: refuse writes under .cloverleaf/baselines/ when baselines_pending is true.
+      // This prevents the UI Reviewer from bypassing the human baseline-approval gate.
+      const uiState = readUiReviewState(repoRoot, taskId);
+      if (uiState.baselines_pending) {
+        die(
+          `write-baseline refused: baselines_pending is true for task ${taskId}.\n` +
+            `A human must approve the pending baselines via the baseline-approval gate before new baselines can be written.\n` +
+            `Run: cloverleaf-cli write-ui-review-state <repoRoot> ${taskId} false` +
+            ` after the human approves the baselines.`
+        );
+      }
+      const destPath = buildBaselinePath(repoRoot, browser, slug, viewport);
+      mkdirSync(dirname(destPath), { recursive: true });
+      copyFileSync(sourceFile, destPath);
+      process.stdout.write(destPath + '\n');
       break;
     }
 
