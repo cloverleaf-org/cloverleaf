@@ -96,9 +96,15 @@ The installer (`install.sh`) automatically runs the Playwright browser install s
 
     npx playwright install chromium webkit firefox
 
-On **Linux**, webkit additionally requires system-level dependencies:
+On **Linux**, webkit additionally requires system-level dependencies. By default `install.sh` installs webkit deps only:
 
     npx playwright install-deps webkit
+
+To also install firefox system deps (enabling the full chromium + webkit + firefox browser matrix for the UI Reviewer), pass `--with-cross-browser` to the installer:
+
+    ./install.sh --with-cross-browser
+
+This runs `npx playwright install-deps webkit firefox` instead. When the flag is omitted, `install.sh` prints a note reminding you how to enable cross-browser support later.
 
 **Disk footprint:** approximately 600–650 MB total across all three browsers in the default `PLAYWRIGHT_BROWSERS_PATH` location (`~/.cache/ms-playwright/`).
 

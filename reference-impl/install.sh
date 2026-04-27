@@ -7,9 +7,22 @@ set -euo pipefail
 # `claude plugin` CLI. Point Claude Code at the cloverleaf repo root (where
 # .claude-plugin/marketplace.json lives), then install the plugin from the
 # resulting marketplace.
+#
+# Flags:
+#   --with-cross-browser   On Linux, also install firefox system deps (in
+#                          addition to webkit) so the UI Reviewer can run the
+#                          full chromium + webkit + firefox browser matrix.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Parse flags from "$@".
+WITH_CROSS_BROWSER=0
+for arg in "$@"; do
+  case "$arg" in
+    --with-cross-browser) WITH_CROSS_BROWSER=1 ;;
+  esac
+done
 
 if ! command -v claude >/dev/null 2>&1; then
   echo "error: 'claude' CLI not found on PATH."
@@ -50,11 +63,19 @@ echo ""
 
 npx playwright install chromium webkit firefox
 
-# On Linux, system deps for webkit are also required.
+# On Linux, system deps are also required.
 if [ "$(uname -s)" = "Linux" ]; then
   echo ""
-  echo "Linux detected — installing webkit system dependencies..."
-  npx playwright install-deps webkit
+  if [ "$WITH_CROSS_BROWSER" = "1" ]; then
+    echo "Linux detected — installing webkit + firefox system dependencies (--with-cross-browser)..."
+    npx playwright install-deps webkit firefox
+  else
+    echo "Linux detected — installing webkit system dependencies..."
+    npx playwright install-deps webkit
+    echo ""
+    echo "Note: to also install firefox system dependencies for full cross-browser"
+    echo "  UI review support, re-run with: ./install.sh --with-cross-browser"
+  fi
 fi
 
 echo ""
