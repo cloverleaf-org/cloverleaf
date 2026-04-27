@@ -1,0 +1,17 @@
+{
+  "event_id": "b912c435-7ac5-48d4-8a39-fb27ef92dd36",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-27T16:27:22.135Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-34"
+  },
+  "work_item_type": "task",
+  "from_status": "automated-gates",
+  "to_status": "qa",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "reason": "gate=--path=full_pipeline"
+}
