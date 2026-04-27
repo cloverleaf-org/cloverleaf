@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-31",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "What should the canonical walker worktree base path be for v0.6.1? The dogfood l",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-30"
+  },
+  "question": "What should the canonical walker worktree base path be for v0.6.1? The dogfood landed on ~/.cache/cloverleaf/walker/<plan-id>-<task-id>/ as a working workaround. Should the shipped default be that path, $XDG_CACHE_HOME/cloverleaf/walker/ for portability, or <repoRoot>/.cloverleaf/runs/walker/ for consumer-locality? The answer determines what is written into the SKILL.md template for bug #1 and whether the acceptance harness needs to create the ~/.cache directory hierarchy in CI.",
+  "method": "research"
+}

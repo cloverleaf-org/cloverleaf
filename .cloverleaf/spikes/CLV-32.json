@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-32",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Does the walk-state staleness fix (bug #7) require a one-shot reconciler CLI sub",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-30"
+  },
+  "question": "Does the walk-state staleness fix (bug #7) require a one-shot reconciler CLI subcommand for consumer repos that have v0.6.0 walk-state.json files with tasks stuck at state: \"running\" for tasks that are actually merged on disk, or is it acceptable to document that a fresh --reset is required before the first v0.6.1 walker invocation? The answer determines whether a new cloverleaf-cli subcommand must be shipped alongside the SKILL.md fix.",
+  "method": "research"
+}
