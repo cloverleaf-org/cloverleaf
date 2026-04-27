@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-42",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Custodian detection mechanics for the Documenter CHANGELOG fix: the Documenter n",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-40"
+  },
+  "question": "Custodian detection mechanics for the Documenter CHANGELOG fix: the Documenter needs to distinguish the version-bump custodian task from siblings to suppress its own CHANGELOG.md edit. Option A is DoD-grep — the Documenter reads the Plan JSON, loads each sibling task, and pattern-matches definition_of_done entries for 'package.json version bump' or '## <version> CHANGELOG' strings; this requires no schema change but is fragile against DoD phrasing variation. Option B is an explicit annotation — the Plan agent emits extensions.clv.version-bump-custodian: true on the custodian task during breakdown; the Documenter reads the extensions field directly. The task schema's extensions field already supports namespaced keys without Standard modification, making Option B viable today. A spike should confirm the extensions-based approach (validate that cloverleaf-cli loadTask exposes the extensions field to the Documenter) and draft the exact Documenter prompt fragment for the chosen path.",
+  "method": "research"
+}

@@ -1,0 +1,16 @@
+{
+  "event_id": "82ddcecd-faad-4283-9432-bc00904e8208",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-27T19:35:39.794Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-40"
+  },
+  "work_item_type": "rfc",
+  "from_status": "drafting",
+  "to_status": "spike-in-flight",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  }
+}

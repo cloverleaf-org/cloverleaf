@@ -1,0 +1,17 @@
+{
+  "type": "spike",
+  "project": "CLV",
+  "id": "CLV-41",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Cross-browser opt-in mechanism for install.sh: should the system-deps installati",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-40"
+  },
+  "question": "Cross-browser opt-in mechanism for install.sh: should the system-deps installation (npx playwright install-deps webkit firefox) be gated by an explicit --with-cross-browser CLI flag, triggered by the presence of webkit/firefox in .cloverleaf/config/ui-review.json, or run unconditionally? The flag approach avoids config-at-install-time coupling and is predictable in CI environments but requires callers to opt in and a README note; the config-driven approach is ergonomic long-term but requires consumer config to exist before installation. A spike should evaluate platform-detection reliability (apt-only graceful no-op), assess how downstream consumers invoke install.sh today, and produce a recommendation with a concrete flag name or config-key convention.",
+  "method": "research"
+}
