@@ -1,0 +1,266 @@
+{
+  "type": "plan",
+  "id": "CLV-33",
+  "project": "CLV",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-30"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-34"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-35"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-36"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-37"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-38"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-39"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-34"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-39"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-37"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-39"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "CLV-34",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "SKILL.md walker correctness: worktree path, conflict-marker guard, walk-state-write drain (bugs #1, #6, #7) + CHANGELOG + version bump",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-30"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-31"
+          },
+          {
+            "project": "CLV",
+            "id": "CLV-32"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "reference-impl/skills/cloverleaf-run-plan/SKILL.md step 5b uses WT=\"${XDG_CACHE_HOME:-$HOME/.cache}/cloverleaf/walker/<PLAN-ID>-<TASK-ID>\" and adds mkdir -p \"$(dirname \"$WT\")\" before git worktree add; no /tmp/walker-* path remains anywhere in SKILL.md",
+        "SKILL.md drain merge sequence (section 5e or equivalent) contains a grep step that scans all changed files for conflict markers (<<<<<<, =======, >>>>>>>) and aborts before git merge --no-ff if any are found",
+        "SKILL.md drain sequence emits a cloverleaf-cli walk-state-write call immediately after a successful git merge --no-ff, recording state: \"merged\" and the merge_commit SHA",
+        "reference-impl/CHANGELOG.md contains a ## 0.6.1 section listing all seven bug fixes and a migration note that consumers upgrading from v0.6.0 should run cloverleaf-run-plan <PLAN-ID> --reset before the first v0.6.1 invocation on any plan with a stale walk-state.json; no cloverleaf-cli walk-state-reconcile subcommand is introduced",
+        "reference-impl/package.json version field is updated to 0.6.1",
+        "All changes pass the existing reference-impl test suite (npm test in reference-impl/)"
+      ],
+      "acceptance_criteria": [
+        "The walker skill template in reference-impl/skills/cloverleaf-run-plan/SKILL.md uses the XDG_CACHE_HOME-based path and no longer references /tmp/walker-* paths anywhere (RFC AC #7)",
+        "A grep -r '/tmp/walker' reference-impl/skills/ returns no matches after the patch",
+        "The SKILL.md drain step contains a conflict-marker grep that aborts merge when <<<<<<, =======, or >>>>>>> appear in any changed file (RFC AC #10, reproduces bug #6)",
+        "The SKILL.md drain step contains a cloverleaf-cli walk-state-write call after each successful git merge --no-ff that records state: merged and the merge_commit SHA (RFC AC #10, reproduces bug #7)",
+        "reference-impl/CHANGELOG.md has a ## 0.6.1 section covering all seven bug fixes and the --reset migration note (RFC AC #6)",
+        "No cloverleaf-cli walk-state-reconcile subcommand or equivalent one-shot reconciler command is introduced (RFC AC #11)",
+        "reference-impl/package.json reports version 0.6.1 (RFC AC #4)",
+        "@cloverleaf/standard package.json is not modified; standard version remains 0.4.1 (RFC AC #5)"
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-35",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Reviewer and QA prompts: switch git worktree add to --detach <path> <sha> (bug #2)",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-30"
+        },
+        "spikes": []
+      },
+      "definition_of_done": [
+        "reference-impl/prompts/reviewer.md uses git worktree add --detach <path> <sha> exclusively; no git worktree add ... main or any named-branch form that could be held by the primary repo remains",
+        "reference-impl/prompts/qa.md uses git worktree add --detach <path> <sha> exclusively; no git worktree add ... main or any named-branch form that could be held by the primary repo remains",
+        "Changes pass the existing reference-impl test suite"
+      ],
+      "acceptance_criteria": [
+        "grep -n 'worktree add' reference-impl/prompts/reviewer.md shows only --detach forms; no match on 'worktree add.*main' (RFC AC #8)",
+        "grep -n 'worktree add' reference-impl/prompts/qa.md shows only --detach forms; no match on 'worktree add.*main' (RFC AC #8)",
+        "A simulated walker run inside a repo where main is already checked out does not produce 'fatal: branch ... is already checked out' errors from either the Reviewer or QA subagent prompt (RFC AC #8)"
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-36",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "UI Reviewer prompt: relocate Playwright script to node_modules-resolvable directory (bug #3)",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-30"
+        },
+        "spikes": []
+      },
+      "definition_of_done": [
+        "reference-impl/prompts/ui-reviewer.md no longer writes the Playwright script to /tmp/; the script file is placed in a directory co-located with the worktree or reference-impl/ where node_modules/playwright is resolvable by Node",
+        "Changes pass the existing reference-impl test suite"
+      ],
+      "acceptance_criteria": [
+        "grep -n '/tmp/' reference-impl/prompts/ui-reviewer.md returns no matches for the Playwright script path (reproduces bug #3)",
+        "The updated prompt instructs placement of the script file in a directory where node_modules/playwright is present (e.g., inside the worktree root or reference-impl/) so Node module resolution succeeds",
+        "A manual review of the prompt confirms the script invocation uses a path within the worktree rather than /tmp/"
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-37",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "prep-worktree walker-mode: resolve primary-repo node_modules when called from inside a walker worktree (bug #4)",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-30"
+        },
+        "spikes": []
+      },
+      "definition_of_done": [
+        "reference-impl/lib/prep-worktree.ts no longer unconditionally uses its first argument as the node_modules source root; it either walks up from the provided mainRoot to find a directory containing both standard/node_modules and reference-impl/node_modules, or it accepts an explicit --primary-root flag passed via cli.ts",
+        "cloverleaf-cli prep-worktree succeeds when mainRoot is a walker worktree path (a peer worktree without installed deps) by locating the actual primary repo root",
+        "Changes pass the existing reference-impl test suite"
+      ],
+      "acceptance_criteria": [
+        "Calling prep-worktree with a mainRoot that is a fresh walker worktree (no node_modules) succeeds by walking up to find the actual primary repo root (reproduces bug #4)",
+        "Calling prep-worktree with the actual primary repo root continues to work as before (regression guard)",
+        "The error message 'main missing standard/node_modules' is not emitted when called from a walker context where node_modules exist in a parent directory",
+        "reference-impl/lib/prep-worktree.ts is the sole file modified (no changes to standard/ or unrelated CLI commands)"
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-38",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "CLI baseline guard: refuse writes under .cloverleaf/baselines/ when baselines_pending is true (bug #5)",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-30"
+        },
+        "spikes": []
+      },
+      "definition_of_done": [
+        "cloverleaf-cli (via a guard in reference-impl/lib/cli.ts or reference-impl/lib/ui-review-state.ts) exits non-zero with a descriptive error message when asked to write a file under .cloverleaf/baselines/ and the task's .cloverleaf/runs/<taskId>/ui-review/state.json has baselines_pending: true",
+        "The guard is enforced at the CLI layer independently of prompt text, so no prompt change is required to activate it",
+        "Changes pass the existing reference-impl test suite; a new unit test covers the guard rejection path"
+      ],
+      "acceptance_criteria": [
+        "cloverleaf-cli write-ui-review-state (or the relevant baseline-write command) exits with a non-zero code and a descriptive error when baselines_pending is true in the task's ui-review state (RFC AC #9)",
+        "The guard cannot be bypassed by omitting a prompt instruction; it is enforced in TypeScript CLI code",
+        "A unit test in reference-impl/tests/ fails against v0.6.0 behavior (no guard) and passes against v0.6.1 behavior (guard present) (RFC AC #1)",
+        "Retroactive baseline writes for already-merged tasks (e.g., CLV-27) are not affected; the guard applies only to the active task's state file"
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-39",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "acceptance-walker.sh: add scenarios for INVALID_CWD path, worktree-add collision, and prep-worktree walker mode (bugs #1, #2, #4)",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-30"
+        },
+        "spikes": [
+          {
+            "project": "CLV",
+            "id": "CLV-31"
+          }
+        ]
+      },
+      "definition_of_done": [
+        "reference-impl/scripts/acceptance-walker.sh contains a scenario (or documented stub comment) for bug #1: probing that the walker skill now emits a WT path under $HOME and not /tmp/, causing INVALID_CWD if the old template were used",
+        "reference-impl/scripts/acceptance-walker.sh contains a scenario (or documented stub comment) for bug #2: asserting that no git worktree add ... main (named-branch) form appears in the Reviewer or QA prompts",
+        "reference-impl/scripts/acceptance-walker.sh contains a scenario (or documented stub comment) for bug #4: calling prep-worktree with a walker-worktree mainRoot and asserting it succeeds using the corrected node_modules resolution logic",
+        "All new scenarios pass (or stubs include an explanatory comment where a live claw-drive session is required)"
+      ],
+      "acceptance_criteria": [
+        "acceptance-walker.sh is updated per RFC AC #2: scenarios or stub comments cover bugs #1, #2, and #4; any gap is documented with a comment explaining why it cannot be exercised without a live claw-drive session",
+        "Bug #1 scenario: the script verifies that the WT variable in SKILL.md matches the XDG_CACHE_HOME pattern (static grep) or runs a mock invocation that would fail with INVALID_CWD against the old /tmp path",
+        "Bug #2 scenario: the script verifies that reviewer.md and qa.md contain no 'git worktree add.*main' pattern (static grep)",
+        "Bug #4 scenario: the script calls cloverleaf-cli prep-worktree with a simulated walker worktree path (or documents why the live call cannot be made) and asserts success",
+        "The acceptance script exits 0 on a fresh checkout after CLV-34 and CLV-37 are merged to main (RFC AC #2)"
+      ],
+      "risk_class": "high"
+    }
+  ]
+}
