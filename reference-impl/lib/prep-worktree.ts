@@ -1,6 +1,6 @@
 import { cpSync, existsSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 
 /**
  * Prepare a freshly-created git worktree of the cloverleaf monorepo for running reference-impl
@@ -20,10 +20,37 @@ import { join } from 'node:path';
  *   - Copy `<main>/reference-impl/node_modules` → `<wt>/reference-impl/node_modules`
  *     The `@cloverleaf/standard → ../../../standard` relative symlink is preserved verbatim so
  *     it resolves to the worktree's OWN standard/, not main's.
+ *
+ * Walker-mode resilience (CLV-37): when `mainRoot` is itself a walker worktree without
+ * node_modules, walk up ancestor directories until one is found that contains both
+ * `standard/node_modules` and `reference-impl/node_modules`. This allows the orchestrator to
+ * pass the current walker worktree path without needing to know the actual primary repo root.
  */
+
+/**
+ * Walk up the directory tree from `startDir` until a directory is found that contains both
+ * `standard/node_modules` and `reference-impl/node_modules`. Returns that directory, or null
+ * if the filesystem root is reached without finding one.
+ */
+function findPrimaryRoot(startDir: string): string | null {
+  let candidate = startDir;
+  while (true) {
+    if (
+      existsSync(join(candidate, 'standard', 'node_modules')) &&
+      existsSync(join(candidate, 'reference-impl', 'node_modules'))
+    ) {
+      return candidate;
+    }
+    const parent = dirname(candidate);
+    if (parent === candidate) {
+      // Reached filesystem root without finding a match.
+      return null;
+    }
+    candidate = parent;
+  }
+}
+
 export function prepWorktree(mainRoot: string, worktreePath: string): void {
-  const mainStandardNm = join(mainRoot, 'standard', 'node_modules');
-  const mainRefImplNm = join(mainRoot, 'reference-impl', 'node_modules');
   const wtStandardPkg = join(worktreePath, 'standard', 'package.json');
   const wtRefImplPkg = join(worktreePath, 'reference-impl', 'package.json');
 
@@ -33,12 +60,17 @@ export function prepWorktree(mainRoot: string, worktreePath: string): void {
   if (!existsSync(wtRefImplPkg)) {
     throw new Error(`worktree missing reference-impl/package.json at ${wtRefImplPkg}`);
   }
-  if (!existsSync(mainStandardNm)) {
+
+  // Resolve the actual primary repo root: start from mainRoot and walk up until we find a
+  // directory containing both standard/node_modules and reference-impl/node_modules.
+  const resolvedMain = findPrimaryRoot(mainRoot);
+  if (resolvedMain === null) {
+    const mainStandardNm = join(mainRoot, 'standard', 'node_modules');
     throw new Error(`main missing standard/node_modules at ${mainStandardNm} — run \`npm ci\` in main's standard/ first`);
   }
-  if (!existsSync(mainRefImplNm)) {
-    throw new Error(`main missing reference-impl/node_modules at ${mainRefImplNm} — run \`npm ci\` in main's reference-impl/ first`);
-  }
+
+  const mainStandardNm = join(resolvedMain, 'standard', 'node_modules');
+  const mainRefImplNm = join(resolvedMain, 'reference-impl', 'node_modules');
 
   const wtStandardNm = join(worktreePath, 'standard', 'node_modules');
   const wtRefImplNm = join(worktreePath, 'reference-impl', 'node_modules');

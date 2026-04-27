@@ -148,4 +148,148 @@ describe('prepWorktree', () => {
     expect(() => prepWorktree(main, wt)).not.toThrow();
     expect(readlinkSync(join(wt, 'reference-impl', 'node_modules', 'vite', 'node_modules', '.bin'))).toBe('../../.bin');
   });
+
+  it('walker-mode: succeeds when mainRoot is a walker worktree (no node_modules) by walking up to the primary root (CLV-37)', () => {
+    // Simulates the walker bug: the orchestrator passes a walker worktree path as mainRoot.
+    // That walker worktree has source files but no node_modules. The actual primary repo with
+    // node_modules lives in a parent directory. prepWorktree must walk up and find it.
+
+    // Build a fake filesystem hierarchy:
+    //   primaryRoot/
+    //     standard/node_modules/some-dep/   ← installed deps
+    //     reference-impl/node_modules/...   ← installed deps
+    //   primaryRoot/walkers/walker-wt/       ← the "main" path passed by the orchestrator
+    //     standard/package.json             (source files, no node_modules)
+    //     reference-impl/package.json
+
+    const primaryRoot = mkdtempSync(join(tmpdir(), 'cl-prep-primary-'));
+    try {
+      // Set up the primary repo with node_modules.
+      mkdirSync(join(primaryRoot, 'standard', 'node_modules', 'some-dep'), { recursive: true });
+      writeFileSync(join(primaryRoot, 'standard', 'node_modules', 'some-dep', 'package.json'), '{"name":"some-dep"}');
+      mkdirSync(join(primaryRoot, 'standard'), { recursive: true });
+      writeFileSync(
+        join(primaryRoot, 'standard', 'package.json'),
+        JSON.stringify({
+          name: '@cloverleaf/standard',
+          version: '0.0.0-test',
+          scripts: { build: 'mkdir -p dist && echo built-from-worktree > dist/marker.txt' },
+        }) + '\n',
+      );
+      mkdirSync(join(primaryRoot, 'reference-impl', 'node_modules', '@cloverleaf'), { recursive: true });
+      symlinkSync('../../../standard', join(primaryRoot, 'reference-impl', 'node_modules', '@cloverleaf', 'standard'));
+      mkdirSync(join(primaryRoot, 'reference-impl', 'node_modules', 'vitest'), { recursive: true });
+      writeFileSync(join(primaryRoot, 'reference-impl', 'node_modules', 'vitest', 'package.json'), '{"name":"vitest"}');
+      mkdirSync(join(primaryRoot, 'reference-impl'), { recursive: true });
+      writeFileSync(
+        join(primaryRoot, 'reference-impl', 'package.json'),
+        JSON.stringify({ name: '@cloverleaf/reference-impl', version: '0.0.0-test' }) + '\n',
+      );
+
+      // Set up the walker worktree (a child path of primaryRoot, with source but no node_modules).
+      const walkerWt = join(primaryRoot, 'walkers', 'walker-wt');
+      mkdirSync(join(walkerWt, 'standard'), { recursive: true });
+      writeFileSync(
+        join(walkerWt, 'standard', 'package.json'),
+        JSON.stringify({
+          name: '@cloverleaf/standard',
+          version: '0.0.0-test',
+          scripts: { build: 'mkdir -p dist && echo built-from-worktree > dist/marker.txt' },
+        }) + '\n',
+      );
+      mkdirSync(join(walkerWt, 'reference-impl'), { recursive: true });
+      writeFileSync(
+        join(walkerWt, 'reference-impl', 'package.json'),
+        JSON.stringify({ name: '@cloverleaf/reference-impl', version: '0.0.0-test' }) + '\n',
+      );
+
+      // The target worktree to be prepped.
+      const targetWt = mkdtempSync(join(tmpdir(), 'cl-prep-target-'));
+      try {
+        mkdirSync(join(targetWt, 'standard'), { recursive: true });
+        writeFileSync(
+          join(targetWt, 'standard', 'package.json'),
+          JSON.stringify({
+            name: '@cloverleaf/standard',
+            version: '0.0.0-test',
+            scripts: { build: 'mkdir -p dist && echo built-from-worktree > dist/marker.txt' },
+          }) + '\n',
+        );
+        mkdirSync(join(targetWt, 'reference-impl'), { recursive: true });
+        writeFileSync(
+          join(targetWt, 'reference-impl', 'package.json'),
+          JSON.stringify({ name: '@cloverleaf/reference-impl', version: '0.0.0-test' }) + '\n',
+        );
+
+        // Pass walkerWt (no node_modules) as mainRoot — must walk up to primaryRoot.
+        expect(() => prepWorktree(walkerWt, targetWt)).not.toThrow();
+        expect(existsSync(join(targetWt, 'standard', 'node_modules', 'some-dep', 'package.json'))).toBe(true);
+        expect(existsSync(join(targetWt, 'standard', 'dist', 'marker.txt'))).toBe(true);
+        expect(existsSync(join(targetWt, 'reference-impl', 'node_modules', 'vitest', 'package.json'))).toBe(true);
+      } finally {
+        rmSync(targetWt, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(primaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('walker-mode: does not emit "main missing standard/node_modules" when node_modules exist in a parent directory (CLV-37)', () => {
+    // Reproduces the exact error message guard from AC #3.
+    // walkerPath has no node_modules; its grandparent has them.
+    const grandparent = mkdtempSync(join(tmpdir(), 'cl-prep-gp-'));
+    try {
+      mkdirSync(join(grandparent, 'standard', 'node_modules', 'x'), { recursive: true });
+      writeFileSync(join(grandparent, 'standard', 'node_modules', 'x', 'package.json'), '{"name":"x"}');
+      writeFileSync(
+        join(grandparent, 'standard', 'package.json'),
+        JSON.stringify({
+          name: '@cloverleaf/standard',
+          scripts: { build: 'mkdir -p dist && echo ok > dist/marker.txt' },
+        }) + '\n',
+      );
+      mkdirSync(join(grandparent, 'reference-impl', 'node_modules', 'vitest'), { recursive: true });
+      writeFileSync(join(grandparent, 'reference-impl', 'node_modules', 'vitest', 'package.json'), '{"name":"vitest"}');
+      writeFileSync(join(grandparent, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+      const walkerPath = join(grandparent, 'child', 'grandchild');
+      mkdirSync(join(walkerPath, 'standard'), { recursive: true });
+      writeFileSync(
+        join(walkerPath, 'standard', 'package.json'),
+        JSON.stringify({
+          name: '@cloverleaf/standard',
+          scripts: { build: 'mkdir -p dist && echo ok > dist/marker.txt' },
+        }) + '\n',
+      );
+      mkdirSync(join(walkerPath, 'reference-impl'), { recursive: true });
+      writeFileSync(join(walkerPath, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+      const targetWt = mkdtempSync(join(tmpdir(), 'cl-prep-tw-'));
+      try {
+        mkdirSync(join(targetWt, 'standard'), { recursive: true });
+        writeFileSync(
+          join(targetWt, 'standard', 'package.json'),
+          JSON.stringify({
+            name: '@cloverleaf/standard',
+            scripts: { build: 'mkdir -p dist && echo ok > dist/marker.txt' },
+          }) + '\n',
+        );
+        mkdirSync(join(targetWt, 'reference-impl'), { recursive: true });
+        writeFileSync(join(targetWt, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+
+        // Must NOT throw "main missing standard/node_modules".
+        let thrown: Error | undefined;
+        try {
+          prepWorktree(walkerPath, targetWt);
+        } catch (e) {
+          thrown = e as Error;
+        }
+        expect(thrown?.message ?? '').not.toMatch(/main missing standard\/node_modules/);
+      } finally {
+        rmSync(targetWt, { recursive: true, force: true });
+      }
+    } finally {
+      rmSync(grandparent, { recursive: true, force: true });
+    }
+  });
 });
