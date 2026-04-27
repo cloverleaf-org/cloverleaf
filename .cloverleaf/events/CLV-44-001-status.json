@@ -1,0 +1,16 @@
+{
+  "event_id": "1dd2687b-a599-4f87-8402-b99c105395bd",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-27T21:14:57.363Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-44"
+  },
+  "work_item_type": "rfc",
+  "from_status": "drafting",
+  "to_status": "planning",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  }
+}
