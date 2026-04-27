@@ -782,3 +782,160 @@ describe('cloverleaf-run-plan skill (v0.6 — autonomous DAG walker)', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-34: v0.6.1 walker correctness patches (bugs #1, #6, #7)
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (v0.6.1 — bug #1: XDG_CACHE_HOME worktree path)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('uses XDG_CACHE_HOME-based WT path (not /tmp/walker-*)', () => {
+    // Bug #1: claw-drive rejects sessions with cwd outside $HOME (INVALID_CWD).
+    // WT must be under $HOME via XDG_CACHE_HOME or the $HOME/.cache fallback.
+    expect(body).toContain('${XDG_CACHE_HOME:-$HOME/.cache}/cloverleaf/walker/');
+  });
+
+  it('has no /tmp/walker-* path anywhere in the skill body', () => {
+    // Regression guard: no /tmp/walker path must remain after the v0.6.1 patch.
+    expect(body).not.toMatch(/\/tmp\/walker/);
+  });
+
+  it('adds mkdir -p "$(dirname "$WT")" before git worktree add', () => {
+    // The XDG_CACHE_HOME path may not exist on first use; mkdir -p creates the hierarchy.
+    expect(body).toMatch(/mkdir -p "\$\(dirname "\$WT"\)"/);
+  });
+});
+
+describe('cloverleaf-run-plan skill (v0.6.1 — bug #6: conflict-marker guard before merge)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('scans changed files for conflict markers before git merge --no-ff', () => {
+    // Bug #6: unresolved conflict markers reached git merge --no-ff undetected.
+    // The drain step must grep changed files for <<<<<<< / ======= / >>>>>>> markers.
+    expect(body).toMatch(/grep[^\n]*(<<<|<\{7\}|conflict.marker)/i);
+  });
+
+  it('aborts the merge when conflict markers are found', () => {
+    // Must NOT proceed to git merge --no-ff when markers are detected.
+    expect(body).toMatch(/abort.*merge|aborting merge|do NOT proceed|conflict markers found/i);
+  });
+
+  it('greps for all three conflict marker variants (<<<<<<< ======= >>>>>>>)', () => {
+    // The guard must catch all three standard git conflict marker forms.
+    // SKILL.md uses shell ERE notation <{7}, ={7}, >{7} inside the grep -E pattern.
+    expect(body).toContain('<{7}');
+    expect(body).toContain('={7}');
+    expect(body).toContain('>{7}');
+  });
+
+  it('escalates the task when conflict markers are found (not silently skipping)', () => {
+    // Unresolved conflicts must surface to the user, not be silently ignored.
+    expect(body).toMatch(/escalated.*conflict|conflict.*escalat/i);
+  });
+});
+
+describe('cloverleaf-run-plan skill (v0.6.1 — bug #7: walk-state-write after merge)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('calls walk-state-write after a successful git merge --no-ff', () => {
+    // Bug #7: walk-state.json stayed at state: "running" after drain because
+    // the walk-state-write call was referenced in prose but never emitted.
+    // The drain step must call cloverleaf-cli walk-state-write after merge.
+    expect(body).toMatch(/walk-state-write[\s\S]{0,400}merge_commit|merge_commit[\s\S]{0,400}walk-state-write/);
+  });
+
+  it('records state: "merged" and the merge_commit SHA in walk-state', () => {
+    // The updated walk-state entry must carry both the merged state and the SHA.
+    expect(body).toMatch(/state.*merged.*merge_commit|merge_commit.*state.*merged/i);
+  });
+
+  it('captures the merge commit SHA via git rev-parse HEAD', () => {
+    // The SHA must be captured programmatically after the merge.
+    expect(body).toMatch(/git rev-parse HEAD/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-34: v0.6.1 CHANGELOG and package.json guards
+// ---------------------------------------------------------------------------
+
+describe('CHANGELOG.md (v0.6.1)', () => {
+  const changelog = readFileSync(resolve(__dirname, '..', 'CHANGELOG.md'), 'utf-8');
+
+  it('has a ## 0.6.1 section', () => {
+    expect(changelog).toMatch(/^## 0\.6\.1/m);
+  });
+
+  it('documents bug #1 (worktree path under /tmp/ → XDG_CACHE_HOME)', () => {
+    expect(changelog).toMatch(/Bug #1|\/tmp\/walker|XDG_CACHE_HOME/);
+    expect(changelog).toMatch(/INVALID_CWD|claw-drive/i);
+  });
+
+  it('documents bug #2 (git worktree add ... main collision)', () => {
+    expect(changelog).toMatch(/Bug #2|worktree add.*main|main.*already checked out/i);
+    expect(changelog).toMatch(/--detach/);
+  });
+
+  it('documents bug #3 (Playwright script in /tmp/)', () => {
+    expect(changelog).toMatch(/Bug #3|playwright.*\/tmp|\/tmp.*playwright/i);
+  });
+
+  it('documents bug #4 (prep-worktree node_modules resolution)', () => {
+    expect(changelog).toMatch(/Bug #4|prep-worktree/i);
+    expect(changelog).toMatch(/node_modules/);
+  });
+
+  it('documents bug #5 (baselines_pending CLI guard)', () => {
+    expect(changelog).toMatch(/Bug #5|baselines_pending/i);
+  });
+
+  it('documents bug #6 (conflict-marker grep before merge)', () => {
+    expect(changelog).toMatch(/Bug #6|conflict.marker/i);
+    expect(changelog).toMatch(/<{7}|<<<<<<|conflict markers/);
+  });
+
+  it('documents bug #7 (walk-state-write missing after merge)', () => {
+    expect(changelog).toMatch(/Bug #7|walk-state.*running|walk-state-write/i);
+    expect(changelog).toMatch(/merge_commit|merged.*state/i);
+  });
+
+  it('includes the --reset migration note for v0.6.0 → v0.6.1 upgrade', () => {
+    // RFC AC #6 and DoD: consumers with stale walk-state from v0.6.0 must use --reset.
+    expect(changelog).toMatch(/--reset/);
+    expect(changelog).toMatch(/stale.*walk-state|walk-state.*stale/i);
+  });
+
+  it('confirms walk-state-reconcile is NOT shipped (mentions it only to say so) (RFC AC #11)', () => {
+    // RFC AC #11: no walk-state-reconcile subcommand introduced. The CHANGELOG may
+    // mention the name in prose to explicitly state it is not being shipped.
+    // The guard is on SKILL.md (no reconcile command is called) and CLI source.
+    // Here we verify the CHANGELOG says it is "not" shipped rather than documenting it as a feature.
+    if (changelog.includes('walk-state-reconcile')) {
+      expect(changelog).toMatch(/walk-state-reconcile.*not shipped|not.*walk-state-reconcile|walk-state-reconcile.*\*\*not\*\*/i);
+    }
+  });
+});
+
+describe('package.json (v0.6.1)', () => {
+  const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
+
+  it('reports version 0.6.1', () => {
+    // RFC AC #4 and DoD: reference-impl must be bumped to 0.6.1.
+    expect(pkg.version).toBe('0.6.1');
+  });
+
+  it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
+    // RFC AC #5: @cloverleaf/standard package.json is NOT modified.
+    expect(pkg.name).toBe('@cloverleaf/reference-impl');
+  });
+});

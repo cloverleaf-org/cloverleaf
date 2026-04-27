@@ -2,11 +2,101 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## 0.6.1 — 2026-04-27
+
+Focused patch release addressing seven bugs surfaced by the v0.6.0 dogfood run
+on Plan CLV-26 (2026-04-26). All seven require manual intervention during that
+run; v0.6.1 eliminates every one.
 
 ### Fixed
 
-- Reviewer and QA prompts now use `git worktree add --detach <path> <sha>` rather than a named-branch form, fixing a "fatal: branch … is already checked out" error when the prompts run inside a walker worktree (bug #2 from v0.6 walker dogfood). 4 regression tests added in `tests/prompts.test.ts`. [CLV-35]
+- **Bug #1 — Walker worktree path under /tmp/ rejected by claw-drive.**
+  `SKILL.md` step 5b previously set `WT="/tmp/walker-<PLAN-ID>-<TASK-ID>"`.
+  claw-drive rejects sessions whose `cwd` is outside `$HOME` with
+  `INVALID_CWD`. The path template is now
+  `WT="${XDG_CACHE_HOME:-$HOME/.cache}/cloverleaf/walker/<PLAN-ID>-<TASK-ID>"`
+  and a `mkdir -p "$(dirname "$WT")"` call is added before `git worktree add`
+  so the directory hierarchy is created on first use. No `/tmp/walker-*` path
+  remains anywhere in `SKILL.md`.
+
+- **Bug #2 — Reviewer and QA prompts use `git worktree add ... main`, which
+  fails inside walker worktrees.** Inside a walker worktree the `main` branch
+  is already checked out in the primary repo, so `git worktree add ... main`
+  produces `fatal: branch 'main' is already checked out`. The Reviewer and QA
+  prompts now use `git worktree add --detach <path> <sha>` exclusively,
+  avoiding branch-held-by-primary-repo collisions.
+
+- **Bug #3 — UI Reviewer writes Playwright script to /tmp/; Node cannot
+  resolve playwright.** Node resolves modules relative to the script file's
+  location, so a script placed under `/tmp/` cannot find `node_modules/playwright`.
+  The UI Reviewer prompt now places the script file inside the worktree root
+  (or `reference-impl/`) where `node_modules/playwright` is resolvable.
+
+- **Bug #4 — `cloverleaf-cli prep-worktree` errors with "main missing
+  standard/node_modules" inside a walker worktree.** `prep-worktree` validated
+  its `mainRoot` argument for the presence of `standard/node_modules` and
+  `reference-impl/node_modules`, but walker peer worktrees are fresh checkouts
+  without installed deps. `prep-worktree` now walks up the directory tree from
+  the provided `mainRoot` to find the actual primary repo root (identified by
+  the presence of both `node_modules` trees), or accepts an explicit
+  `--primary-root` flag.
+
+- **Bug #5 — UI Reviewer bypasses the baselines_pending gate at the CLI
+  layer.** During CLV-27, the UI Reviewer copied new baselines directly under
+  `.cloverleaf/baselines/` before the `baselines_pending` human gate fired,
+  bypassing the approval gate entirely. `cloverleaf-cli` now refuses (non-zero
+  exit with a descriptive error) to write files under `.cloverleaf/baselines/`
+  when the task's `ui-review/state.json` has `baselines_pending: true`. The
+  guard is enforced in TypeScript at the CLI layer, independent of prompt text.
+
+- **Bug #6 — Conflict markers survive rebase and reach `git merge --no-ff`.**
+  During CLV-29's rebase an Edit call silently failed to remove conflict
+  markers from `guide.astro`; git accepted the rebase as complete, the merge
+  went through, and the site build broke post-merge. The walker's drain merge
+  sequence in `SKILL.md` section 5e now runs a `grep` step that scans every
+  file changed on the task branch for unresolved conflict markers
+  (`<<<<<<<`, `=======`, `>>>>>>>`) and aborts before `git merge --no-ff` if
+  any are found, marking the task `state: "escalated"` and surfacing the
+  affected files to the user.
+
+- **Bug #7 — walk-state.json reports tasks as `state: "running"` after drain
+  and merge.** The drain step in `SKILL.md` referenced the `walk-state-write`
+  call in prose but did not emit it. Tasks stayed at `state: "running"` in
+  `walk-state.json` even after a successful merge, which could exhaust all
+  concurrency slots on resume. A `cloverleaf-cli walk-state-write` call is now
+  emitted immediately after a successful `git merge --no-ff` in the drain step,
+  recording `state: "merged"` and the `merge_commit` SHA in walk-state.
+
+### Migration note (upgrading from v0.6.0)
+
+Consumers upgrading from v0.6.0 who have a stale `walk-state.json` with tasks
+stuck at `state: "running"` from a completed run should run:
+
+```bash
+cloverleaf-run-plan <PLAN-ID> --reset
+```
+
+before the first v0.6.1 invocation on any plan with a stale walk-state. The
+`--reset` flag wipes `walk-state.json` and starts fresh. A dedicated
+`cloverleaf-cli walk-state-reconcile` subcommand is **not** shipped in v0.6.1
+— `--reset` is the documented migration path, since stale `running` entries
+exhaust all concurrency slots and cause the walker to exit immediately before
+reconciliation can run, making `--reset` the only reliable fix.
+
+### Tests
+
+Tests updated to cover the three SKILL.md changes landing in this task
+(CLV-34): no `/tmp/walker` path in `cloverleaf-run-plan` skill, conflict-marker
+grep before merge, and `walk-state-write` call after merge. Sibling tasks
+CLV-35 through CLV-38 each add their own regression tests.
+
+### Compatibility
+
+- Standard stays at 0.4.1. No schema, contract, or state-machine changes.
+- `@cloverleaf/standard` package.json is not modified.
+- The walker skill's external API (invocation arguments, `--reset` flag,
+  exit behaviour) is unchanged. Only internal skill-body prose and CLI
+  implementation change.
 
 ## 0.6.0 — 2026-04-24
 

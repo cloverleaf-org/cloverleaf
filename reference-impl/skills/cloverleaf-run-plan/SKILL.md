@@ -77,7 +77,8 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
       Per ready task:
 
       ```bash
-      WT="/tmp/walker-<PLAN-ID>-<TASK-ID>"
+      WT="${XDG_CACHE_HOME:-$HOME/.cache}/cloverleaf/walker/<PLAN-ID>-<TASK-ID>"
+      mkdir -p "$(dirname "$WT")"
       rm -rf "$WT"  # idempotent: clean any leftover from a prior run
       git -C <repo_root> worktree add "$WT" -b cloverleaf/<TASK-ID> main
       ```
@@ -118,12 +119,24 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
          ```
       2. Read the user's response.
       3. If it matches `^y(es)?$|^Y(ES)?$` → perform the merge in the primary repo:
+
+         First, **guard against conflict markers** — scan every file changed on the task branch for unresolved conflict markers before attempting the merge:
          ```bash
          cd <repo_root>
          git checkout main
-         git merge --no-ff cloverleaf/<TASK-ID> -m "cloverleaf: <TASK-ID> merged (<fast_lane | full_pipeline>)"
+         CHANGED_FILES=$(git diff --name-only main..cloverleaf/<TASK-ID>)
+         if [ -n "$CHANGED_FILES" ] && echo "$CHANGED_FILES" | xargs grep -l -E '^(<{7}|={7}|>{7})' 2>/dev/null | grep -q .; then
+           echo "ERROR: conflict markers found in changed files — aborting merge for <TASK-ID>"
+           echo "$CHANGED_FILES" | xargs grep -l -E '^(<{7}|={7}|>{7})' 2>/dev/null
+           # Do NOT proceed; mark task escalated and surface to user
+         else
+           git merge --no-ff cloverleaf/<TASK-ID> -m "cloverleaf: <TASK-ID> merged (<fast_lane | full_pipeline>)"
+         fi
          ```
-         Then advance state and commit:
+
+         If conflict markers are found, abort the merge: mark task `state: "escalated"` in walk-state, surface to the user with the list of affected files, and do NOT advance state. Continue with the next queued task.
+
+         After a **successful** `git merge --no-ff`, advance state and commit:
          ```bash
          # Fast lane:
          cloverleaf-cli emit-gate-decision <repo_root> <TASK-ID> human_merge approve human
@@ -135,7 +148,19 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
          ```bash
          git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> merged"
          ```
-         Capture the merge commit SHA. Mark task `state: "merged"` with `merge_commit` in walk-state. Send `y` (informational) back to Session B so it can record the outcome and exit, but the walker is the authoritative merge-performer.
+         Capture the merge commit SHA:
+         ```bash
+         MERGE_COMMIT=$(git rev-parse HEAD)
+         ```
+         Immediately update walk-state to record the successful merge (bug #7 fix — walk-state must reflect `merged` state):
+         ```bash
+         # Write a temporary walk-state JSON with state: "merged" and merge_commit, then persist atomically
+         # (build the updated walk-state object in-memory and call walk-state-write)
+         cloverleaf-cli walk-state-write <repo_root> <updated-walk-state-json-path>
+         # The updated walk-state sets tasks["<TASK-ID>"].state = "merged"
+         #                           and tasks["<TASK-ID>"].merge_commit = "$MERGE_COMMIT"
+         ```
+         Send `y` (informational) back to Session B so it can record the outcome and exit, but the walker is the authoritative merge-performer.
          **Tear down the worktree**: `git -C <repo_root> worktree remove --force <worktree_path>`. Delete the branch is optional (keep if useful for post-hoc inspection).
       4. If it matches `^n(o)?$|^N(O)?$` → mark task `state: "awaiting_final_gate"`. Send `n` to Session B. **Keep the worktree** so the user can re-run `/cloverleaf-merge <TASK-ID>` manually pointing at it, or fix and retry. Continue with the next queued task.
       5. Otherwise → forward the user's text as a user turn to Session B via `mcp__claw-drive__send_turn` (it's a question). Wait for the session's next `turn_completed`. Print the answer. **Re-surface the same y/N prompt** (with the Q&A appended to shown context). Loop until step 3 or 4 fires.
