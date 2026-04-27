@@ -240,6 +240,45 @@ describe('ui-reviewer prompt', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// CLV-36: Playwright script placement — Bug #3 regression guard
+// Symptom: agent wrote a Playwright driver script to /tmp/<name>.mjs and ran
+// it with `node /tmp/<name>.mjs`; Node ESM resolution walks up from the
+// script's own directory, so /tmp has no node_modules/playwright → import
+// fails. Fix: prompt must instruct script placement inside the worktree where
+// npm ci has installed playwright.
+// ---------------------------------------------------------------------------
+describe('ui-reviewer prompt (CLV-36 — Playwright script placement bug #3)', () => {
+  const body = readPrompt('ui-reviewer');
+
+  it('contains no /tmp/ references for a Playwright script path (regression guard for bug #3)', () => {
+    // The prompt must not instruct placing a script at a bare /tmp/ path.
+    // /tmp/ may not appear adjacent to .mjs or as a Playwright script location.
+    expect(body).not.toMatch(/\/tmp\/[^\s]*\.mjs/);
+    // No instruction to `node /tmp/` a script file.
+    expect(body).not.toMatch(/node\s+\/tmp\//);
+  });
+
+  it('instructs placing standalone .mjs driver scripts inside the worktree ($WT/site/)', () => {
+    // The prompt must explicitly describe placing any driver script inside the
+    // worktree directory ($WT/site/) so Node resolves playwright from its node_modules.
+    expect(body).toMatch(/\$WT\/site\/playwright-driver\.mjs|\$WT\/site\//);
+    expect(body).toMatch(/playwright-driver\.mjs/);
+  });
+
+  it('uses $WT (not $TMPDIR) as the worktree variable name', () => {
+    // Renaming to $WT avoids overriding the system $TMPDIR and makes the
+    // worktree-vs-tmp distinction visually clear.
+    expect(body).toContain('WT=$(mktemp -d)');
+    expect(body).not.toContain('TMPDIR=$(mktemp -d)');
+  });
+
+  it('instructs running the script from within the worktree (node "$WT/site/...")', () => {
+    // The invocation command must use the worktree path, not a bare /tmp/ path.
+    expect(body).toMatch(/node "\$WT\/site\//);
+  });
+});
+
 describe('qa prompt', () => {
   const body = readPrompt('qa');
 
