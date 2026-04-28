@@ -2,7 +2,7 @@
   "type": "rfc",
   "project": "CLV",
   "id": "CLV-56",
-  "status": "planning",
+  "status": "gate-pending",
   "owner": {
     "kind": "agent",
     "id": "researcher"
