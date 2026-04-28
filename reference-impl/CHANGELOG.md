@@ -7,6 +7,8 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 ### Fixed
 
 - `prepWorktree()` now copies the primary repo's `reference-impl/dist/` into the spawned worktree immediately after the `reference-impl/node_modules` copy step, so agents importing from `<worktree>/reference-impl/dist/` (e.g. `dist/lib/qa-report.js`) no longer encounter `Cannot find module` errors. No new build step is invoked inside the worktree — the already-built dist from the primary is reused directly. [CLV-52]
+- `cloverleaf-run-plan/SKILL.md` step-6 Report section gains a `## Next steps (release publishing)` block listing the five post-merge release commands (tag, push origin main, push tag, npm publish, gh release create) so operators have an authoritative checklist immediately after a plan completes. [CLV-53]
+- `cloverleaf-run-plan/SKILL.md` scenario_brief template gains an explicit `DO NOT run git checkout main from this worktree` paragraph explaining the two-worktree branch-hold constraint and providing safe alternatives (`git diff main..HEAD`, `git show main:<path>`). Regression-guarded in `tests/skills.test.ts`. [CLV-53]
 
 ## 0.6.2 — 2026-04-27
 

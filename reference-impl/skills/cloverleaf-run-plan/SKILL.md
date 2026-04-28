@@ -178,6 +178,18 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
    If every task in the plan's `task_dag.nodes` has `state: "merged"`, print: "✓ Plan `<PLAN-ID>` complete."
 
+   ## Next steps (release publishing)
+
+   Once all tasks are merged, run the following commands in order to tag and publish the release:
+
+   ```bash
+   git tag -a reference-impl-v<VERSION> -m "reference-impl v<VERSION>"
+   git push origin main
+   git push origin reference-impl-v<VERSION>
+   (cd reference-impl && npm publish --access public)
+   gh release create reference-impl-v<VERSION> --title "reference-impl v<VERSION>" --notes-from-tag
+   ```
+
 ## Session brief template
 
 The walker constructs a per-task `scenario_brief` roughly like:
@@ -190,6 +202,13 @@ cloverleaf/<TASK-ID> (already created from main). Task risk_class: <class>.
 **Pre-flight: before any task steps, run `cd "$WORKTREE_ROOT"` to ensure your
 working directory is the worktree root, not whatever directory the session
 inherited.**
+
+**DO NOT run `git checkout main` from this worktree.** The `main` branch is
+held by the primary repo — attempting to check it out here will fail because
+the same branch cannot be checked out in two worktrees simultaneously. To
+compare your work against main, use `git diff main..HEAD` (safe diff) or
+`git show main:<path>` (safe file inspection). All state-advance commits must
+stay on the worktree's current branch (`cloverleaf/<TASK-ID>`).
 
 Plan: invoke `/cloverleaf-run <TASK-ID>`.
 
