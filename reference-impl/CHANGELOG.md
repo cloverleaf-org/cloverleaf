@@ -2,6 +2,13 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- `cloverleaf-run-plan/SKILL.md` step-6 Report section gains a `## Next steps (release publishing)` block listing the five post-merge release commands (tag, push origin main, push tag, npm publish, gh release create) so operators have an authoritative checklist immediately after a plan completes. [CLV-53]
+- `cloverleaf-run-plan/SKILL.md` scenario_brief template gains an explicit `DO NOT run git checkout main from this worktree` paragraph explaining the two-worktree branch-hold constraint and providing safe alternatives (`git diff main..HEAD`, `git show main:<path>`). Regression-guarded in `tests/skills.test.ts`. [CLV-53]
+
 ## 0.6.2 — 2026-04-27
 
 ### Added
