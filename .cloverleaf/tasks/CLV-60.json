@@ -1,0 +1,29 @@
+{
+  "id": "CLV-60",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Release-prep custodian: bump version to 0.6.4 and add CHANGELOG ## 0.6.4 section",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-56"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/package.json` `version` field is changed from `0.6.3` to `0.6.4`.",
+    "`reference-impl/CHANGELOG.md` contains a new `## 0.6.4` section summarising the two changes from CLV-58 and CLV-59: (1) new `lib/walker-config.ts` loader and `cloverleaf-cli walker-default-concurrency` subcommand; (2) walker `SKILL.md` step 1 now calls the subcommand instead of hard-coding the default, with startup info line and stop-and-report on malformed config.",
+    "Any tests in `reference-impl/tests/` that assert the package version string are updated to expect `0.6.4`.",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "`cat reference-impl/package.json | node -e \"process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))\"` prints `0.6.4`.",
+    "`reference-impl/CHANGELOG.md` contains a section header matching `## 0.6.4` and enumerates the loader+CLI work (CLV-58) and the SKILL.md change (CLV-59).",
+    "This task runs only after CLV-58 and CLV-59 have both merged (enforced by DAG edges)."
+  ],
+  "risk_class": "high"
+}

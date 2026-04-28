@@ -1,0 +1,32 @@
+{
+  "id": "CLV-59",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Walker SKILL.md: replace hard-coded default with subcommand call and startup info line",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-56"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/skills/cloverleaf-run-plan/SKILL.md` step 1 no longer hard-codes the default `3`. When `--max-concurrent=N` was passed (`$MAX_FLAG` is set), `MAX` is assigned from the flag and an info line `max_concurrent=$MAX (from --max-concurrent flag)` is printed. Otherwise, `MAX=$(cloverleaf-cli walker-default-concurrency)` is called and `cloverleaf-cli walker-default-concurrency --explain` prints the startup info line.",
+    "If `cloverleaf-cli walker-default-concurrency` exits non-zero in step 1, the walker stops and reports the error to the operator with the message \"Fix or remove `~/.config/cloverleaf/walker.json` and retry.\", consistent with the existing step-0 uncommitted-changes stop-and-report pattern.",
+    "Exactly one info line is printed at walker startup on every invocation (flag path, user-config path, or default path).",
+    "`reference-impl/tests/skills.test.ts` is extended with 1 new regression case asserting that `cloverleaf-run-plan/SKILL.md` step 1 contains both the string `cloverleaf-cli walker-default-concurrency` (plain form) and the string `cloverleaf-cli walker-default-concurrency --explain` (explain form).",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "`${XDG_CONFIG_HOME:-$HOME/.config}/cloverleaf/walker.json` containing `{ \"max_concurrent\": 2 }` causes the walker to operate with cap 2 on every invocation without the operator passing `--max-concurrent`.",
+    "The walker prints exactly one info line at startup on every invocation naming the resolved value and its source (flag, user config file path, or default).",
+    "A malformed `walker.json` causes the walker to stop at step 1 and display a 'Fix or remove' error message rather than silently falling back to the default.",
+    "`--max-concurrent=N` passed at invocation time overrides the user config file (precedence: flag > user config > default).",
+    "`npm test` in `reference-impl/` passes all tests including the 1 new regression case added by this task in `skills.test.ts`."
+  ],
+  "risk_class": "high"
+}

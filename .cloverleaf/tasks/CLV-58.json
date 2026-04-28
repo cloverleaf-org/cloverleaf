@@ -1,0 +1,31 @@
+{
+  "id": "CLV-58",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Loader + CLI: walker-config.ts and walker-default-concurrency subcommand",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-56"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/lib/walker-config.ts` is a new file exporting `loadWalkerConfig(): { maxConcurrent: number; source: 'user' | 'default' }`. Resolution follows the design spec table: file absent or field absent → `{ maxConcurrent: 3, source: 'default' }`; positive integer → `{ maxConcurrent: N, source: 'user' }`; malformed JSON or invalid value (0, negative, float, string, null) → throws with an actionable message including the file path or field path and actual value. No AJV dependency.",
+    "`reference-impl/lib/cli.ts` contains a new `walker-default-concurrency` case. Plain form writes the resolved integer to stdout and exits 0. `--explain` form writes `max_concurrent=N (from <abs-path> | default)` to stdout and exits 0. Either form exits non-zero with a stderr error message (no stdout) when `loadWalkerConfig()` throws.",
+    "`reference-impl/tests/walker-config.test.ts` is a new file containing exactly 9 unit cases covering: (1) file absent, (2) `{}`, (3) `{ \"max_concurrent\": 2 }`, (4) malformed JSON, (5) `max_concurrent: 0`, (6) `max_concurrent: -1`, (7) `max_concurrent: \"two\"`, (8) `max_concurrent: 2.5`, (9) `max_concurrent: null`. Tests stub `XDG_CONFIG_HOME` to a temp directory.",
+    "`reference-impl/tests/cli.test.ts` is extended with 4 new cases: (1) plain form with `{ \"max_concurrent\": 2 }` present → stdout `2\\n`, exit 0; (2) `--explain` form with same file → stdout matches `/^max_concurrent=2 \\(from .+\\/walker\\.json\\)$/`, exit 0; (3) plain form, file absent → stdout `3\\n`, exit 0; (4) plain form, malformed file → exit non-zero, stderr contains the file path.",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "`cloverleaf-cli walker-default-concurrency` prints `2` and exits 0 when `${XDG_CONFIG_HOME:-$HOME/.config}/cloverleaf/walker.json` contains `{ \"max_concurrent\": 2 }`; prints `3` when the file is absent.",
+    "`cloverleaf-cli walker-default-concurrency --explain` prints a line matching `max_concurrent=N (from <abs-path> | default)` per the design spec table, using the absolute expanded path (not `~/`).",
+    "A file containing `{ \"max_concurrent\": 0 }` or a negative, float, string, or null value causes `cloverleaf-cli walker-default-concurrency` to exit non-zero with a clear stderr message and no stdout output.",
+    "`npm test` in `reference-impl/` passes all tests including the 13 new cases added by this task (9 in `walker-config.test.ts` + 4 in `cli.test.ts`)."
+  ],
+  "risk_class": "high"
+}
