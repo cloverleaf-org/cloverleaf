@@ -1,0 +1,146 @@
+{
+  "type": "plan",
+  "id": "CLV-57",
+  "project": "CLV",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-56"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-58"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-59"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-60"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-58"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-60"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-59"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-60"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "CLV-58",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Loader + CLI: walker-config.ts and walker-default-concurrency subcommand",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-56"
+        }
+      },
+      "definition_of_done": [
+        "`reference-impl/lib/walker-config.ts` is a new file exporting `loadWalkerConfig(): { maxConcurrent: number; source: 'user' | 'default' }`. Resolution follows the design spec table: file absent or field absent → `{ maxConcurrent: 3, source: 'default' }`; positive integer → `{ maxConcurrent: N, source: 'user' }`; malformed JSON or invalid value (0, negative, float, string, null) → throws with an actionable message including the file path or field path and actual value. No AJV dependency.",
+        "`reference-impl/lib/cli.ts` contains a new `walker-default-concurrency` case. Plain form writes the resolved integer to stdout and exits 0. `--explain` form writes `max_concurrent=N (from <abs-path> | default)` to stdout and exits 0. Either form exits non-zero with a stderr error message (no stdout) when `loadWalkerConfig()` throws.",
+        "`reference-impl/tests/walker-config.test.ts` is a new file containing exactly 9 unit cases covering: (1) file absent, (2) `{}`, (3) `{ \"max_concurrent\": 2 }`, (4) malformed JSON, (5) `max_concurrent: 0`, (6) `max_concurrent: -1`, (7) `max_concurrent: \"two\"`, (8) `max_concurrent: 2.5`, (9) `max_concurrent: null`. Tests stub `XDG_CONFIG_HOME` to a temp directory.",
+        "`reference-impl/tests/cli.test.ts` is extended with 4 new cases: (1) plain form with `{ \"max_concurrent\": 2 }` present → stdout `2\\n`, exit 0; (2) `--explain` form with same file → stdout matches `/^max_concurrent=2 \\(from .+\\/walker\\.json\\)$/`, exit 0; (3) plain form, file absent → stdout `3\\n`, exit 0; (4) plain form, malformed file → exit non-zero, stderr contains the file path.",
+        "All pre-existing tests in `reference-impl/tests/` continue to pass."
+      ],
+      "acceptance_criteria": [
+        "`cloverleaf-cli walker-default-concurrency` prints `2` and exits 0 when `${XDG_CONFIG_HOME:-$HOME/.config}/cloverleaf/walker.json` contains `{ \"max_concurrent\": 2 }`; prints `3` when the file is absent.",
+        "`cloverleaf-cli walker-default-concurrency --explain` prints a line matching `max_concurrent=N (from <abs-path> | default)` per the design spec table, using the absolute expanded path (not `~/`).",
+        "A file containing `{ \"max_concurrent\": 0 }` or a negative, float, string, or null value causes `cloverleaf-cli walker-default-concurrency` to exit non-zero with a clear stderr message and no stdout output.",
+        "`npm test` in `reference-impl/` passes all tests including the 13 new cases added by this task (9 in `walker-config.test.ts` + 4 in `cli.test.ts`)."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-59",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Walker SKILL.md: replace hard-coded default with subcommand call and startup info line",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-56"
+        }
+      },
+      "definition_of_done": [
+        "`reference-impl/skills/cloverleaf-run-plan/SKILL.md` step 1 no longer hard-codes the default `3`. When `--max-concurrent=N` was passed (`$MAX_FLAG` is set), `MAX` is assigned from the flag and an info line `max_concurrent=$MAX (from --max-concurrent flag)` is printed. Otherwise, `MAX=$(cloverleaf-cli walker-default-concurrency)` is called and `cloverleaf-cli walker-default-concurrency --explain` prints the startup info line.",
+        "If `cloverleaf-cli walker-default-concurrency` exits non-zero in step 1, the walker stops and reports the error to the operator with the message \"Fix or remove `~/.config/cloverleaf/walker.json` and retry.\", consistent with the existing step-0 uncommitted-changes stop-and-report pattern.",
+        "Exactly one info line is printed at walker startup on every invocation (flag path, user-config path, or default path).",
+        "`reference-impl/tests/skills.test.ts` is extended with 1 new regression case asserting that `cloverleaf-run-plan/SKILL.md` step 1 contains both the string `cloverleaf-cli walker-default-concurrency` (plain form) and the string `cloverleaf-cli walker-default-concurrency --explain` (explain form).",
+        "All pre-existing tests in `reference-impl/tests/` continue to pass."
+      ],
+      "acceptance_criteria": [
+        "`${XDG_CONFIG_HOME:-$HOME/.config}/cloverleaf/walker.json` containing `{ \"max_concurrent\": 2 }` causes the walker to operate with cap 2 on every invocation without the operator passing `--max-concurrent`.",
+        "The walker prints exactly one info line at startup on every invocation naming the resolved value and its source (flag, user config file path, or default).",
+        "A malformed `walker.json` causes the walker to stop at step 1 and display a 'Fix or remove' error message rather than silently falling back to the default.",
+        "`--max-concurrent=N` passed at invocation time overrides the user config file (precedence: flag > user config > default).",
+        "`npm test` in `reference-impl/` passes all tests including the 1 new regression case added by this task in `skills.test.ts`."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-60",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Release-prep custodian: bump version to 0.6.4 and add CHANGELOG ## 0.6.4 section",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-56"
+        }
+      },
+      "definition_of_done": [
+        "`reference-impl/package.json` `version` field is changed from `0.6.3` to `0.6.4`.",
+        "`reference-impl/CHANGELOG.md` contains a new `## 0.6.4` section summarising the two changes from CLV-58 and CLV-59: (1) new `lib/walker-config.ts` loader and `cloverleaf-cli walker-default-concurrency` subcommand; (2) walker `SKILL.md` step 1 now calls the subcommand instead of hard-coding the default, with startup info line and stop-and-report on malformed config.",
+        "Any tests in `reference-impl/tests/` that assert the package version string are updated to expect `0.6.4`.",
+        "All pre-existing tests in `reference-impl/tests/` continue to pass."
+      ],
+      "acceptance_criteria": [
+        "`cat reference-impl/package.json | node -e \"process.stdin.resume();let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).version))\"` prints `0.6.4`.",
+        "`reference-impl/CHANGELOG.md` contains a section header matching `## 0.6.4` and enumerates the loader+CLI work (CLV-58) and the SKILL.md change (CLV-59).",
+        "This task runs only after CLV-58 and CLV-59 have both merged (enforced by DAG edges)."
+      ],
+      "risk_class": "high"
+    }
+  ]
+}
