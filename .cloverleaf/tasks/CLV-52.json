@@ -1,0 +1,29 @@
+{
+  "id": "CLV-52",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "prep-worktree: copy primary reference-impl/dist into spawned worktree",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-50"
+    }
+  },
+  "definition_of_done": [
+    "`prepWorktree()` in `reference-impl/lib/prep-worktree.ts` calls `primeCopy(join(resolvedMain, 'reference-impl', 'dist'), join(worktreePath, 'reference-impl', 'dist'))` immediately after the existing `reference-impl/node_modules` copy step.",
+    "A regression test case is added to `reference-impl/tests/prep-worktree.test.ts` that asserts `<worktree>/reference-impl/dist/` exists and contains at least one `.mjs` file after `prepWorktree()` runs against a fixture primary repo.",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "Given a primary repo whose `reference-impl/dist/` contains `.mjs` files, after `prepWorktree()` completes the spawned worktree's `reference-impl/dist/` exists and contains those same `.mjs` files.",
+    "Running `prepWorktree()` a second time on the same worktree is idempotent: `primeCopy` wipes and re-copies without error.",
+    "A Reviewer or QA agent importing from `<worktree>/reference-impl/dist/lib/qa-report.js` (or any other dist entry) does not encounter a `Cannot find module` error after `prepWorktree()` completes.",
+    "No new build step (`npm run build`) is invoked inside the worktree's `reference-impl/` — the copy of primary's already-built dist is used directly."
+  ],
+  "risk_class": "high"
+}

@@ -1,0 +1,30 @@
+{
+  "id": "CLV-54",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "prepublishOnly sanity check: fail fast with actionable error when standard/ is not prepped",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-50"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/scripts/check-standard-prepped.mjs` exists and: (1) walks up from `process.cwd()` to locate the repo root by detecting `standard/package.json`; (2) calls `existsSync` on `<repoRoot>/standard/dist/` and `<repoRoot>/standard/node_modules/`; (3) if either is absent, writes to stderr \"ERROR: standard/ is not prepped in this environment.\\nRun:  cloverleaf-cli prep-worktree <primaryRoot> <worktreeRoot>\\n  OR: (cd ../standard && npm ci && npm run build)\" and exits with code 1; (4) if both are present, exits 0 with no output.",
+    "`reference-impl/package.json` `prepublishOnly` script is updated to `\"node scripts/check-standard-prepped.mjs && npm test && npm run build\"`, placing the sanity check before the vitest/tsc run.",
+    "A regression test is added to `reference-impl/tests/` that: (a) simulates a worktree environment where `standard/dist/` and/or `standard/node_modules/` are absent; (b) spawns `check-standard-prepped.mjs` as a subprocess; (c) asserts the process exits non-zero; (d) asserts stderr contains \"standard/ is not prepped\" and at least one remediation command.",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "Running `node scripts/check-standard-prepped.mjs` from a worktree where `standard/dist/` is absent exits with code 1 and prints to stderr a message containing \"ERROR: standard/ is not prepped in this environment.\" and the two remediation options.",
+    "Running `node scripts/check-standard-prepped.mjs` from a correctly prepped environment (both `standard/dist/` and `standard/node_modules/` present) exits 0 and produces no output.",
+    "Invoking `npm publish` (or `npm publish --dry-run`) from an unprepped worktree terminates at the sanity-check step before vitest or tsc run, and the operator sees the actionable error message on stderr.",
+    "The script resolves the repo root correctly when invoked from any subdirectory within `reference-impl/` (e.g., `reference-impl/scripts/`, `reference-impl/tests/`) by walking up to find `standard/package.json`."
+  ],
+  "risk_class": "high"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "CLV-53",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "SKILL.md: add git checkout main guard to scenario_brief and Next steps block to step-6 Report",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-50"
+    }
+  },
+  "definition_of_done": [
+    "The scenario_brief template section of `reference-impl/skills/cloverleaf-run-plan/SKILL.md` contains an explicit paragraph beginning with \"DO NOT run `git checkout main` from this worktree\" that explains main is held by the primary repo, provides `git diff main..HEAD` as the safe comparison alternative, and provides `git show main:<path>` as the safe inspection alternative.",
+    "Step-6 (Report) of the same SKILL.md contains a `## Next steps (release publishing)` block listing the five post-merge release commands: `git tag -a reference-impl-v<VERSION> -m \"reference-impl v<VERSION>\"`, `git push origin main`, `git push origin reference-impl-v<VERSION>`, `(cd reference-impl && npm publish --access public)`, and `gh release create reference-impl-v<VERSION> --title \"reference-impl v<VERSION>\" --notes-from-tag`.",
+    "A regression test file (e.g., `reference-impl/tests/skills.test.ts`) is added or extended with cases that assert: (a) the string \"DO NOT run `git checkout main`\" appears in the SKILL.md scenario_brief section, and (b) the strings \"## Next steps\" and \"git tag -a\" appear in the SKILL.md step-6 Report section.",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "Searching `reference-impl/skills/cloverleaf-run-plan/SKILL.md` for the phrase \"DO NOT run `git checkout main`\" returns a match located within the scenario_brief template section.",
+    "Searching the same SKILL.md for `## Next steps` and `git tag -a` returns matches located within the step-6 Report section.",
+    "A new operator reading the scenario_brief receives an explicit prohibition on switching branches and is directed to `git diff main..HEAD` and `git show main:<path>` for safe main-comparison operations.",
+    "When a walker run reaches the Report step with all plan tasks in state `merged`, the printed output includes the five post-merge release commands listed in the `## Next steps` block.",
+    "The SKILL.md changes introduce no new external API surface (skill name, invocation arguments, and exit behavior are unchanged)."
+  ],
+  "risk_class": "high"
+}

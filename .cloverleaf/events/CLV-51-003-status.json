@@ -1,0 +1,17 @@
+{
+  "event_id": "3e84b8e1-6c37-4956-9c54-b2b934ff63b6",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-28T01:49:58.662Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-51"
+  },
+  "work_item_type": "plan",
+  "from_status": "gate-pending",
+  "to_status": "approved",
+  "actor": {
+    "kind": "human",
+    "id": "local-user"
+  },
+  "reason": "gate=task_batch_gate"
+}
