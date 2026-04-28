@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `lib/walker-config.ts` — new `loadWalkerConfig()` loader that reads `~/.config/cloverleaf/walker.json` (XDG-aware), validates `max_concurrent`, and returns `{ maxConcurrent, source, path }` with `source: 'default'` (value 3) when the file is absent or the field is omitted. `cloverleaf-cli walker-default-concurrency [--explain]` subcommand exposes the resolved value to the walker skill; `--explain` emits `max_concurrent=N (from <path>|default)` instead of the bare integer. [CLV-58]
+
 ## 0.6.3 — 2026-04-28
 
 ### Fixed
