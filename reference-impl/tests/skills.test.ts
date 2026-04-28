@@ -866,6 +866,129 @@ describe('cloverleaf-run-plan skill (v0.6.1 — bug #7: walk-state-write after m
 });
 
 // ---------------------------------------------------------------------------
+// CLV-53: cloverleaf-run-plan scenario_brief git checkout main guard
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-53 — scenario_brief git checkout guard)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('contains "DO NOT run `git checkout main`" within the scenario_brief section', () => {
+    // The scenario_brief template must explicitly forbid switching to main from a worktree.
+    const scenarioBriefIdx = body.indexOf('## Session brief template');
+    const walkerPolicyIdx = body.indexOf('## Walker policy');
+    expect(scenarioBriefIdx).toBeGreaterThan(-1);
+    expect(walkerPolicyIdx).toBeGreaterThan(-1);
+    const scenarioBriefSection = body.slice(scenarioBriefIdx, walkerPolicyIdx);
+    expect(scenarioBriefSection).toContain('DO NOT run `git checkout main`');
+  });
+
+  it('scenario_brief directs to git diff main..HEAD as safe comparison alternative', () => {
+    const scenarioBriefIdx = body.indexOf('## Session brief template');
+    const walkerPolicyIdx = body.indexOf('## Walker policy');
+    const scenarioBriefSection = body.slice(scenarioBriefIdx, walkerPolicyIdx);
+    expect(scenarioBriefSection).toContain('git diff main..HEAD');
+  });
+
+  it('scenario_brief directs to git show main:<path> as safe inspection alternative', () => {
+    const scenarioBriefIdx = body.indexOf('## Session brief template');
+    const walkerPolicyIdx = body.indexOf('## Walker policy');
+    const scenarioBriefSection = body.slice(scenarioBriefIdx, walkerPolicyIdx);
+    expect(scenarioBriefSection).toMatch(/git show main:<path>/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-53: cloverleaf-run-plan step-6 Report Next steps block
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-53 — step-6 Report Next steps block)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('step-6 Report section contains ## Next steps heading', () => {
+    // Find step 6 and the Session brief template (which comes after step 6).
+    const step6Idx = body.indexOf('6. **Report.**');
+    const scenarioBriefIdx = body.indexOf('## Session brief template');
+    expect(step6Idx).toBeGreaterThan(-1);
+    expect(scenarioBriefIdx).toBeGreaterThan(-1);
+    const step6Section = body.slice(step6Idx, scenarioBriefIdx);
+    expect(step6Section).toContain('## Next steps');
+  });
+
+  it('step-6 Report section contains git tag -a command', () => {
+    const step6Idx = body.indexOf('6. **Report.**');
+    const scenarioBriefIdx = body.indexOf('## Session brief template');
+    const step6Section = body.slice(step6Idx, scenarioBriefIdx);
+    expect(step6Section).toContain('git tag -a');
+  });
+
+  it('step-6 Report section lists all five release commands', () => {
+    const step6Idx = body.indexOf('6. **Report.**');
+    const scenarioBriefIdx = body.indexOf('## Session brief template');
+    const step6Section = body.slice(step6Idx, scenarioBriefIdx);
+    expect(step6Section).toMatch(/git tag -a reference-impl-v<VERSION>/);
+    expect(step6Section).toMatch(/git push origin main/);
+    expect(step6Section).toMatch(/git push origin reference-impl-v<VERSION>/);
+    expect(step6Section).toMatch(/npm publish --access public/);
+    expect(step6Section).toMatch(/gh release create reference-impl-v<VERSION>/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-53: cloverleaf-run Branch discipline section guards
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run skill (CLV-53 — Branch discipline section)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('Branch discipline section defines <repo_root> as $(git rev-parse --show-toplevel)', () => {
+    const branchDisciplineIdx = body.indexOf('## Branch discipline');
+    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    expect(branchDisciplineIdx).toBeGreaterThan(-1);
+    expect(perAgentIdx).toBeGreaterThan(-1);
+    const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
+    expect(branchSection).toContain('git rev-parse --show-toplevel');
+  });
+
+  it('Branch discipline section notes that in walker context this is the worktree NOT the primary repo', () => {
+    const branchDisciplineIdx = body.indexOf('## Branch discipline');
+    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
+    expect(branchSection.toLowerCase()).toMatch(/worktree/);
+    expect(branchSection.toLowerCase()).toMatch(/not.*primary|primary.*not/);
+  });
+
+  it('Branch discipline section forbids git checkout main from walker worktrees', () => {
+    const branchDisciplineIdx = body.indexOf('## Branch discipline');
+    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
+    expect(branchSection).toMatch(/do NOT `git checkout main`|Do NOT `git checkout main`/i);
+  });
+
+  it('Branch discipline section points to git diff main..HEAD and git show main:<path>', () => {
+    const branchDisciplineIdx = body.indexOf('## Branch discipline');
+    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
+    expect(branchSection).toContain('git diff main..HEAD');
+    expect(branchSection).toMatch(/git show main:<path>/);
+  });
+
+  it('does NOT contain the legacy "Each sub-skill runs from `main`" directive', () => {
+    // This directive caused v0.6.3 dogfood walker pollution where state-advance
+    // commits landed on primary main instead of the worktree feature branch.
+    expect(body).not.toContain('Each sub-skill runs from `main`');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CLV-34: v0.6.1 CHANGELOG and package.json guards
 // ---------------------------------------------------------------------------
 
