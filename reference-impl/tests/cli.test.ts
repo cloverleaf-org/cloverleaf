@@ -7,10 +7,18 @@ import { join, resolve } from 'node:path';
 const CLI = resolve(__dirname, '..', 'lib', 'cli.ts');
 
 function run(args: string[]): { stdout: string; stderr: string; exitCode: number } {
+  return runWithEnv(args, {});
+}
+
+function runWithEnv(
+  args: string[],
+  env: Record<string, string>
+): { stdout: string; stderr: string; exitCode: number } {
   try {
     const stdout = execSync(`npx tsx ${CLI} ${args.map((a) => JSON.stringify(a)).join(' ')}`, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, ...env },
     });
     return { stdout, stderr: '', exitCode: 0 };
   } catch (err: unknown) {
@@ -786,5 +794,71 @@ describe('cli — write-baseline guard (CLV-38)', () => {
     ]);
 
     expect(exitCode).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-58: walker-default-concurrency subcommand
+// ---------------------------------------------------------------------------
+
+describe('cli — walker-default-concurrency (CLV-58)', () => {
+  let xdgTmp: string;
+
+  beforeEach(() => {
+    xdgTmp = mkdtempSync(join(tmpdir(), 'cli-walkercfg-'));
+  });
+
+  afterEach(() => {
+    rmSync(xdgTmp, { recursive: true, force: true });
+  });
+
+  // Test 1: plain form with { "max_concurrent": 2 } → stdout "2\n", exit 0
+  it('plain form prints resolved integer when config has max_concurrent: 2', () => {
+    mkdirSync(join(xdgTmp, 'cloverleaf'), { recursive: true });
+    writeFileSync(
+      join(xdgTmp, 'cloverleaf', 'walker.json'),
+      JSON.stringify({ max_concurrent: 2 })
+    );
+    const { stdout, exitCode } = runWithEnv(['walker-default-concurrency'], {
+      XDG_CONFIG_HOME: xdgTmp,
+    });
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe('2\n');
+  });
+
+  // Test 2: --explain form with { "max_concurrent": 2 } → stdout matches pattern, exit 0
+  it('--explain form prints formatted line with file path when config has max_concurrent: 2', () => {
+    mkdirSync(join(xdgTmp, 'cloverleaf'), { recursive: true });
+    writeFileSync(
+      join(xdgTmp, 'cloverleaf', 'walker.json'),
+      JSON.stringify({ max_concurrent: 2 })
+    );
+    const { stdout, exitCode } = runWithEnv(
+      ['walker-default-concurrency', '--explain'],
+      { XDG_CONFIG_HOME: xdgTmp }
+    );
+    expect(exitCode).toBe(0);
+    expect(stdout).toMatch(/^max_concurrent=2 \(from .+\/walker\.json\)\n?$/);
+  });
+
+  // Test 3: plain form, file absent → stdout "3\n", exit 0
+  it('plain form prints default 3 when config file is absent', () => {
+    const { stdout, exitCode } = runWithEnv(['walker-default-concurrency'], {
+      XDG_CONFIG_HOME: xdgTmp,
+    });
+    expect(exitCode).toBe(0);
+    expect(stdout).toBe('3\n');
+  });
+
+  // Test 4: plain form, malformed file → exit non-zero, stderr contains file path, stdout empty
+  it('exits non-zero with file path in stderr and no stdout when config is malformed', () => {
+    mkdirSync(join(xdgTmp, 'cloverleaf'), { recursive: true });
+    writeFileSync(join(xdgTmp, 'cloverleaf', 'walker.json'), '{ not valid json');
+    const { stdout, stderr, exitCode } = runWithEnv(['walker-default-concurrency'], {
+      XDG_CONFIG_HOME: xdgTmp,
+    });
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain(join(xdgTmp, 'cloverleaf', 'walker.json'));
+    expect(stdout).toBe('');
   });
 });

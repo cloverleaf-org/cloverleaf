@@ -34,6 +34,7 @@
  *   dag-detect-cycle <repoRoot> <planId>
  *   walk-state-read <repoRoot> <planId>
  *   walk-state-write <repoRoot> <walkStateJsonPath>
+ *   walker-default-concurrency [--explain]
  */
 
 import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
@@ -60,6 +61,7 @@ import { readUiReviewState, writeUiReviewState } from './ui-review-state.js';
 import { buildBaselinePath } from './visual-diff.js';
 import { computeReadyTasks, detectCycle } from './dag-walker.js';
 import { readWalkState, writeWalkState, walkStatePath } from './walk-state.js';
+import { loadWalkerConfig } from './walker-config.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -99,7 +101,8 @@ function usage(msg?: string): never {
       '  dag-ready-tasks <repoRoot> <planId> <maxConcurrent>\n' +
       '  dag-detect-cycle <repoRoot> <planId>\n' +
       '  walk-state-read <repoRoot> <planId>\n' +
-      '  walk-state-write <repoRoot> <walkStateJsonPath>\n'
+      '  walk-state-write <repoRoot> <walkStateJsonPath>\n' +
+      '  walker-default-concurrency [--explain]\n'
   );
   process.exit(2);
 }
@@ -497,6 +500,26 @@ try {
         die('walk-state JSON must include plan_id (string)');
       writeWalkState(repoRoot, state);
       break;
+    }
+
+    case 'walker-default-concurrency': {
+      const explain = rest.includes('--explain');
+      let cfg: { maxConcurrent: number; source: 'user' | 'default'; path: string };
+      try {
+        cfg = loadWalkerConfig();
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        process.stderr.write(msg + '\n');
+        process.exit(1);
+      }
+      if (explain) {
+        const location =
+          cfg.source === 'user' ? `from ${cfg.path}` : 'default';
+        process.stdout.write(`max_concurrent=${cfg.maxConcurrent} (${location})\n`);
+      } else {
+        process.stdout.write(`${cfg.maxConcurrent}\n`);
+      }
+      process.exit(0);
     }
 
     default:
