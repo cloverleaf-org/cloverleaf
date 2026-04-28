@@ -45,7 +45,7 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json && node scripts/rename-to-mjs.mjs",
     "acceptance:walker": "bash scripts/acceptance-walker.sh",
-    "prepublishOnly": "npm test && npm run build"
+    "prepublishOnly": "node scripts/check-standard-prepped.mjs && npm test && npm run build"
   },
   "dependencies": {
     "@cloverleaf/standard": "^0.4.0",
