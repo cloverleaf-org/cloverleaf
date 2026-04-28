@@ -20,8 +20,26 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
 1. Capture the `<PLAN-ID>` argument and optional flags:
 
-   - `--max-concurrent=N` — cap simultaneous sessions. Default `3`. Setting `--max-concurrent=1` yields serial behaviour.
+   - `--max-concurrent=N` — cap simultaneous sessions. Default `3` (resolved via `cloverleaf-cli walker-default-concurrency`). Setting `--max-concurrent=1` yields serial behaviour.
    - `--reset` — wipe `.cloverleaf/runs/plan/<PLAN-ID>/walk-state.json` and start fresh.
+
+   Resolve `MAX` and print exactly one startup info line:
+
+   ```bash
+   if [ -n "$MAX_FLAG" ]; then
+     MAX="$MAX_FLAG"
+     echo "max_concurrent=$MAX (from --max-concurrent flag)"
+   else
+     if ! MAX=$(cloverleaf-cli walker-default-concurrency); then
+       echo "ERROR: cloverleaf-cli walker-default-concurrency failed."
+       echo "Fix or remove \`~/.config/cloverleaf/walker.json\` and retry."
+       exit 1
+     fi
+     cloverleaf-cli walker-default-concurrency --explain
+   fi
+   ```
+
+   If `cloverleaf-cli walker-default-concurrency` exits non-zero (e.g. malformed `${XDG_CONFIG_HOME:-$HOME/.config}/cloverleaf/walker.json`), the walker stops and reports the error: **Fix or remove `~/.config/cloverleaf/walker.json` and retry.** This mirrors the step-0 uncommitted-changes stop-and-report pattern.
 
 2. **Guard against cycles.**
 

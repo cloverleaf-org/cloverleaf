@@ -940,6 +940,31 @@ describe('cloverleaf-run-plan skill (CLV-53 — step-6 Report Next steps block)'
 });
 
 // ---------------------------------------------------------------------------
+// CLV-59: walker-default-concurrency subcommand call in step 1
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-59 — walker-default-concurrency in step 1)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('step 1 contains both cloverleaf-cli walker-default-concurrency (plain) and --explain forms', () => {
+    // Slice step 1 only: from "1. " up to "2. **Guard against cycles.**"
+    const step1Start = body.indexOf('1. Capture the `<PLAN-ID>`');
+    const step2Start = body.indexOf('2. **Guard against cycles.**');
+    expect(step1Start).toBeGreaterThan(-1);
+    expect(step2Start).toBeGreaterThan(-1);
+    const step1Body = body.slice(step1Start, step2Start);
+
+    // Plain form — must appear (used for MAX=$(...) assignment)
+    expect(step1Body).toContain('cloverleaf-cli walker-default-concurrency');
+    // Explain form — must also appear (used for startup info line)
+    expect(step1Body).toContain('cloverleaf-cli walker-default-concurrency --explain');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CLV-53: cloverleaf-run Branch discipline section guards
 // ---------------------------------------------------------------------------
 

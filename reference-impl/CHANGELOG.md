@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `cloverleaf-run-plan` skill: step 1 resolves `max_concurrent` via `cloverleaf-cli walker-default-concurrency` (plain form, captured into `$MAX`) and `cloverleaf-cli walker-default-concurrency --explain` (startup info line) instead of hard-coding 3. When `--max-concurrent=N` was passed (`$MAX_FLAG` is set), `$MAX` is assigned from the flag and an info line is printed directly. On non-zero exit from `walker-default-concurrency`, the walker stops with `Fix or remove ~/.config/cloverleaf/walker.json and retry.` (CLV-59)
+
 ## 0.6.3 — 2026-04-28
 
 ### Fixed
