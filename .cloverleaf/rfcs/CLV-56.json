@@ -1,0 +1,35 @@
+{
+  "type": "rfc",
+  "project": "CLV",
+  "id": "CLV-56",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Walker user config: max_concurrent override (v0.6.4)",
+  "problem": "The v0.6.3 walker run (Plan CLV-51, HEAD dabb186, 2026-04-28) froze the host workstation when three parallel Sessions B each entered the QA stage — vitest and tsc per package — simultaneously. Recovery required abandoning all running sessions, hard-resetting main to the gate-approval commit 1090ee1, hot-fixing cloverleaf-run/SKILL.md, and re-spawning the walker in serial mode (--max-concurrent=1). The release shipped on the second attempt.\n\nThe walker's default max_concurrent is 3, hard-coded in reference-impl/skills/cloverleaf-run-plan/SKILL.md step 1 (the --max-concurrent=N flag description). On this machine, three parallel vitest + tsc processes plus their Node runtimes plus the parent driver session exceed available memory. The only existing escape hatch is passing --max-concurrent=N at invocation time — per-invocation state that is easy to forget after a break between releases. There is no durable, per-machine way to declare a safe cap.",
+  "solution": "Ship @cloverleaf/reference-impl@0.6.4 with a user-level config file that overrides the walker's default max_concurrent. Full design detail is in docs/superpowers/specs/2026-04-28-walker-user-config-design.md; this section summarises the key decisions.\n\n**Config file location and shape.** Path: ${XDG_CONFIG_HOME:-$HOME/.config}/cloverleaf/walker.json. Shape: { \"max_concurrent\": 2 }. XDG-compliant; mirrors the per-repo .cloverleaf/config/<name>.json convention already used for discovery.json, ui-review.json, and qa-rules.json.\n\n**Loader: lib/walker-config.ts.** New module exporting loadWalkerConfig(): { maxConcurrent: number; source: 'user' | 'default' }. Resolution: file absent or field absent → { maxConcurrent: 3, source: 'default' }; positive integer → { maxConcurrent: N, source: 'user' }; malformed JSON or invalid value (0, negative, float, string, null) → throws with an actionable message. Validation is hand-rolled — no AJV, which is consistent with the existing pattern of using AJV only for multi-field configs.\n\n**CLI subcommand.** cloverleaf-cli walker-default-concurrency [--explain] added as a new case in lib/cli.ts. Plain form prints the resolved integer to stdout and exits 0. --explain form prints max_concurrent=N (from <abs-path> | default). Either form exits non-zero with a stderr message on loader error. The absolute path is printed (not ~/) so the operator can paste it directly into a shell command.\n\n**Walker SKILL.md step 1.** The hard-coded default 3 is replaced by a call to the new subcommand. If --max-concurrent=N was passed, it is used directly and an info line is printed naming the flag. Otherwise, MAX=$(cloverleaf-cli walker-default-concurrency) is called and cloverleaf-cli walker-default-concurrency --explain prints the startup info line. If the subcommand exits non-zero (malformed config), the walker stops and reports, matching the existing step-0 pattern for uncommitted changes.\n\n**Startup print.** The walker always prints exactly one info line at startup: the resolved value and its source (flag, user config path, or default). This makes the active cap trivially visible without inspecting state files.\n\n**Resumability.** walk-state.json continues to record the resolved max_concurrent at walk start. Resume without --max-concurrent replays the recorded value — the config file is not re-read. To change the cap on resume, pass --max-concurrent=N explicitly. No walk-state.json schema change.\n\n**Precedence.** Flag > user config > default.\n\n**Release.** reference-impl/package.json bumped 0.6.3 → 0.6.4; reference-impl/CHANGELOG.md gains a ## 0.6.4 section. @cloverleaf/standard stays at 0.4.1.",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "${XDG_CONFIG_HOME:-$HOME/.config}/cloverleaf/walker.json containing { \"max_concurrent\": 2 } causes the walker to operate with cap 2 on every invocation without the operator passing --max-concurrent.",
+    "cloverleaf-cli walker-default-concurrency prints 2 and exits 0 with that file present; prints 3 when the file is absent.",
+    "cloverleaf-cli walker-default-concurrency --explain prints max_concurrent=N (from <abs-path> | default) per the design spec table.",
+    "A file with { \"max_concurrent\": 0 } or a negative, float, string, or null value causes the CLI to exit non-zero with a clear stderr message and the walker to stop with a 'fix or remove' hint.",
+    "--max-concurrent=N CLI flag overrides everything (precedence: flag > user config > default).",
+    "The walker prints exactly one info line at startup naming the resolved value and its source on every invocation.",
+    "Test count increases from 554 to 568: 9 new loader unit tests in walker-config.test.ts, 4 new CLI tests in cli.test.ts, and 1 new skill regression test in skills.test.ts.",
+    "reference-impl/package.json is at version 0.6.4.",
+    "reference-impl/CHANGELOG.md contains a ## 0.6.4 section.",
+    "Tag reference-impl-v0.6.4 pushed, GitHub Release live, and npm publish done."
+  ],
+  "out_of_scope": [
+    "Runtime memory-pressure detection (PSI / /proc/meminfo). Deferred — static cap is sufficient; runtime detection is a v0.7 design question if the static cap proves inadequate.",
+    "Per-repo <repo>/.cloverleaf/config/walker.json override. Deferred per YAGNI — no current cross-repo use case.",
+    "Setter CLI subcommand (cloverleaf-cli walker-config-set ...). The operator can edit the file with vim.",
+    "AJV / JSON Schema validation. Single-field config; hand-rolled check is sufficient.",
+    "Sanity ceiling on the operator's chosen value (e.g. reject > 8). Trust the operator.",
+    "Standard schema, contract, or conformance changes (stays at 0.4.1).",
+    "Other v0.6.4 candidate work — /cloverleaf-release automation skill, walker self-monitoring, metrics package, anti-patterns catalog. All out of this brief; possibly future briefs."
+  ]
+}
