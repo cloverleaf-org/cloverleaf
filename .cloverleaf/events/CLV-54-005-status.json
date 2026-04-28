@@ -1,0 +1,16 @@
+{
+  "event_id": "428b0337-13f4-4c6d-b155-9a225aad2aa2",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-28T03:11:59.400Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-54"
+  },
+  "work_item_type": "task",
+  "from_status": "review",
+  "to_status": "automated-gates",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  }
+}
