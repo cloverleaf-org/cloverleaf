@@ -2,6 +2,13 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `reference-impl/scripts/check-standard-prepped.mjs` — new sanity-check script run as the first step of `prepublishOnly`. Walks up from `process.cwd()` to locate the repo root by detecting `standard/package.json`, then verifies both `standard/dist/` and `standard/node_modules/` exist. If either is absent, writes an actionable error to stderr (`ERROR: standard/ is not prepped in this environment.`) with two remediation options (`cloverleaf-cli prep-worktree` or `(cd ../standard && npm ci && npm run build)`) and exits with code 1. Exits 0 with no output when both are present. [CLV-54]
+- `reference-impl/package.json` `prepublishOnly` script updated to `node scripts/check-standard-prepped.mjs && npm test && npm run build`, placing the sanity check before the vitest/tsc run so that an unprepped worktree fails fast with an actionable error before any test or build work begins. [CLV-54]
+
 ## 0.6.2 — 2026-04-27
 
 ### Added
