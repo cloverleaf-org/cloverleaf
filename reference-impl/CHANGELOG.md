@@ -9,6 +9,10 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 - `prepWorktree()` now copies the primary repo's `reference-impl/dist/` into the spawned worktree immediately after the `reference-impl/node_modules` copy step, so agents importing from `<worktree>/reference-impl/dist/` (e.g. `dist/lib/qa-report.js`) no longer encounter `Cannot find module` errors. No new build step is invoked inside the worktree — the already-built dist from the primary is reused directly. [CLV-52]
 - `cloverleaf-run-plan/SKILL.md` step-6 Report section gains a `## Next steps (release publishing)` block listing the five post-merge release commands (tag, push origin main, push tag, npm publish, gh release create) so operators have an authoritative checklist immediately after a plan completes. [CLV-53]
 - `cloverleaf-run-plan/SKILL.md` scenario_brief template gains an explicit `DO NOT run git checkout main from this worktree` paragraph explaining the two-worktree branch-hold constraint and providing safe alternatives (`git diff main..HEAD`, `git show main:<path>`). Regression-guarded in `tests/skills.test.ts`. [CLV-53]
+### Added
+
+- `reference-impl/scripts/check-standard-prepped.mjs` — new sanity-check script run as the first step of `prepublishOnly`. Walks up from `process.cwd()` to locate the repo root by detecting `standard/package.json`, then verifies both `standard/dist/` and `standard/node_modules/` exist. If either is absent, writes an actionable error to stderr (`ERROR: standard/ is not prepped in this environment.`) with two remediation options (`cloverleaf-cli prep-worktree` or `(cd ../standard && npm ci && npm run build)`) and exits with code 1. Exits 0 with no output when both are present. [CLV-54]
+- `reference-impl/package.json` `prepublishOnly` script updated to `node scripts/check-standard-prepped.mjs && npm test && npm run build`, placing the sanity check before the vitest/tsc run so that an unprepped worktree fails fast with an actionable error before any test or build work begins. [CLV-54]
 
 ## 0.6.2 — 2026-04-27
 
