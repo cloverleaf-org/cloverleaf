@@ -128,6 +128,7 @@ export function prepWorktree(mainRoot: string, worktreePath: string): void {
   //      EEXIST on vite/node_modules/.bin on second invocation).
   primeCopy(mainStandardNm, wtStandardNm);
   primeCopy(mainRefImplNm, wtRefImplNm);
+  primeCopy(join(resolvedMain, 'reference-impl', 'dist'), join(worktreePath, 'reference-impl', 'dist'));
 
   execSync('npm run build', {
     cwd: join(worktreePath, 'standard'),
