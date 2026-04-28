@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- `prepWorktree()` now copies the primary repo's `reference-impl/dist/` into the spawned worktree immediately after the `reference-impl/node_modules` copy step, so agents importing from `<worktree>/reference-impl/dist/` (e.g. `dist/lib/qa-report.js`) no longer encounter `Cannot find module` errors. No new build step is invoked inside the worktree — the already-built dist from the primary is reused directly. [CLV-52]
+
 ## 0.6.2 — 2026-04-27
 
 ### Added

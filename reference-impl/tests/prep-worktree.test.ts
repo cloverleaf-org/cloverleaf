@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, symlinkSync, readlinkSync, realpathSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, symlinkSync, readlinkSync, realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { prepWorktree } from '../lib/prep-worktree.js';
@@ -44,6 +44,10 @@ beforeEach(() => {
       dependencies: { '@cloverleaf/standard': 'file:../standard' },
     }) + '\n',
   );
+  // Simulate an already-built dist/ in the primary repo (the artefacts CLV-52 must copy).
+  mkdirSync(join(main, 'reference-impl', 'dist', 'lib'), { recursive: true });
+  writeFileSync(join(main, 'reference-impl', 'dist', 'cli.mjs'), '// cli entry\n');
+  writeFileSync(join(main, 'reference-impl', 'dist', 'lib', 'qa-report.mjs'), '// qa-report entry\n');
   mkdirSync(join(main, 'reference-impl', 'node_modules', '@cloverleaf'), { recursive: true });
   // The relative symlink npm creates for a file: workspace dep. Copy this literally → worktree should resolve
   // to its own standard/, not main's.
@@ -99,6 +103,17 @@ describe('prepWorktree', () => {
     expect(existsSync(join(wt, 'reference-impl', 'node_modules', 'vitest', 'package.json'))).toBe(true);
   });
 
+  it('copies primary reference-impl/dist into worktree and contains at least one .mjs file (CLV-52)', () => {
+    prepWorktree(main, wt);
+    // The dist/ directory must exist in the worktree.
+    expect(existsSync(join(wt, 'reference-impl', 'dist'))).toBe(true);
+    // At least one .mjs file must be present (mirrors the primary's built output).
+    const distFiles = readdirSync(join(wt, 'reference-impl', 'dist'));
+    expect(distFiles.some((f) => f.endsWith('.mjs'))).toBe(true);
+    // The specific dist entry a Reviewer/QA agent would import must be present.
+    expect(existsSync(join(wt, 'reference-impl', 'dist', 'lib', 'qa-report.mjs'))).toBe(true);
+  });
+
   it('preserves the @cloverleaf/standard relative symlink so it resolves to the worktree standard/', () => {
     prepWorktree(main, wt);
     const linkPath = join(wt, 'reference-impl', 'node_modules', '@cloverleaf', 'standard');
@@ -132,6 +147,8 @@ describe('prepWorktree', () => {
     expect(existsSync(join(wt, 'standard', 'dist', 'marker.txt'))).toBe(true);
     expect(existsSync(join(wt, 'reference-impl', 'node_modules', 'vitest', 'package.json'))).toBe(true);
     expect(readlinkSync(join(wt, 'reference-impl', 'node_modules', '@cloverleaf', 'standard'))).toBe('../../../standard');
+    // dist/ must also survive a second run (CLV-52 idempotence).
+    expect(existsSync(join(wt, 'reference-impl', 'dist', 'cli.mjs'))).toBe(true);
   });
 
   it('survives a nested .bin symlink pattern in main (v0.5.5 #E)', () => {
@@ -180,6 +197,9 @@ describe('prepWorktree', () => {
       symlinkSync('../../../standard', join(primaryRoot, 'reference-impl', 'node_modules', '@cloverleaf', 'standard'));
       mkdirSync(join(primaryRoot, 'reference-impl', 'node_modules', 'vitest'), { recursive: true });
       writeFileSync(join(primaryRoot, 'reference-impl', 'node_modules', 'vitest', 'package.json'), '{"name":"vitest"}');
+      // Simulate the already-built dist/ that prepWorktree must copy (CLV-52).
+      mkdirSync(join(primaryRoot, 'reference-impl', 'dist'), { recursive: true });
+      writeFileSync(join(primaryRoot, 'reference-impl', 'dist', 'index.mjs'), '// index\n');
       mkdirSync(join(primaryRoot, 'reference-impl'), { recursive: true });
       writeFileSync(
         join(primaryRoot, 'reference-impl', 'package.json'),
@@ -251,6 +271,9 @@ describe('prepWorktree', () => {
       mkdirSync(join(grandparent, 'reference-impl', 'node_modules', 'vitest'), { recursive: true });
       writeFileSync(join(grandparent, 'reference-impl', 'node_modules', 'vitest', 'package.json'), '{"name":"vitest"}');
       writeFileSync(join(grandparent, 'reference-impl', 'package.json'), '{"name":"@cloverleaf/reference-impl"}');
+      // Simulate an already-built dist/ (required by CLV-52 dist copy step).
+      mkdirSync(join(grandparent, 'reference-impl', 'dist'), { recursive: true });
+      writeFileSync(join(grandparent, 'reference-impl', 'dist', 'index.mjs'), '// index\n');
 
       const walkerPath = join(grandparent, 'child', 'grandchild');
       mkdirSync(join(walkerPath, 'standard'), { recursive: true });
