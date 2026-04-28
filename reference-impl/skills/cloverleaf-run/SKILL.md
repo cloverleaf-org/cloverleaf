@@ -7,7 +7,9 @@ description: End-to-end orchestrator. Reads task.risk_class to dispatch fast lan
 
 ## Branch discipline
 
-Each sub-skill runs from `main`. Between steps, confirm branch is `main` before proceeding. All sub-skills return the user to `main`.
+`<repo_root>` is `$(git rev-parse --show-toplevel)` of your current working directory. In walker context (Session B inside `$WORKTREE_ROOT`), this is the worktree path, NOT the primary repo. Pass `<repo_root>` explicitly to every `cloverleaf-cli` invocation, and run `git add .cloverleaf/ && git commit` from `<repo_root>` so state-advance commits land on the worktree's current branch (`cloverleaf/<TASK-ID>` in walker mode).
+
+Do NOT `git checkout main` from a walker worktree — main is held by the primary repo. To compare against main, use `git diff main..HEAD` or `git show main:<path>`. Sub-skills run from the worktree's current branch and stay on it; the walker (in the primary repo) does the final merge to main itself after all tasks reach final-gate.
 
 ## Per-agent bounce budget
 
