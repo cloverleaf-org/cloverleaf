@@ -1,0 +1,16 @@
+{
+  "event_id": "37f6d9f8-3c91-45a9-b6a4-409c271d4782",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-29T03:20:53.983Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-69"
+  },
+  "work_item_type": "task",
+  "from_status": "tactical-plan",
+  "to_status": "implementing",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  }
+}

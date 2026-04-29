@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- `runPreflightChecks()` in `lib/release-preflight.ts` now extracts release notes via a section-split approach (`changelog.split(/\n(?=## )/)`, `versionRegex.test(s)` per section, strip header line, trim) instead of a one-shot regex. The previous regex captured content from the wrong CHANGELOG section when the target version was not the last entry. Four new/augmented test cases (cases 1, 11, 12, 13 in `release-preflight.test.ts`) cover multi-section isolation and last-section extraction; case 13 specifically exercises the bracketed `## [version]` header form. Total test count advances from 10 to 13. [CLV-69]
+
 ## 0.6.5 — 2026-04-28
 
 ### Changed

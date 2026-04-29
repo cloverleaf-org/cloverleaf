@@ -1,0 +1,17 @@
+{
+  "event_id": "22c4ce46-c078-4426-9d47-218c54e61ccb",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-29T03:42:03.891Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-69"
+  },
+  "work_item_type": "task",
+  "from_status": "qa",
+  "to_status": "final-gate",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "reason": "gate=--path=full_pipeline"
+}
