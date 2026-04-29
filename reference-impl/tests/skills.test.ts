@@ -1227,3 +1227,99 @@ describe('cloverleaf-run-plan skill (CLV-70 — no bare git in bash blocks)', ()
     expect(violations, `Bare git invocations found (not allowlisted and missing -C <repo_root>):\n${violations.map((l) => `  ${JSON.stringify(l)}`).join('\n')}`).toHaveLength(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-74: plugin.json must have no `skills` property (auto-discovery guard)
+// ---------------------------------------------------------------------------
+
+describe('plugin.json (CLV-74 — no skills property)', () => {
+  const pluginJson = JSON.parse(
+    readFileSync(resolve(__dirname, '..', '.claude-plugin', 'plugin.json'), 'utf-8'),
+  );
+
+  it('plugin.json exists and is valid JSON', () => {
+    expect(pluginJson).toBeDefined();
+    expect(typeof pluginJson).toBe('object');
+  });
+
+  it('plugin.json has no skills property (auto-discovery must not be suppressed)', () => {
+    // The `skills[]` array in plugin.json suppresses Claude Code's auto-discovery
+    // mechanism. When present, only the listed skills are registered — all others
+    // vanish at runtime. Removing the field restores full auto-discovery (CLV-69
+    // hot-fix / v0.6.6 changelog entry). This guard prevents the field from
+    // being inadvertently re-introduced by future edits.
+    expect(pluginJson).not.toHaveProperty('skills');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-74: walker self-healing — Monitor attachment, dispatch table, 5xx retry
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-74 — walker self-healing)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('attaches Monitor tool with persistent: true and timeout_ms: 3600000 after start_session', () => {
+    // The walker must invoke the Monitor tool immediately after spawning each
+    // Session B so that child events arrive without requiring Session A nudges.
+    expect(body).toContain('persistent: true');
+    expect(body).toContain('timeout_ms: 3600000');
+    // Monitor attachment must appear after mcp__claw-drive__start_session in the skill body.
+    const startSessionIdx = body.indexOf('mcp__claw-drive__start_session');
+    const monitorIdx = body.indexOf('persistent: true');
+    expect(startSessionIdx).toBeGreaterThan(-1);
+    expect(monitorIdx).toBeGreaterThan(-1);
+    expect(monitorIdx).toBeGreaterThan(startSessionIdx);
+  });
+
+  it('dispatch table covers the idle event with claw-drive status check', () => {
+    // idle handler must call `claw-drive status <child_session_id>`
+    expect(body).toMatch(/\*\*`?idle`?\*\*/);
+    expect(body).toMatch(/claw-drive status[^\n]*<child_session_id>/);
+  });
+
+  it('idle handler branches on last_token [DONE]', () => {
+    expect(body).toMatch(/last_token.*\[DONE\]|\[DONE\].*last_token/);
+  });
+
+  it('idle handler branches on last_token [NEEDS-INPUT]', () => {
+    expect(body).toMatch(/last_token.*\[NEEDS-INPUT\]|\[NEEDS-INPUT\].*last_token/);
+  });
+
+  it('dispatch table covers tool_decision_required event', () => {
+    expect(body).toMatch(/\*\*`?tool_decision_required`?\*\*/);
+  });
+
+  it('dispatch table covers turn_completed [DONE] event', () => {
+    expect(body).toMatch(/turn_completed[^\n]*\[DONE\]|\[DONE\][^\n]*turn_completed/);
+  });
+
+  it('dispatch table covers turn_completed [NEEDS-INPUT] event', () => {
+    expect(body).toMatch(/turn_completed[^\n]*\[NEEDS-INPUT\]|\[NEEDS-INPUT\][^\n]*turn_completed/);
+  });
+
+  it('dispatch table covers session_stopped event', () => {
+    expect(body).toMatch(/\*\*`?session_stopped`?\*\*/);
+  });
+
+  it('transient-5xx regex covers HTTP 5xx status codes (e.g. 503)', () => {
+    // The regex must match patterns like "503", "500", "599".
+    expect(body).toMatch(/5\\d\\d\\b|5\\\\d\\\\d/);
+  });
+
+  it('transient-5xx regex covers "API Error: 5xx" string form', () => {
+    expect(body).toMatch(/API Error: 5\\d\\d|API Error.*5xx/);
+  });
+
+  it('transient-5xx regex covers "temporarily unavailable" literal', () => {
+    expect(body).toContain('temporarily unavailable');
+  });
+
+  it('5xx self-healing sends recovery turn via mcp__claw-drive__send_turn', () => {
+    expect(body).toContain('mcp__claw-drive__send_turn');
+    expect(body).toContain('API recovered. Retry the last operation.');
+  });
+});
