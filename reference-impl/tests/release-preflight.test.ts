@@ -1,5 +1,5 @@
 /**
- * Tests for release-preflight.ts — 10 cases covering each check and composed failures.
+ * Tests for release-preflight.ts — 13 cases covering each check and composed failures.
  *
  * Strategy: each test spins up a real git repo (git init) with the minimal
  * directory structure that runPreflightChecks() needs, then manipulates state
@@ -333,5 +333,32 @@ describe('release-preflight', () => {
     expect(result.notes).toBe(result.notes.trim());
     // Must not contain content from the 0.6.6 section
     expect(result.notes).not.toContain('newer stuff');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test case 13: notes extraction — bracketed "## [version]" header form
+  // -------------------------------------------------------------------------
+
+  it('(13) notes are correctly extracted when CHANGELOG uses bracketed ## [version] header form', () => {
+    tmp = buildRepo({
+      version: '0.6.6',
+      changelog:
+        '# Changelog\n\n## [0.6.6] — 2026-05-01\n\n### Added\n\n- bracketed release\n\n## [0.6.5] — 2026-04-01\n\n### Fixed\n\n- older fix\n',
+    });
+    const result = runPreflightChecks(tmp);
+
+    // changelog-section check must pass (regex supports bracketed form)
+    const clCheck = result.checks.find((c) => c.id === 'changelog-section')!;
+    expect(clCheck.status).toBe('pass');
+
+    // notes must contain the body of the 0.6.6 bracketed section only
+    expect(result.notes.length).toBeGreaterThan(0);
+    expect(result.notes).toContain('### Added');
+    expect(result.notes).toContain('- bracketed release');
+    // Must NOT include content from the 0.6.5 section
+    expect(result.notes).not.toContain('0.6.5');
+    expect(result.notes).not.toContain('- older fix');
+    // Must be trimmed
+    expect(result.notes).toBe(result.notes.trim());
   });
 });
