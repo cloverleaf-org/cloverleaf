@@ -70,7 +70,20 @@
       "enum": ["low", "high"],
       "description": "Computed by the deterministic Risk Classifier. 'low' = Fast Lane eligible; 'high' = Full Pipeline."
     },
-    "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
+    "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" },
+    "scope": {
+      "description": "Optional task scope metadata. Added in Standard 0.5.0.",
+      "type": "object",
+      "properties": {
+        "files_touched": {
+          "description": "Repo-root-relative POSIX paths of files this task is expected to modify.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": false
 }
