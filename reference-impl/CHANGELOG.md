@@ -2,6 +2,13 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `skills/cloverleaf-run-plan/SKILL.md` — step 5e now calls `cloverleaf-cli check-scope` before the y/N merge prompt; on `contested` files the merge is skipped and the task is escalated with a clear message; on tooling failure the walker warns and falls through to the existing flow. Adds a post-merge auto-extend block invoking `cloverleaf-cli extend-scope` when `extension[]` is non-empty. New Rules entry: "Scope-contested merges are escalated, never auto-resolved". [CLV-88]
+- `prompts/implementer.md` — added a one-paragraph **Scope nudge** after step 1 covering own-scope, discovery-during-implementation auto-extension, and the contested-file refuse-merge consequence. [CLV-88]
+
 ## 0.7.0 — 2026-04-29
 
 ### Added
