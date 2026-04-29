@@ -1,0 +1,32 @@
+{
+  "id": "CLV-75",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Loader --pretty flag + jq-safe default",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-72"
+    }
+  },
+  "definition_of_done": [
+    "load-rfc, load-spike, load-plan, and load-task all default to single-line compact JSON via process.stdout.write(JSON.stringify(doc) + '\\n'); each loader gains a --pretty flag that opts back into multi-line JSON.stringify(doc, null, 2); tests/cli.test.ts gains 12 new test cases (3 per loader: default-form single-line round-trip, --pretty multi-line round-trip, invalid-args error to stderr with non-zero exit)"
+  ],
+  "acceptance_criteria": [
+    "cloverleaf-cli load-rfc <repo> <id> stdout is single line ending in \\n and parses with JSON.parse",
+    "cloverleaf-cli load-rfc <repo> <id> --pretty stdout has multiple lines and parses with JSON.parse",
+    "Same defaults and --pretty semantics apply to load-spike / load-plan / load-task",
+    "tests/cli.test.ts gains 12 new loader-output cases",
+    "vitest run on reference-impl reports 0 failures"
+  ],
+  "risk_class": "high",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-73"
+  }
+}

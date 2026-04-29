@@ -1,0 +1,33 @@
+{
+  "id": "CLV-76",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Remove cloverleaf-release skill",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-72"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/skills/cloverleaf-release/ directory is deleted; reference-impl/lib/release-preflight.ts is deleted; reference-impl/tests/release-preflight.test.ts is deleted; cli.ts no longer references release-preflight (import and case branch removed, usage/help text pruned); tests/cli.test.ts has all release-preflight test cases removed; tests/skills.test.ts has the regression case asserting cloverleaf-release/SKILL.md exists removed; vitest run reports 0 failures"
+  ],
+  "acceptance_criteria": [
+    "reference-impl/skills/cloverleaf-release/ does not exist",
+    "reference-impl/lib/release-preflight.ts does not exist",
+    "reference-impl/tests/release-preflight.test.ts does not exist",
+    "cloverleaf-cli release-preflight exits with a usage error (subcommand removed)",
+    "No remaining grep hits for release-preflight in reference-impl/lib/ or reference-impl/tests/",
+    "vitest run on reference-impl reports 0 failures"
+  ],
+  "risk_class": "low",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-73"
+  }
+}

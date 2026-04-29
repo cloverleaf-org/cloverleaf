@@ -1,0 +1,30 @@
+{
+  "id": "CLV-74",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Walker self-healing + plugin manifest regression test",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-72"
+    }
+  },
+  "definition_of_done": [
+    "SKILL.md step 5 modified so that after spawning each child Session B the walker invokes the harness Monitor tool against the child's watch_command with persistent: true, timeout_ms: 3600000; walker's child-event dispatch table covers idle (with claw-drive status check + last_token branching for [DONE] / [NEEDS-INPUT] / 5xx-retry / continue-waiting), tool_decision_required, turn_completed [DONE] / turn_completed [NEEDS-INPUT], and session_stopped; transient-5xx regex 5\\d\\d\\b|API Error: 5\\d\\d|temporarily unavailable triggers mcp__claw-drive__send_turn with the message 'API recovered. Retry the last operation.'; tests/skills.test.ts gains a regression test asserting that reference-impl/.claude-plugin/plugin.json has no skills property; tests/skills.test.ts also gains a regression case for the walker self-healing additions"
+  ],
+  "acceptance_criteria": [
+    "Walker no longer requires Session A nudges to react to children's [DONE] / [NEEDS-INPUT] / 5xx-error idle events",
+    "tests/skills.test.ts regression test asserts plugin.json has no skills key",
+    "vitest run on reference-impl reports 0 failures"
+  ],
+  "risk_class": "high",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-73"
+  }
+}

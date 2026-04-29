@@ -1,0 +1,32 @@
+{
+  "id": "CLV-77",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Release-prep custodian (package.json + CHANGELOG)",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-72"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/package.json version updated from 0.6.6 to 0.6.7; CHANGELOG.md ## [Unreleased] heading renamed to ## 0.6.7 — 2026-04-29 and consolidated Documenter entries from T1+T2+T3 are present; the ## 0.6.7 — 2026-04-29 section explicitly lists removal of the /cloverleaf-release skill as a breaking change with wording: 'Breaking — /cloverleaf-release skill removed. Release publishing returns to the manual five-command sequence printed by the walker\\'s \\'Next steps\\' block.'; no other files modified by this task"
+  ],
+  "acceptance_criteria": [
+    "reference-impl/package.json contains \"version\": \"0.6.7\"",
+    "reference-impl/CHANGELOG.md contains ## 0.6.7 — 2026-04-29 and does NOT contain ## [Unreleased]",
+    "The ## 0.6.7 — 2026-04-29 section explicitly identifies the cloverleaf-release skill removal as a breaking change",
+    "CHANGELOG body includes consolidated entries covering walker self-healing + plugin manifest test, loader --pretty flag, and release-skill removal",
+    "vitest run on reference-impl reports 0 failures after the version bump"
+  ],
+  "risk_class": "low",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-73"
+  }
+}
