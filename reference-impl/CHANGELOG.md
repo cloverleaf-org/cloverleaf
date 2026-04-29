@@ -7,6 +7,12 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 ### Changed
 
 - `cloverleaf-run-plan` skill: step 5b now calls `cloverleaf-cli prep-worktree <repo_root> "$WT"` immediately after `git worktree add` and before `mcp__claw-drive__start_session`, ensuring every child worktree is fully primed before the session starts. All `claw-drive watch` invocations in step 5c now append `--idle-after 600` so child sessions emit synthetic idle events after 10 minutes of silence. Step 5d gains a new idle event handler: when a `silent_for_ms >= 600000` event arrives for a child session in qa-or-higher task state, the walker calls `claw-drive status <child_session_id>` to read `last_token`; if `last_token` is `[DONE]` or the on-disk task status is `final-gate`/`automated-gates`, the child is treated as terminal and drain proceeds. Retired claw-drive 0.5.7 token vocabulary replaced throughout. [CLV-64]
+### Added
+
+- `lib/release-preflight.ts` — new module exporting `runPreflightChecks(repoRoot): PreflightResult`. Runs six blocking checks (`on-main`, `clean-tree`, `in-sync-with-origin`, `valid-version`, `changelog-section`, `tag-absent`) and two warnings (`npm-authenticated`, `gh-authenticated`). Returns `{ checks, version, tag, notes }`. Never throws — all errors are captured into per-check `message` fields. [CLV-63]
+- `cloverleaf-cli release-preflight <repoRoot> [--json]` — new CLI subcommand. In `--json` mode emits the full `PreflightResult` as JSON on stdout; in plain mode prints one `✓`/`⚠`/`✗`-prefixed line per check and exits non-zero if any blocking check fails. [CLV-63]
+- `/cloverleaf-release` skill (`skills/cloverleaf-release/SKILL.md`) — publishes a new `@cloverleaf/reference-impl` release. Flow: parse `[--dry-run] [--yes]` flags → call `cloverleaf-cli release-preflight --json` → display check list → bail on blocking failure → display 5-command release plan + version + notes preview → prompt `y/N` (skipped with `--yes`) → execute `git tag -a` / `git push origin main` / `git push origin <tag>` / `npm publish --access public` / `gh release create` sequentially with bail-fast. [CLV-63]
+- Plugin manifest (`reference-impl/.claude-plugin/plugin.json`) updated to version `0.6.5`; `cloverleaf-release` added to the `skills[]` array. Marketplace manifest (`.claude-plugin/marketplace.json`) updated to version `0.6.5` with `", release"` appended to the plugin description. [CLV-63]
 
 ## 0.6.4 — 2026-04-28
 
