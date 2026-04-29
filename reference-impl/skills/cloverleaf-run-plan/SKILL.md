@@ -111,23 +111,61 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
       Record the returned `session_id`, `worktree_path`, and `branch_name` in walk-state with `state: "running"`, `started_at: <now>`, `last_seq: 0`. Persist via `walk-state-write`.
 
-   c. **Monitor live sessions.** Start `claw-drive watch <session_id> --since <last_seq> --idle-after 600` for each running session. Merge the streams into a single notification feed (e.g., the Monitor tool, or `claw-drive watch` run per-session in the background with a filter). The `--idle-after 600` flag instructs claw-drive to emit a synthetic `idle` event if a session produces no output for 600 seconds (10 minutes), enabling the walker to detect stalled sessions without polling.
+      Immediately after `mcp__claw-drive__start_session` returns, attach a Monitor tool stream for the new session:
 
-   d. **Handle events.**
+      ```
+      Monitor(
+        watch_command: "claw-drive watch <session_id> --since 0 --idle-after 600",
+        persistent: true,
+        timeout_ms: 3600000
+      )
+      ```
 
-      - **tool_decision_required** → let the walker policy decide (auto-approve per rules, defer to user for anything not covered).
-      - **turn_completed with final-gate prompt text** → push onto the final-gate queue.
+      This ensures the walker receives all child events without requiring Session A nudges. The `persistent: true` flag keeps the stream open across turns; `timeout_ms: 3600000` caps the watch at one hour.
+
+   c. **Monitor live sessions.** Each child session is already watched via the persistent Monitor stream attached in step 5b. When resuming after a walker restart (step 4), re-attach the Monitor with `--since <last_seq>` for each session still in `state: "running"`:
+
+      ```
+      Monitor(
+        watch_command: "claw-drive watch <session_id> --since <last_seq> --idle-after 600",
+        persistent: true,
+        timeout_ms: 3600000
+      )
+      ```
+
+      The `--idle-after 600` flag instructs claw-drive to emit a synthetic `idle` event if a session produces no output for 600 seconds (10 minutes), enabling the walker to detect stalled sessions without polling.
+
+   d. **Handle events.** Dispatch each incoming Monitor event by type:
+
+      - **`idle`** (`silent_for_ms >= 600000`) — the session has been silent for 10 minutes. For each child session emitting this event, check terminal state:
+        ```bash
+        claw-drive status <child_session_id>
+        ```
+        Read `last_token` from the status response, then branch:
+        - `last_token` is `[DONE]` → treat as terminal; proceed with drain (same as `session_stopped` → stopped cleanly).
+        - `last_token` is `[NEEDS-INPUT]` → the session is waiting for user input; surface to the user for a decision and send a reply via `mcp__claw-drive__send_turn`.
+        - Status output matches the transient-5xx pattern (`5\d\d\b`, `API Error: 5\d\d`, or `temporarily unavailable`) → invoke `mcp__claw-drive__send_turn` with message `'API recovered. Retry the last operation.'` to trigger self-healing.
+        - None of the above → the session is still working; continue waiting; do NOT auto-kill.
+        - **Per-session idle > 30 min** (no `idle` event received, wall-clock elapsed) → surface to user for inspection; do NOT auto-kill.
+
+      - **`tool_decision_required`** → let the walker policy decide (auto-approve per rules, defer to user for anything not covered).
+
+      - **`turn_completed [DONE]`** → the session has finished its current turn with a `[DONE]` terminal token. If the on-disk task status is `final-gate` or `automated-gates`, push onto the final-gate queue. Otherwise continue monitoring.
+
+      - **`turn_completed [NEEDS-INPUT]`** → the session is paused waiting for a user reply. Surface the assistant's last message to the driver and send the user's response via `mcp__claw-drive__send_turn`.
+
+      - **`session_stopped`** → reconcile as in step 4.
+
       - **Escalation detected** (assistant text contains `escalated` / Reviewer/QA/UI-Reviewer bounce cap / git merge abort) → **surface to user immediately** with:
         > ⚠️ `<TASK-ID>` escalated at `<agent>` (reason: `<detail>`). Session `<session_id>`. Descendants in this Plan are now blocked until you unstick it.
         > To unstick: read feedback at `.cloverleaf/feedback/<TASK-ID>-*.json`, fix the issue, and run `/cloverleaf-run <TASK-ID>` manually. The walker will re-check on its next tick — when the task reaches `merged`, it'll pick up descendants automatically.
         Mark the task `state: "escalated"` in walk-state; do NOT queue it behind final-gate approvals; continue other branches.
-      - **session_stopped** → reconcile as in step 4.
-      - **idle** (`silent_for_ms >= 600000`) → the session has been silent for 10 minutes. For each child session emitting this event, check whether it has reached a terminal state:
-        ```bash
-        claw-drive status <child_session_id>
-        ```
-        Read `last_token` from the status response. If `last_token` is `[DONE]` **or** the on-disk task status (`.cloverleaf/tasks/<TASK-ID>.json`) is `final-gate` or `automated-gates`, treat the session as terminal and proceed with drain (same as `session_stopped` → stopped cleanly). If neither condition is met, surface to the user for inspection; do NOT auto-kill.
-      - **Per-session idle > 30 min** (no `idle` event received, wall-clock elapsed) → surface to user for inspection; do NOT auto-kill.
+
+      **Transient-5xx self-healing.** Whenever any event's content (assistant text, error field, or status output) matches the pattern `5\d\d\b|API Error: 5\d\d|temporarily unavailable`, invoke:
+      ```
+      mcp__claw-drive__send_turn(session_id: <session_id>, text: "API recovered. Retry the last operation.")
+      ```
+      This covers transient API errors (e.g. HTTP 503, `API Error: 503`) and the `temporarily unavailable` service message without requiring a Session A nudge from the human.
 
    e. **Drain the final-gate queue serially and merge on main.** Session B does NOT invoke `/cloverleaf-merge` — it stops at automated-gates (fast lane) or final-gate (full pipeline) and reports. The walker performs the merge on main in the primary repo. For each queued task:
 
