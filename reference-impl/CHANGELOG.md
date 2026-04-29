@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- Walker (`cloverleaf-run-plan` SKILL.md step 5): attach a persistent Monitor stream (`persistent: true`, `timeout_ms: 3600000`) immediately after each `mcp__claw-drive__start_session` call so child events arrive without requiring Session A nudges. Dispatch table expanded to cover `idle` (with `claw-drive status` + `last_token` branching for `[DONE]` / `[NEEDS-INPUT]` / transient-5xx retry / continue-waiting), `tool_decision_required`, `turn_completed [DONE]`, `turn_completed [NEEDS-INPUT]`, and `session_stopped`. Transient-5xx pattern (`5\d\d\b|API Error: 5\d\d|temporarily unavailable`) triggers `mcp__claw-drive__send_turn` with `"API recovered. Retry the last operation."` for automatic self-healing without operator intervention. `tests/skills.test.ts` gains 14 regression tests: a `plugin.json no skills property` guard (prevents re-introduction of the auto-discovery suppression from CLV-69) and 12 assertions covering Monitor attachment ordering, all five dispatch-table event types, and the three 5xx pattern forms. [CLV-74]
+
 ## 0.6.6 — 2026-04-29
 
 ### Fixed
