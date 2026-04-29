@@ -1049,3 +1049,89 @@ describe('cli — release-preflight removed (CLV-76)', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// CLV-87: check-scope and extend-scope subcommands
+// ---------------------------------------------------------------------------
+
+describe('cli — check-scope (CLV-87)', () => {
+  let repoRoot: string;
+
+  beforeEach(() => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cli-check-scope-'));
+    mkdirSync(join(repoRoot, '.cloverleaf', 'projects'), { recursive: true });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'tasks'), { recursive: true });
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'projects', 'DEMO.json'),
+      JSON.stringify({ key: 'DEMO', name: 'Demo' })
+    );
+
+    // Initialize git repo with main branch and task doc
+    execSync('git init -q -b main', { cwd: repoRoot });
+    execSync('git config user.email test@test', { cwd: repoRoot });
+    execSync('git config user.name test', { cwd: repoRoot });
+
+    writeFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'), JSON.stringify({
+      type: 'task', project: 'DEMO', id: 'DEMO-001',
+      title: 'demo', status: 'pending', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['a'], definition_of_done: ['d'],
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-1' } },
+      scope: { files_touched: ['lib/foo.ts'] },
+    }));
+    writeFileSync(join(repoRoot, 'README.md'), 'initial\n');
+    execSync('git add . && git commit -q -m initial', { cwd: repoRoot });
+    execSync('git checkout -q -b cloverleaf/DEMO-001', { cwd: repoRoot });
+  });
+
+  afterEach(() => {
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('returns valid JSON with three buckets when branch exists and task doc present', () => {
+    mkdirSync(join(repoRoot, 'lib'), { recursive: true });
+    writeFileSync(join(repoRoot, 'lib', 'foo.ts'), 'export const x = 1;');
+    execSync('git add . && git commit -q -m "add lib/foo.ts"', { cwd: repoRoot });
+
+    const { stdout, exitCode } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/DEMO-001',
+    ]);
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(Array.isArray(result.own)).toBe(true);
+    expect(Array.isArray(result.contested)).toBe(true);
+    expect(Array.isArray(result.extension)).toBe(true);
+    // lib/foo.ts is declared in scope.files_touched → own bucket
+    expect(result.own).toContain('lib/foo.ts');
+  });
+
+  it('exits 1 when the branch does not exist', () => {
+    const { exitCode, stderr } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/nonexistent',
+    ]);
+    expect(exitCode).toBe(1);
+    expect(stderr).toMatch(/branch|not found/i);
+  });
+
+  it('exits 2 when --branch flag is missing', () => {
+    const { exitCode, stderr } = run([
+      'check-scope', repoRoot, 'DEMO-001',
+    ]);
+    expect(exitCode).toBe(2);
+    expect(stderr).toMatch(/--branch/i);
+  });
+
+  it('extension bucket receives files touched but not declared in any scope', () => {
+    mkdirSync(join(repoRoot, 'lib'), { recursive: true });
+    writeFileSync(join(repoRoot, 'lib', 'unexpected.ts'), 'export const y = 2;');
+    execSync('git add . && git commit -q -m "add lib/unexpected.ts"', { cwd: repoRoot });
+
+    const { stdout, exitCode } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/DEMO-001',
+    ]);
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.extension).toContain('lib/unexpected.ts');
+    expect(result.own).toEqual([]);
+  });
+});
+

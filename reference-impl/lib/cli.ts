@@ -35,12 +35,14 @@
  *   walk-state-read <repoRoot> <planId>
  *   walk-state-write <repoRoot> <walkStateJsonPath>
  *   walker-default-concurrency [--explain]
+ *   check-scope <repoRoot> <taskId> --branch <branchName>
+ *   extend-scope <repoRoot> <taskId> --add <file>... --reason <text>
  */
 
-import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { execSync } from 'node:child_process';
-import { loadTask } from './task.js';
+import { loadTask, saveTask } from './task.js';
 import { advanceStatus } from './task.js';
 import { emitGateDecision } from './events.js';
 import { writeFeedback, latestFeedback } from './feedback.js';
@@ -62,6 +64,8 @@ import { buildBaselinePath } from './visual-diff.js';
 import { computeReadyTasks, detectCycle } from './dag-walker.js';
 import { readWalkState, writeWalkState, walkStatePath } from './walk-state.js';
 import { loadWalkerConfig } from './walker-config.js';
+import { classifyFiles } from './scope-check.js';
+import type { SiblingScope } from './scope-check.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -102,7 +106,9 @@ function usage(msg?: string): never {
       '  dag-detect-cycle <repoRoot> <planId>\n' +
       '  walk-state-read <repoRoot> <planId>\n' +
       '  walk-state-write <repoRoot> <walkStateJsonPath>\n' +
-      '  walker-default-concurrency [--explain]\n'
+      '  walker-default-concurrency [--explain]\n' +
+      '  check-scope <repoRoot> <taskId> --branch <branchName>\n' +
+      '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n'
   );
   process.exit(2);
 }
@@ -534,6 +540,184 @@ try {
       } else {
         process.stdout.write(`${cfg.maxConcurrent}\n`);
       }
+      process.exit(0);
+    }
+
+    case 'check-scope': {
+      // check-scope <repoRoot> <taskId> --branch <branchName>
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [repoRoot, taskId] = positional;
+      if (!repoRoot || !taskId) usage('check-scope requires <repoRoot> <taskId> --branch <branchName>');
+
+      const branchFlag = flags.find((f) => f === '--branch');
+      const branchIdx = rest.indexOf('--branch');
+      const branchName = branchFlag !== undefined && branchIdx >= 0 ? rest[branchIdx + 1] : undefined;
+      if (!branchName) {
+        process.stderr.write('check-scope: missing --branch <branchName>\n');
+        process.exit(2);
+      }
+
+      // 1. Read task doc from feature branch via git show
+      let taskDoc: ReturnType<typeof loadTask>;
+      try {
+        const taskPath = `.cloverleaf/tasks/${taskId}.json`;
+        const raw = execSync(`git show ${branchName}:${taskPath}`, {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        taskDoc = JSON.parse(raw) as ReturnType<typeof loadTask>;
+      } catch {
+        try {
+          // Fall back to checking if the branch exists at all
+          execSync(`git rev-parse --verify ${branchName}`, {
+            cwd: repoRoot,
+            encoding: 'utf-8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
+          // Branch exists but no task doc
+          process.stderr.write(`check-scope: task doc not found for ${taskId} on branch ${branchName}\n`);
+        } catch {
+          process.stderr.write(`check-scope: branch ${branchName} not found\n`);
+        }
+        process.exit(1);
+      }
+
+      // 2. Read sibling scopes from main
+      const siblingScopes: SiblingScope[] = [];
+      try {
+        // List all task files visible on main
+        const lsOut = execSync(`git ls-tree -r --name-only main -- .cloverleaf/tasks/`, {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        const taskFiles = lsOut.split('\n').map((l) => l.trim()).filter(Boolean);
+        for (const f of taskFiles) {
+          const tid = f.replace(/^\.cloverleaf\/tasks\//, '').replace(/\.json$/, '');
+          if (tid === taskId) continue; // skip self
+          try {
+            const raw = execSync(`git show main:${f}`, {
+              cwd: repoRoot,
+              encoding: 'utf-8',
+              stdio: ['pipe', 'pipe', 'pipe'],
+            });
+            const sibling = JSON.parse(raw) as Record<string, unknown>;
+            const scope = sibling['scope'] as Record<string, unknown> | undefined;
+            const files = Array.isArray(scope?.['files_touched'])
+              ? (scope!['files_touched'] as unknown[]).filter((x): x is string => typeof x === 'string')
+              : [];
+            if (files.length > 0) {
+              siblingScopes.push({ taskId: tid, files });
+            }
+          } catch {
+            // Skip task files that can't be read
+          }
+        }
+      } catch {
+        // main may not exist yet; treat as no siblings
+      }
+
+      // 3. Get modified files via git diff main..<branch>
+      let modifiedFiles: string[] = [];
+      try {
+        const diffOut = execSync(`git diff --name-only main..${branchName}`, {
+          cwd: repoRoot,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        modifiedFiles = diffOut.split('\n').map((l) => l.trim()).filter(Boolean);
+      } catch {
+        // No diff is fine (empty branch)
+      }
+
+      // 4. Classify and output
+      const result = classifyFiles(taskDoc, modifiedFiles, siblingScopes);
+      process.stdout.write(JSON.stringify(result) + '\n');
+      process.exit(0);
+    }
+
+    case 'extend-scope': {
+      // extend-scope <repoRoot> <taskId> --add <file>... --reason <text>
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const [repoRoot, taskId] = positional;
+      if (!repoRoot || !taskId) usage('extend-scope requires <repoRoot> <taskId> --add <file>... --reason <text>');
+
+      // Parse --reason (takes everything after --reason up to another flag)
+      const reasonIdx = rest.indexOf('--reason');
+      if (reasonIdx < 0 || !rest[reasonIdx + 1]) {
+        process.stderr.write('extend-scope: missing --reason <text>\n');
+        process.exit(2);
+      }
+      // Collect reason: everything after --reason that doesn't start with --
+      const reasonParts: string[] = [];
+      for (let i = reasonIdx + 1; i < rest.length; i++) {
+        if (rest[i].startsWith('--')) break;
+        reasonParts.push(rest[i]);
+      }
+      const reason = reasonParts.join(' ');
+      if (!reason) {
+        process.stderr.write('extend-scope: --reason requires a non-empty value\n');
+        process.exit(2);
+      }
+
+      // Parse --add <file>... (all values after --add that don't start with --)
+      const addIdx = rest.indexOf('--add');
+      if (addIdx < 0) {
+        process.stderr.write('extend-scope: missing --add <file>...\n');
+        process.exit(2);
+      }
+      const addFiles: string[] = [];
+      for (let i = addIdx + 1; i < rest.length; i++) {
+        if (rest[i].startsWith('--')) break;
+        addFiles.push(rest[i]);
+      }
+      if (addFiles.length === 0) {
+        process.stderr.write('extend-scope: --add requires at least one file\n');
+        process.exit(2);
+      }
+
+      // Load task doc
+      const task = loadTask(repoRoot, taskId);
+
+      // Get current scope.files_touched
+      const scope = (task['scope'] ?? {}) as Record<string, unknown>;
+      const currentFiles = Array.isArray(scope['files_touched'])
+        ? (scope['files_touched'] as unknown[]).filter((f): f is string => typeof f === 'string')
+        : [];
+
+      // Set-union and sort/dedup
+      const merged = Array.from(new Set([...currentFiles, ...addFiles])).sort();
+
+      // Check if idempotent (no change needed)
+      const newlyAdded = addFiles.filter((f) => !currentFiles.includes(f));
+
+      // Always update and save (even if idempotent, shape is canonical)
+      const updatedTask = {
+        ...task,
+        scope: { ...scope, files_touched: merged },
+      };
+      saveTask(repoRoot, updatedTask);
+
+      // Append audit entry
+      // Find plan ID from task.parent or task.context
+      const parent = task['parent'] as { project?: string; id?: string } | undefined;
+      const planId = parent?.id ?? taskId; // fallback to taskId if no parent
+
+      const auditDir = join(repoRoot, '.cloverleaf', 'runs', 'plan', planId);
+      mkdirSync(auditDir, { recursive: true });
+      const auditPath = join(auditDir, 'audit.jsonl');
+
+      const auditEntry = {
+        ts: new Date().toISOString(),
+        kind: 'extend-scope',
+        task_id: taskId,
+        files: newlyAdded,
+        reason,
+      };
+      appendFileSync(auditPath, JSON.stringify(auditEntry) + '\n');
+
       process.exit(0);
     }
 
