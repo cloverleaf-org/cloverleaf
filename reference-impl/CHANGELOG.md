@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `lib/scope-check.ts` — new module exporting `classifyFiles(taskDoc, modifiedFiles, siblingScopes)` returning `{ contested, own, extension }` buckets. Uses exact-path comparison after normalization (trim, backslash→slash, strip leading `./`, strip trailing `/`); excludes `.cloverleaf/`-prefixed paths; lex-smallest sibling taskId wins as owner for contested files; output buckets sorted lexicographically. [CLV-86]
+
 ## 0.7.0 — 2026-04-29
 
 ### Added
