@@ -1087,3 +1087,48 @@ describe('package.json (v0.6.4)', () => {
     expect(pkg.name).toBe('@cloverleaf/reference-impl');
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-64: --idle-after adoption, token vocabulary refresh, prep-worktree
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-64 — --idle-after, prep-worktree, token refresh, idle handler)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('references --idle-after in a claw-drive watch command context (CLV-64 #1)', () => {
+    // DoD: all `claw-drive watch` invocations append `--idle-after 600`
+    // so children emit synthetic `idle` events after 10 minutes of silence.
+    expect(body).toMatch(/claw-drive watch[^\n]*--idle-after 600/);
+  });
+
+  it('calls cloverleaf-cli prep-worktree after git worktree add (CLV-64 #2)', () => {
+    // DoD: `cloverleaf-cli prep-worktree <repo_root> "$WT"` is called immediately
+    // after `git -C <repo_root> worktree add "$WT" ...` and before start_session.
+    const worktreeAddIdx = body.indexOf('git -C <repo_root> worktree add "$WT" -b cloverleaf/<TASK-ID> main');
+    const startSessionIdx = body.indexOf('mcp__claw-drive__start_session');
+    expect(worktreeAddIdx).toBeGreaterThan(-1);
+    expect(startSessionIdx).toBeGreaterThan(-1);
+    // prep-worktree must appear between worktree add and start_session
+    const between = body.slice(worktreeAddIdx, startSessionIdx);
+    expect(between).toContain('cloverleaf-cli prep-worktree');
+  });
+
+  it('contains no retired claw-drive 0.5.7 token names (CLV-64 #3)', () => {
+    // DoD: INFO-FINISHED, NEEDS-DECISION, INFO-CHECKPOINT, INFO-PROGRESS are all retired.
+    // The SKILL.md must contain zero occurrences of any of these four strings.
+    expect(body).not.toContain('INFO-FINISHED');
+    expect(body).not.toContain('NEEDS-DECISION');
+    expect(body).not.toContain('INFO-CHECKPOINT');
+    expect(body).not.toContain('INFO-PROGRESS');
+  });
+
+  it('contains an idle event handler that references claw-drive status (CLV-64 #4)', () => {
+    // DoD: when `silent_for_ms >= 600000` arrives for a child session, the walker
+    // calls `claw-drive status <child_session_id>` to read `last_token`.
+    expect(body).toMatch(/silent_for_ms.*600000|600000.*silent_for_ms/);
+    expect(body).toMatch(/claw-drive status[^\n]*<child_session_id>/);
+  });
+});
