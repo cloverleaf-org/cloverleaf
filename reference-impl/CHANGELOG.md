@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `--pretty` flag on `load-rfc`, `load-spike`, `load-plan`, and `load-task` CLI subcommands — pass `--pretty` to receive multi-line `JSON.stringify(doc, null, 2)` output instead of the compact default. [CLV-75]
+
+### Changed
+
+- `load-rfc`, `load-spike`, `load-plan`, and `load-task` now emit compact single-line JSON followed by a `\n` by default (jq-safe; previously `load-rfc`, `load-spike`, and `load-plan` emitted pretty-printed JSON without a trailing newline, and `load-task` emitted pretty-printed JSON). [CLV-75]
+
 ## 0.6.6 — 2026-04-29
 
 ### Fixed
