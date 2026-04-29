@@ -7,6 +7,9 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 ### Fixed
 
 - `runPreflightChecks()` in `lib/release-preflight.ts` now extracts release notes via a section-split approach (`changelog.split(/\n(?=## )/)`, `versionRegex.test(s)` per section, strip header line, trim) instead of a one-shot regex. The previous regex captured content from the wrong CHANGELOG section when the target version was not the last entry. Four new/augmented test cases (cases 1, 11, 12, 13 in `release-preflight.test.ts`) cover multi-section isolation and last-section extraction; case 13 specifically exercises the bracketed `## [version]` header form. Total test count advances from 10 to 13. [CLV-69]
+### Changed
+
+- Walker SKILL (`cloverleaf-run-plan`): all state-mutating `git` invocations in walker bash blocks now use `git -C <repo_root>` so they resolve paths against the repo root regardless of shell cwd; added regression guard test in `tests/skills.test.ts`. ([CLV-70])
 
 ## 0.6.5 — 2026-04-28
 

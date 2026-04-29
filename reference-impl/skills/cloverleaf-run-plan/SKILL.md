@@ -12,7 +12,7 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
    ```bash
    cd <repo_root>
    current=$(git rev-parse --abbrev-ref HEAD)
-   if [ "$current" != "main" ]; then git checkout main; fi
+   if [ "$current" != "main" ]; then git -C <repo_root> checkout main; fi
    git status --short
    ```
 
@@ -146,15 +146,14 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
          First, **guard against conflict markers** — scan every file changed on the task branch for unresolved conflict markers before attempting the merge:
          ```bash
-         cd <repo_root>
-         git checkout main
-         CHANGED_FILES=$(git diff --name-only main..cloverleaf/<TASK-ID>)
+         git -C <repo_root> checkout main
+         CHANGED_FILES=$(git -C <repo_root> diff --name-only main..cloverleaf/<TASK-ID>)
          if [ -n "$CHANGED_FILES" ] && echo "$CHANGED_FILES" | xargs grep -l -E '^(<{7}|={7}|>{7})' 2>/dev/null | grep -q .; then
            echo "ERROR: conflict markers found in changed files — aborting merge for <TASK-ID>"
            echo "$CHANGED_FILES" | xargs grep -l -E '^(<{7}|={7}|>{7})' 2>/dev/null
            # Do NOT proceed; mark task escalated and surface to user
          else
-           git merge --no-ff cloverleaf/<TASK-ID> -m "cloverleaf: <TASK-ID> merged (<fast_lane | full_pipeline>)"
+           git -C <repo_root> merge --no-ff cloverleaf/<TASK-ID> -m "cloverleaf: <TASK-ID> merged (<fast_lane | full_pipeline>)"
          fi
          ```
 
@@ -170,11 +169,11 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
          cloverleaf-cli advance-status <repo_root> <TASK-ID> merged human final_approval_gate full_pipeline
          ```
          ```bash
-         git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> merged"
+         git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> merged"
          ```
          Capture the merge commit SHA:
          ```bash
-         MERGE_COMMIT=$(git rev-parse HEAD)
+         MERGE_COMMIT=$(git -C <repo_root> rev-parse HEAD)
          ```
          Immediately update walk-state to record the successful merge (bug #7 fix — walk-state must reflect `merged` state):
          ```bash
@@ -207,9 +206,9 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
    Once all tasks are merged, run the following commands in order to tag and publish the release:
 
    ```bash
-   git tag -a reference-impl-v<VERSION> -m "reference-impl v<VERSION>"
-   git push origin main
-   git push origin reference-impl-v<VERSION>
+   git -C <repo_root> tag -a reference-impl-v<VERSION> -m "reference-impl v<VERSION>"
+   git -C <repo_root> push origin main
+   git -C <repo_root> push origin reference-impl-v<VERSION>
    (cd reference-impl && npm publish --access public)
    gh release create reference-impl-v<VERSION> --title "reference-impl v<VERSION>" --notes-from-tag
    ```
