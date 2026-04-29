@@ -77,7 +77,7 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 
 After executing all matched QA rules, write an HTML report summarizing each run to `<repoRoot>/.cloverleaf/runs/{taskId}/qa/report.html` (substitute `{taskId}` with the `id` field from the task input, e.g., `{{task.id}}`).
 
-Use `renderQaReport(runs)` from `lib/qa-report.ts` to produce the HTML. Ensure the directory exists first (`mkdir -p`).
+Use `renderQaReport(runs)` from `lib/qa-report.ts` to produce the HTML. The compiled artifact is at `<repoRoot>/reference-impl/dist/qa-report.mjs` — invoke via `node --input-type=module` or import from there. Ensure the output directory exists first (`mkdir -p`).
 
 In the feedback you emit, include the report as an attachment on a single info-level finding (or on whichever summary finding you already emit):
 
