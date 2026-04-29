@@ -2,6 +2,15 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `lib/release-preflight.ts` — new module exporting `runPreflightChecks(repoRoot): PreflightResult`. Runs six blocking checks (`on-main`, `clean-tree`, `in-sync-with-origin`, `valid-version`, `changelog-section`, `tag-absent`) and two warnings (`npm-authenticated`, `gh-authenticated`). Returns `{ checks, version, tag, notes }`. Never throws — all errors are captured into per-check `message` fields. [CLV-63]
+- `cloverleaf-cli release-preflight <repoRoot> [--json]` — new CLI subcommand. In `--json` mode emits the full `PreflightResult` as JSON on stdout; in plain mode prints one `✓`/`⚠`/`✗`-prefixed line per check and exits non-zero if any blocking check fails. [CLV-63]
+- `/cloverleaf-release` skill (`skills/cloverleaf-release/SKILL.md`) — publishes a new `@cloverleaf/reference-impl` release. Flow: parse `[--dry-run] [--yes]` flags → call `cloverleaf-cli release-preflight --json` → display check list → bail on blocking failure → display 5-command release plan + version + notes preview → prompt `y/N` (skipped with `--yes`) → execute `git tag -a` / `git push origin main` / `git push origin <tag>` / `npm publish --access public` / `gh release create` sequentially with bail-fast. [CLV-63]
+- Plugin manifest (`reference-impl/.claude-plugin/plugin.json`) updated to version `0.6.5`; `cloverleaf-release` added to the `skills[]` array. Marketplace manifest (`.claude-plugin/marketplace.json`) updated to version `0.6.5` with `", release"` appended to the plugin description. [CLV-63]
+
 ## 0.6.4 — 2026-04-28
 
 ### Added
