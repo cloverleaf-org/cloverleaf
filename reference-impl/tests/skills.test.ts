@@ -1078,12 +1078,12 @@ describe('CHANGELOG.md (v0.6.1)', () => {
   });
 });
 
-describe('package.json (v0.6.6)', () => {
+describe('package.json (v0.6.7)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.6.6', () => {
-    // RFC AC #4 and DoD: reference-impl must be bumped to 0.6.6.
-    expect(pkg.version).toBe('0.6.6');
+  it('reports version 0.6.7', () => {
+    // CLV-77 DoD: reference-impl must be bumped to 0.6.7.
+    expect(pkg.version).toBe('0.6.7');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
