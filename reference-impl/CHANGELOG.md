@@ -7,6 +7,8 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 ### Added
 
 - `lib/scope-check.ts` — new module exporting `classifyFiles(taskDoc, modifiedFiles, siblingScopes)` returning `{ contested, own, extension }` buckets. Uses exact-path comparison after normalization (trim, backslash→slash, strip leading `./`, strip trailing `/`); excludes `.cloverleaf/`-prefixed paths; lex-smallest sibling taskId wins as owner for contested files; output buckets sorted lexicographically. [CLV-86]
+- `cloverleaf-cli check-scope <repoRoot> <taskId> --branch <branchName>` — reads the task doc from the feature branch via `git show`, gathers sibling task scopes from main, computes modified files via `git diff main..<branch>`, calls `classifyFiles`, and prints `{ own, contested, extension }` JSON to stdout. Exits 0 on success, 1 on missing branch or task doc, 2 on missing `--branch` flag. [CLV-87]
+- `cloverleaf-cli extend-scope <repoRoot> <taskId> --add <file>... --reason <text>` — set-unions the supplied files into `scope.files_touched` (sorted, deduped), saves via `saveTask`, and appends a `{ ts, kind, task_id, files, reason }` JSON line to `.cloverleaf/runs/plan/<PLAN-ID>/audit.jsonl`. Idempotent: re-running with the same files produces no change to the task doc. Exits 2 on missing `--reason` or no `--add` files. [CLV-87]
 
 ## 0.7.0 — 2026-04-29
 
