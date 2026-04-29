@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## [Unreleased]
+
+### Added
+
+- `task.schema.json` gains an optional `scope` object with an optional `scope.files_touched` array (repo-root-relative POSIX paths of files a task is expected to modify). Field is additive and backward-compatible; existing Task documents without `scope` remain valid. [CLV-81]
+
 ## [0.4.1] — 2026-04-21
 
 ### Added
