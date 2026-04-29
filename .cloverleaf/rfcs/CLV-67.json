@@ -1,0 +1,36 @@
+{
+  "type": "rfc",
+  "id": "CLV-67",
+  "project": "CLV",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "reference-impl v0.6.6 — release-preflight notes fix + walker CWD hardening",
+  "problem": "The v0.6.5 release (Plan CLV-62, HEAD 689200f, shipped 2026-04-29) surfaced two bugs. First, runPreflightChecks returns notes: '' due to a regex flag bug: the CHANGELOG-section extractor uses a pattern with the 'm' flag where '$' matches end-of-line rather than end-of-string, causing the lookahead to fire immediately at the version header's newline and the capture group to return empty. The release skill consequently wrote a 0-byte notes file and gh release create produced a GitHub Release with empty notes, requiring manual awk extraction and gh release edit for recovery. Second, walker CWD drift recurred during CLV-63's merge: a walker bash chain 'cd reference-impl && vitest' left the shell pwd in reference-impl/, and the subsequent walker bash (no explicit cd) tried 'git add reference-impl/tests/skills.test.ts', failing because the path doubled to reference-impl/reference-impl/tests/. The v0.6.2 CLV-48 fix hardened agent prompts (Implementer/Documenter/Reviewer/QA) but did not cover the walker's own bash blocks in cloverleaf-run-plan/SKILL.md.",
+  "solution": "Three parallel-then-sink tasks close both bugs. Item 1 replaces the broken one-shot regex in reference-impl/lib/release-preflight.ts with a section-split approach: split the CHANGELOG on newlines preceding '## ', find the section whose first line matches the target version, and return that section minus its header line — eliminating regex-flag-semantics gotchas entirely and correctly handling versions that are the last section in the file. Two new test cases (cases 11 and 12) plus an update to existing case 1 raise release-preflight.test.ts from 10 to 13 tests. Item 2 audits reference-impl/skills/cloverleaf-run-plan/SKILL.md and replaces all bare 'git ...' invocations in walker bash blocks with 'git -C <repo_root> ...' so git resolves paths against the repo root regardless of shell pwd; a regression guard test added to tests/skills.test.ts flags any future bare git invocation outside the read-only step-0 allowlist. Item 3 is the release-prep custodian: bump package.json from 0.6.5 to 0.6.6 and rename '## [Unreleased]' in CHANGELOG.md to '## 0.6.6 — 2026-04-29', consolidating Documenter [Unreleased] entries from Items 1 and 2. The custodian CHANGELOG entry should also note the v0.6.5 plugin manifest hot-fix (commit 069c3ae) that removed the skills[] array to restore auto-discovery. Items 1 and 2 are fully parallel (no file overlap); both feed into the custodian sink (T1 ⟂ T2 → T3).",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "cloverleaf-cli release-preflight <repoRoot> --json returns a non-empty notes field for the current package.json::version whenever the corresponding '## <version> — DATE' section exists in reference-impl/CHANGELOG.md",
+    "The notes string contains the section body (everything after the version header line, until the next '## ' header or end of file), trimmed",
+    "Walker cloverleaf-run-plan/SKILL.md step 5e and other bash blocks use 'git -C <repo_root>' consistently for any state-mutating git call",
+    "A regression test in tests/skills.test.ts flags any future bare 'git ' invocation that is not on the read-only allowlist (step-0 pre-flight git rev-parse --abbrev-ref / git status)",
+    "Release-preflight test count increases from 10 to 13 (+1 update to existing case 1 asserting notes.length > 0 and section body content, +2 new cases for mid-CHANGELOG and last-section scenarios)",
+    "skills.test.ts gains +1 regression test for walker CWD discipline",
+    "reference-impl/package.json version is 0.6.6",
+    "reference-impl/CHANGELOG.md contains a '## 0.6.6 — 2026-04-29' section consolidating Documenter entries from Items 1 and 2, and noting the v0.6.5 plugin manifest hot-fix (commit 069c3ae, removing skills[] array to restore auto-discovery)",
+    "Tag reference-impl-v0.6.6 is pushed to the remote repository",
+    "npm publish for @cloverleaf/reference-impl@0.6.6 completes successfully",
+    "GitHub Release for reference-impl-v0.6.6 is live with non-empty release notes"
+  ],
+  "out_of_scope": [
+    "Walker auto-recovery from Anthropic 5xx outages",
+    "The cloverleaf-cli load-rfc jq parse error in Session B",
+    "Schema deviation cleanup between docs/superpowers/specs/ directory and the shipped release-preflight impl (drift acknowledged; local spec is the canonical record-of-decision, shipped impl is the canonical schema for consumers)",
+    "v0.7 architectural work (unified /cloverleaf-flow, DAG-edge inference)",
+    "Plugin manifest hot-reload (new skills require session restart to load)",
+    "Standard schema, contract, or conformance changes (Standard stays at 0.4.1)",
+    "Other v0.6.6 candidate work — metrics package, anti-patterns catalog"
+  ]
+}
