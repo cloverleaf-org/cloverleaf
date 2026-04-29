@@ -1,0 +1,15 @@
+{
+  "event_id": "d69c7a1c-0aed-4607-9092-205ba03ff2cc",
+  "event_type": "gate_decision",
+  "occurred_at": "2026-04-29T02:08:17.942Z",
+  "gate": "human_merge",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-66"
+  },
+  "decision": "approve",
+  "approver": {
+    "kind": "human",
+    "id": "local-user"
+  }
+}
