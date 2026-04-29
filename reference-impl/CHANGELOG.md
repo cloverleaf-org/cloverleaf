@@ -2,11 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## 0.6.5 — 2026-04-28
 
 ### Changed
 
 - `cloverleaf-run-plan` skill: step 5b now calls `cloverleaf-cli prep-worktree <repo_root> "$WT"` immediately after `git worktree add` and before `mcp__claw-drive__start_session`, ensuring every child worktree is fully primed before the session starts. All `claw-drive watch` invocations in step 5c now append `--idle-after 600` so child sessions emit synthetic idle events after 10 minutes of silence. Step 5d gains a new idle event handler: when a `silent_for_ms >= 600000` event arrives for a child session in qa-or-higher task state, the walker calls `claw-drive status <child_session_id>` to read `last_token`; if `last_token` is `[DONE]` or the on-disk task status is `final-gate`/`automated-gates`, the child is treated as terminal and drain proceeds. Retired claw-drive 0.5.7 token vocabulary replaced throughout. [CLV-64]
+- QA prompt (`prompts/qa.md`) clarifies that the compiled QA-report artifact lives at `<repoRoot>/reference-impl/dist/qa-report.mjs` and should be invoked via `node --input-type=module` or imported from there. Reduces ambiguity that caused QA agents in earlier dogfood runs to look for `dist/lib/qa-report.js`. Regression-guarded in `tests/prompts.test.ts`. [CLV-65]
 ### Added
 
 - `lib/release-preflight.ts` — new module exporting `runPreflightChecks(repoRoot): PreflightResult`. Runs six blocking checks (`on-main`, `clean-tree`, `in-sync-with-origin`, `valid-version`, `changelog-section`, `tag-absent`) and two warnings (`npm-authenticated`, `gh-authenticated`). Returns `{ checks, version, tag, notes }`. Never throws — all errors are captured into per-check `message` fields. [CLV-63]

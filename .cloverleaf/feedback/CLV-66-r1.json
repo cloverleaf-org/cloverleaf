@@ -1,0 +1,14 @@
+{
+  "verdict": "bounce",
+  "summary": "The `## 0.6.5 — 2026-04-28` CHANGELOG section is missing an entry for CLV-65 (QA prompt fix: `dist/qa-report.mjs` runtime artifact path clarification). The AC explicitly requires all three tasks — CLV-63, CLV-64, and CLV-65 — to be enumerated under that section; only CLV-63 and CLV-64 are present.",
+  "findings": [
+    {
+      "severity": "blocker",
+      "message": "CLV-65 (QA prompt fix) has no entry in the `## 0.6.5 — 2026-04-28` CHANGELOG section. The acceptance criterion states the section must enumerate changes from CLV-63, CLV-64, and CLV-65. A bullet describing the `dist/qa-report.mjs` runtime path clarification to `reference-impl/prompts/qa.md` must be added under `### Fixed` or `### Changed`.",
+      "location": {
+        "file": "reference-impl/CHANGELOG.md",
+        "line": 6
+      }
+    }
+  ]
+}
