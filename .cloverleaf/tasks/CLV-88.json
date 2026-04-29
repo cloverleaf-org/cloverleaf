@@ -1,0 +1,44 @@
+{
+  "type": "task",
+  "id": "CLV-88",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-85"
+  },
+  "title": "Patch walker SKILL.md and Implementer prompt with scope enforcement",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-84"
+    }
+  },
+  "definition_of_done": [
+    "walker cloverleaf-run-plan/SKILL.md step 5e contains a scope-check block BEFORE the y/N merge prompt that calls cloverleaf-cli check-scope, escalates on contested with a clear message and skips the prompt, and falls through to existing flow on tooling failure",
+    "A post-merge auto-extend block in SKILL.md invokes extend-scope when extension is non-empty and commits the amended task doc with message cloverleaf: <TASK-ID> scope auto-extended (+N files)",
+    "Walker Rules block contains the literal text: Scope-contested merges are escalated, never auto-resolved",
+    "prompts/implementer.md contains the one-paragraph scope-nudge after step 1 as specified in the brief",
+    "3 regression test cases in tests/skills.test.ts pass: literal cloverleaf-cli check-scope present, contested-escalation message template present, literal scope-nudge paragraph present"
+  ],
+  "acceptance_criteria": [
+    "3 new skills regression tests pass in tests/skills.test.ts",
+    "SKILL.md contains the literal string cloverleaf-cli check-scope",
+    "SKILL.md contains the contested-escalation message template",
+    "SKILL.md Rules block contains the literal rule: Scope-contested merges are escalated, never auto-resolved",
+    "prompts/implementer.md contains the literal scope-nudge paragraph from the brief",
+    "Tooling-failure (non-zero exit from check-scope) path is documented in SKILL.md as warn-and-proceed"
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/skills/cloverleaf-run-plan/SKILL.md",
+      "reference-impl/prompts/implementer.md",
+      "reference-impl/tests/skills.test.ts"
+    ]
+  }
+}

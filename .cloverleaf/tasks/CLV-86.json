@@ -1,0 +1,41 @@
+{
+  "type": "task",
+  "id": "CLV-86",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-85"
+  },
+  "title": "Implement classifyFiles in lib/scope-check.ts with 12 unit tests",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-84"
+    }
+  },
+  "definition_of_done": [
+    "lib/scope-check.ts exports classifyFiles(taskDoc, modifiedFiles, siblingScopes) returning {contested, own, extension} per the brief's algorithm",
+    "tests/scope-check.test.ts covers all 12 cases: empty inputs, file-in-own/sibling/nobody, mixed, normalization, .cloverleaf/ exclusion, deterministic owner, missing own, missing sibling, literal-not-glob",
+    "npm test in reference-impl/ passes with all 12 new cases green"
+  ],
+  "acceptance_criteria": [
+    "classifyFiles is pure and deterministic: same inputs always return same output",
+    "All 12 test cases in tests/scope-check.test.ts pass",
+    "Bucket arrays are sorted lexicographically by file path",
+    ".cloverleaf/ prefixed paths are excluded from classification",
+    "Missing own (empty scope.files_touched) returns all-empty buckets",
+    "Lex-smallest sibling task id wins when a file is contested by multiple siblings"
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/lib/scope-check.ts",
+      "reference-impl/tests/scope-check.test.ts"
+    ]
+  }
+}

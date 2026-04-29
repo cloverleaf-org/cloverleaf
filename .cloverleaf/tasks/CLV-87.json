@@ -1,0 +1,43 @@
+{
+  "type": "task",
+  "id": "CLV-87",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-85"
+  },
+  "title": "Add cloverleaf-cli check-scope and extend-scope subcommands",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-84"
+    }
+  },
+  "definition_of_done": [
+    "lib/cli.ts exposes check-scope <repo> <task> --branch <name> that reads task doc from feature branch via git show, sibling scopes from main, modified files via git diff main..<branch>, calls classifyFiles, prints JSON to stdout, exits 0 on happy path and 1 on missing branch or task doc",
+    "lib/cli.ts exposes extend-scope <repo> <task> --add <file>... --reason <text> that set-unions into scope.files_touched (sorted, deduped), validates, saves via saveTask, appends timestamped JSON line to .cloverleaf/runs/plan/<PLAN-ID>/audit.jsonl, is idempotent against task doc, exits 2 on missing flags",
+    "6 cases in tests/scope-extend.test.ts and 4 cases in tests/cli.test.ts pass",
+    "Both subcommands are documented in CLI usage output"
+  ],
+  "acceptance_criteria": [
+    "Both check-scope and extend-scope are documented in cloverleaf-cli usage output",
+    "check-scope returns valid JSON with three buckets: own, contested, extension",
+    "extend-scope is idempotent: re-running with the same --add files produces no change to the task doc",
+    "audit.jsonl entries match the brief's example shape with ts, kind, task_id, files, reason fields",
+    "Exit codes match spec: 0 happy path, 1 missing branch/task doc, 2 missing --reason or no --add",
+    "All 10 new test cases (6 scope-extend + 4 cli) pass"
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/lib/cli.ts",
+      "reference-impl/tests/scope-extend.test.ts",
+      "reference-impl/tests/cli.test.ts"
+    ]
+  }
+}
