@@ -1,0 +1,38 @@
+{
+  "type": "rfc",
+  "id": "CLV-78",
+  "project": "CLV",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "DAG-edge inference from shared-file overlap (Standard 0.5.0 + reference-impl 0.7.0)",
+  "problem": "Across v0.6.0 through v0.6.7 walker runs, the parallel-DAG shared-file conflict pattern has repeatedly caused merge conflicts and manual recovery work. When the Plan agent decomposes work into parallel tasks, tasks that touch the same files are allowed to run concurrently, leading to merge conflicts at integration time. Reactive mitigations (merge=union strategy, conflict-marker scanning in the walker, manual rebases) address symptoms after the fact. The Plan agent already has all information needed to prevent this: every brief enumerates files-touched per task in its Parallel-DAG conflict guidance section. The missing piece is a schema field to capture that data and logic to auto-infer serialization edges from it.",
+  "solution": "Ship a coordinated Standard 0.5.0 + reference-impl 0.7.0 release. Standard 0.5.0 adds an optional additive `task.scope.files_touched: string[]` field to the task schema (namespaced under `scope` for future expansion), with conformance fixtures demonstrating its use. reference-impl 0.7.0 introduces a new `lib/dag-overlap.ts` module exporting `computeOverlapEdges(tasks: TaskDoc[]): TaskDagEdge[]` that normalizes paths and emits deterministic edges for every pair of tasks sharing at least one file. The `savePlan` function in `lib/plan.ts` is updated to call `computeOverlapEdges` between schema validation and disk write, merging inferred edges into `task_dag.edges` via set-union (idempotent), and throwing with a descriptive message if the augmented DAG contains a cycle. The Plan agent prompt (`prompts/plan.md`) is updated to instruct the agent to populate `scope.files_touched` per task by transcribing the brief's file enumeration, and to render a gate-pending summary that distinguishes logical edges from overlap-inferred edges. A release-prep custodian task bumps `reference-impl/package.json` to 0.7.0 and updates the Standard dependency to `^0.5.0`.",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "`standard/schemas/task.schema.json` has the new `scope.files_touched` field and the conformance suite passes with new fixtures validating.",
+    "`standard/package.json` version is `0.5.0`.",
+    "`cloverleaf-cli load-task <repo> <id>` returns task docs with `scope.files_touched` populated for tasks that declare it.",
+    "`computeOverlapEdges([])` returns `[]`.",
+    "`computeOverlapEdges([a, b])` returns one edge when `a` and `b` share a file, and zero edges when they do not.",
+    "`computeOverlapEdges` is deterministic across input order.",
+    "`savePlan` merges overlap edges into `task_dag.edges` and is idempotent on re-save.",
+    "`savePlan` throws on cycle introduction with the documented message naming the cycle participants and shared file(s).",
+    "`reference-impl/prompts/plan.md` contains the new instruction string for `scope.files_touched` and the directive not to manually add overlap edges.",
+    "`reference-impl/package.json` version is `0.7.0` and its Standard dependency is `@cloverleaf/standard@^0.5.0`.",
+    "`reference-impl/CHANGELOG.md` has a `## 0.7.0 — 2026-04-29` section with a `### Standard` subsection noting the `task.scope.files_touched` addition.",
+    "17 new test cases pass: 12 in `dag-overlap.test.ts`, 4 in `plan.test.ts`, 1 prompt regression in `skills.test.ts` or `prompts.test.ts`.",
+    "Git tags `v0.5.0-standard` and `reference-impl-v0.7.0` pushed, npm packages published, and GitHub Releases live."
+  ],
+  "out_of_scope": [
+    "Glob support in `files_touched` (e.g., `reference-impl/lib/*.ts`) — exact path match only for v0.7.",
+    "Symbol-level overlap detection (two tasks editing different functions in the same file) — hard, brittle, deferred.",
+    "Read vs write distinction in `files_touched` — any mention is treated as serialization-relevant.",
+    "v0.7 unified `/cloverleaf-flow` orchestrator — separate concern.",
+    "Plan agent inferring `files_touched` from brief prose without explicit per-task enumeration — brief authors continue to enumerate.",
+    "Walker-side changes — walker already handles `task_dag.edges` correctly.",
+    "Other v0.7 candidate work (metrics package, anti-patterns catalog, applying cloverleaf to a non-cloverleaf project)."
+  ]
+}
