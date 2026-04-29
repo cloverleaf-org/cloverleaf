@@ -767,7 +767,8 @@ describe('cloverleaf-run-plan skill (v0.6 — autonomous DAG walker)', () => {
 
   it('walker performs the real git merge --no-ff on main in the primary repo (v0.6 #G)', () => {
     // On y approval, the walker must run git merge --no-ff in the primary repo.
-    expect(body).toMatch(/git merge --no-ff cloverleaf\/<TASK-ID>/);
+    // CLV-70: the command now uses git -C <repo_root> so path resolution is CWD-independent.
+    expect(body).toMatch(/git(?:\s+-C\s+\S+)?\s+merge --no-ff cloverleaf\/<TASK-ID>/);
     // The walker also advances state to merged and commits, in the primary repo.
     expect(body).toMatch(/advance-status[^\n]*<TASK-ID>[^\n]*merged human/);
   });
@@ -861,7 +862,8 @@ describe('cloverleaf-run-plan skill (v0.6.1 — bug #7: walk-state-write after m
 
   it('captures the merge commit SHA via git rev-parse HEAD', () => {
     // The SHA must be captured programmatically after the merge.
-    expect(body).toMatch(/git rev-parse HEAD/);
+    // CLV-70: the command now uses git -C <repo_root> so path resolution is CWD-independent.
+    expect(body).toMatch(/git(?:\s+-C\s+\S+)?\s+rev-parse HEAD/);
   });
 });
 
@@ -924,16 +926,18 @@ describe('cloverleaf-run-plan skill (CLV-53 — step-6 Report Next steps block)'
     const step6Idx = body.indexOf('6. **Report.**');
     const scenarioBriefIdx = body.indexOf('## Session brief template');
     const step6Section = body.slice(step6Idx, scenarioBriefIdx);
-    expect(step6Section).toContain('git tag -a');
+    // CLV-70: now uses git -C <repo_root> tag -a for CWD-independent invocation.
+    expect(step6Section).toMatch(/git(?:\s+-C\s+\S+)?\s+tag -a/);
   });
 
   it('step-6 Report section lists all five release commands', () => {
     const step6Idx = body.indexOf('6. **Report.**');
     const scenarioBriefIdx = body.indexOf('## Session brief template');
     const step6Section = body.slice(step6Idx, scenarioBriefIdx);
-    expect(step6Section).toMatch(/git tag -a reference-impl-v<VERSION>/);
-    expect(step6Section).toMatch(/git push origin main/);
-    expect(step6Section).toMatch(/git push origin reference-impl-v<VERSION>/);
+    // CLV-70: now uses git -C <repo_root> for CWD-independent invocation.
+    expect(step6Section).toMatch(/git(?:\s+-C\s+\S+)?\s+tag -a reference-impl-v<VERSION>/);
+    expect(step6Section).toMatch(/git(?:\s+-C\s+\S+)?\s+push origin main/);
+    expect(step6Section).toMatch(/git(?:\s+-C\s+\S+)?\s+push origin reference-impl-v<VERSION>/);
     expect(step6Section).toMatch(/npm publish --access public/);
     expect(step6Section).toMatch(/gh release create reference-impl-v<VERSION>/);
   });
@@ -1153,5 +1157,73 @@ describe('cloverleaf-release skill (CLV-63)', () => {
 
   it('contains gh release create command', () => {
     expect(body).toContain('gh release create');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-70: regression guard — no bare git invocations in walker bash blocks
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-70 — no bare git in bash blocks)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  /**
+   * Step-0 pre-flight read-only allowlist.
+   * These diagnostic commands do not mutate state and are always safe bare.
+   */
+  const ALLOWLIST: RegExp[] = [
+    /^git\s+rev-parse\s+--abbrev-ref\b/,
+    /^git\s+status\b/,
+  ];
+
+  /**
+   * Extract all fenced ```bash ... ``` blocks from the skill body.
+   * Handles indented fences (e.g. "   ```bash") as used in SKILL.md.
+   * Returns an array of { lines } for each block found.
+   */
+  function extractBashBlocks(text: string): Array<{ lines: string[] }> {
+    const blocks: Array<{ lines: string[] }> = [];
+    // Match optional-whitespace-then-```bash up to the closing optional-whitespace-then-```
+    // Use non-greedy dotall for the block content.
+    const fenceRe = /[ \t]*```bash[ \t]*\n([\s\S]*?)[ \t]*```/g;
+    let m: RegExpExecArray | null;
+    while ((m = fenceRe.exec(text)) !== null) {
+      const blockText = m[1];
+      blocks.push({ lines: blockText.split('\n') });
+    }
+    return blocks;
+  }
+
+  it('contains no bare git invocations (outside the step-0 allowlist) in any bash code block', () => {
+    const blocks = extractBashBlocks(body);
+    // We should find at least one bash block to confirm we are scanning something.
+    expect(blocks.length).toBeGreaterThan(0);
+
+    const violations: string[] = [];
+
+    for (const { lines } of blocks) {
+      for (const line of lines) {
+        // Match lines that start with optional whitespace then "git " — real invocations.
+        // Skip comment lines (# ...) and empty lines.
+        const trimmed = line.trimStart();
+        if (!trimmed.startsWith('git ') && !trimmed.startsWith('git\t')) {
+          continue;
+        }
+        // Skip if this is a compliant git -C invocation.
+        if (/^git\s+-C\s/.test(trimmed)) {
+          continue;
+        }
+        // Check allowlist.
+        const allowed = ALLOWLIST.some((re) => re.test(trimmed));
+        if (!allowed) {
+          violations.push(line);
+        }
+      }
+    }
+
+    expect(violations, `Bare git invocations found (not allowlisted and missing -C <repo_root>):\n${violations.map((l) => `  ${JSON.stringify(l)}`).join('\n')}`).toHaveLength(0);
   });
 });
