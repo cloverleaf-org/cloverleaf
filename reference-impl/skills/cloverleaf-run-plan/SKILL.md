@@ -169,6 +169,27 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
    e. **Drain the final-gate queue serially and merge on main.** Session B does NOT invoke `/cloverleaf-merge` — it stops at automated-gates (fast lane) or final-gate (full pipeline) and reports. The walker performs the merge on main in the primary repo. For each queued task:
 
+      **Scope check (BEFORE the y/N prompt).** Run `cloverleaf-cli check-scope` and capture its output and exit code:
+
+      ```bash
+      SCOPE_JSON=$(cloverleaf-cli check-scope <repo_root> <TASK-ID> --branch cloverleaf/<TASK-ID> 2>/dev/null)
+      SCOPE_EXIT=$?
+      ```
+
+      - **If exit 0**: parse the JSON. If `contested[]` is non-empty:
+        - **Skip the y/N prompt entirely.**
+        - Mark the task `state: "escalated"` in walk-state via `walk-state-write`.
+        - Surface the following message to the driver (the literal contested-escalation message template):
+          ```
+          ⚠️ <TASK-ID> escalated: scope-contested merge. Files contested with sibling task(s): <list of file:owned_by pairs>. Walker will not auto-resolve. Inspect the Plan decomposition (CLV-86 vs CLV-87 etc.) and either (a) re-decompose so each contested file is owned by exactly one task, or (b) merge the colliding tasks into one. Re-run /cloverleaf-run-plan <PLAN-ID> after fixing.
+          ```
+        - Continue to the next queued task. Do NOT proceed to the merge prompt.
+      - **If exit non-zero (tooling failure)**: print a warning and fall through to the existing merge flow without scope enforcement (**warn-and-proceed**):
+        ```
+        ⚠️ check-scope failed (exit N) — falling through to existing merge flow without scope enforcement.
+        ```
+      - **If exit 0 and `contested[]` is empty**: proceed normally to the summary + y/N prompt below. Retain the parsed `extension[]` array from the JSON for use in the post-merge auto-extend block.
+
       1. Print a full summary to the driver:
          ```
          ⏵ <TASK-ID> ready to merge (<fast lane | full pipeline>)
@@ -221,6 +242,16 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
          # The updated walk-state sets tasks["<TASK-ID>"].state = "merged"
          #                           and tasks["<TASK-ID>"].merge_commit = "$MERGE_COMMIT"
          ```
+         **Post-merge auto-extend.** If the `extension[]` array captured from the earlier `cloverleaf-cli check-scope` call was non-empty, invoke `extend-scope` and commit the amended task doc:
+
+         ```bash
+         cloverleaf-cli extend-scope <repo_root> <TASK-ID> --add <file1> --add <file2> ... --reason "auto-extended post-merge: files touched but undeclared"
+         git -C <repo_root> add .cloverleaf/tasks/<TASK-ID>.json .cloverleaf/runs/plan/<PLAN-ID>/audit.jsonl
+         git -C <repo_root> commit -m "cloverleaf: <TASK-ID> scope auto-extended (+N files)"
+         ```
+
+         where N is the count of files in `extension[]`.
+
          Send `y` (informational) back to Session B so it can record the outcome and exit, but the walker is the authoritative merge-performer.
          **Tear down the worktree**: `git -C <repo_root> worktree remove --force <worktree_path>`. Delete the branch is optional (keep if useful for post-hoc inspection).
       4. If it matches `^n(o)?$|^N(O)?$` → mark task `state: "awaiting_final_gate"`. Send `n` to Session B. **Keep the worktree** so the user can re-run `/cloverleaf-merge <TASK-ID>` manually pointing at it, or fix and retry. Continue with the next queued task.
@@ -310,3 +341,4 @@ The concrete policy JSON is the same one used during the CLV-16..CLV-20 dogfood 
 - Escalations surface immediately; they do NOT queue behind the final-gate drain.
 - Final-gate drain is serial across tasks — one prompt, one decision.
 - The walker exits after the loop reports the final status; it does not auto-retry escalated tasks.
+- Scope-contested merges are escalated, never auto-resolved.

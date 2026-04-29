@@ -7,6 +7,8 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 ### Added
 
 - `lib/scope-check.ts` — new module exporting `classifyFiles(taskDoc, modifiedFiles, siblingScopes)` returning `{ contested, own, extension }` buckets. Uses exact-path comparison after normalization (trim, backslash→slash, strip leading `./`, strip trailing `/`); excludes `.cloverleaf/`-prefixed paths; lex-smallest sibling taskId wins as owner for contested files; output buckets sorted lexicographically. [CLV-86]
+- `skills/cloverleaf-run-plan/SKILL.md` — step 5e now calls `cloverleaf-cli check-scope` before the y/N merge prompt; on `contested` files the merge is skipped and the task is escalated with a clear message; on tooling failure the walker warns and falls through to the existing flow. Adds a post-merge auto-extend block invoking `cloverleaf-cli extend-scope` when `extension[]` is non-empty. New Rules entry: "Scope-contested merges are escalated, never auto-resolved". [CLV-88]
+- `prompts/implementer.md` — added a one-paragraph **Scope nudge** after step 1 covering own-scope, discovery-during-implementation auto-extension, and the contested-file refuse-merge consequence. [CLV-88]
 
 ## 0.7.0 — 2026-04-29
 

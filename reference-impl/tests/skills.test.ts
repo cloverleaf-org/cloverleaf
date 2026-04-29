@@ -1292,3 +1292,42 @@ describe('cloverleaf-run-plan skill (CLV-74 — walker self-healing)', () => {
     expect(body).toContain('API recovered. Retry the last operation.');
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-88: walker scope-enforcement patches (SKILL.md + implementer prompt)
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-88 — scope enforcement patches)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('contains the literal string `cloverleaf-cli check-scope`', () => {
+    expect(body).toContain('cloverleaf-cli check-scope');
+  });
+
+  it('contains the contested-escalation message template (CLV-88)', () => {
+    // Verbatim message surfaced when check-scope reports contested files.
+    expect(body).toContain('escalated: scope-contested merge');
+    expect(body).toContain('Walker will not auto-resolve');
+    expect(body).toContain('Re-run /cloverleaf-run-plan');
+  });
+
+  it('Rules block contains the scope-contested rule (CLV-88)', () => {
+    expect(body).toContain('Scope-contested merges are escalated, never auto-resolved');
+  });
+});
+
+describe('Implementer prompt (CLV-88 — scope nudge)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'prompts', 'implementer.md'),
+    'utf-8',
+  );
+
+  it('contains the literal scope-nudge paragraph (CLV-88)', () => {
+    expect(body).toContain('**Scope nudge.** Your declared scope is `task.scope.files_touched`.');
+    expect(body).toContain('walker auto-extends your scope on merge');
+    expect(body).toContain('refuse contested merges');
+  });
+});
