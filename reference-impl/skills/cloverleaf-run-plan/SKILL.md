@@ -99,6 +99,7 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
       mkdir -p "$(dirname "$WT")"
       rm -rf "$WT"  # idempotent: clean any leftover from a prior run
       git -C <repo_root> worktree add "$WT" -b cloverleaf/<TASK-ID> main
+      cloverleaf-cli prep-worktree <repo_root> "$WT"
       ```
 
       Then `mcp__claw-drive__start_session` with:
@@ -110,7 +111,7 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
       Record the returned `session_id`, `worktree_path`, and `branch_name` in walk-state with `state: "running"`, `started_at: <now>`, `last_seq: 0`. Persist via `walk-state-write`.
 
-   c. **Monitor live sessions.** Start `claw-drive watch <session_id> --since <last_seq>` for each running session. Merge the streams into a single notification feed (e.g., the Monitor tool, or `claw-drive watch` run per-session in the background with a filter).
+   c. **Monitor live sessions.** Start `claw-drive watch <session_id> --since <last_seq> --idle-after 600` for each running session. Merge the streams into a single notification feed (e.g., the Monitor tool, or `claw-drive watch` run per-session in the background with a filter). The `--idle-after 600` flag instructs claw-drive to emit a synthetic `idle` event if a session produces no output for 600 seconds (10 minutes), enabling the walker to detect stalled sessions without polling.
 
    d. **Handle events.**
 
@@ -121,7 +122,12 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
         > To unstick: read feedback at `.cloverleaf/feedback/<TASK-ID>-*.json`, fix the issue, and run `/cloverleaf-run <TASK-ID>` manually. The walker will re-check on its next tick — when the task reaches `merged`, it'll pick up descendants automatically.
         Mark the task `state: "escalated"` in walk-state; do NOT queue it behind final-gate approvals; continue other branches.
       - **session_stopped** → reconcile as in step 4.
-      - **Per-session idle > 30 min** → surface to user for inspection; do NOT auto-kill.
+      - **idle** (`silent_for_ms >= 600000`) → the session has been silent for 10 minutes. For each child session emitting this event, check whether it has reached a terminal state:
+        ```bash
+        claw-drive status <child_session_id>
+        ```
+        Read `last_token` from the status response. If `last_token` is `[DONE]` **or** the on-disk task status (`.cloverleaf/tasks/<TASK-ID>.json`) is `final-gate` or `automated-gates`, treat the session as terminal and proceed with drain (same as `session_stopped` → stopped cleanly). If neither condition is met, surface to the user for inspection; do NOT auto-kill.
+      - **Per-session idle > 30 min** (no `idle` event received, wall-clock elapsed) → surface to user for inspection; do NOT auto-kill.
 
    e. **Drain the final-gate queue serially and merge on main.** Session B does NOT invoke `/cloverleaf-merge` — it stops at automated-gates (fast lane) or final-gate (full pipeline) and reports. The walker performs the merge on main in the primary repo. For each queued task:
 
