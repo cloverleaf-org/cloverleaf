@@ -2,7 +2,7 @@
   "type": "task",
   "id": "CLV-89",
   "project": "CLV",
-  "status": "final-gate",
+  "status": "merged",
   "owner": {
     "kind": "agent",
     "id": "implementer"
