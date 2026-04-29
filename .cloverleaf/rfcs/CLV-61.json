@@ -1,0 +1,38 @@
+{
+  "type": "rfc",
+  "id": "CLV-61",
+  "project": "CLV",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "reference-impl v0.6.5 — /cloverleaf-release skill + walker friction patches",
+  "problem": "Five consecutive releases (v0.6.0–v0.6.4) have required the operator to manually copy-paste the post-merge release sequence (git tag → git push origin main → git push origin <tag> → npm publish → gh release create) from the walker's 'Next steps' block. No operator skill exists to automate or gate this sequence. Independently, the v0.6.4 dogfood surfaced three concrete walker-internal regressions: (1) the walker fails to auto-detect children's terminal sentinels under claw-drive 0.5.7 because it still references retired token names (INFO-FINISHED, NEEDS-DECISION, INFO-CHECKPOINT) that claw-drive 0.5.7 no longer emits, and lacks an idle-event handler using the new --idle-after primitive — causing two manual send_turn nudges per run; (2) the walker SKILL.md never calls cloverleaf-cli prep-worktree after git worktree add, so every spawned child hits '@cloverleaf/standard/validators/index.js' unresolved on its first npm test; (3) prompts/qa.md line 80 references the TypeScript source path lib/qa-report.ts but the QA agent needs the compiled runtime artifact path reference-impl/dist/qa-report.mjs, causing import failures in worktrees.",
+  "solution": "Ship @cloverleaf/reference-impl@0.6.5 with one new operator skill and three walker correctness patches, across four parallel tasks that converge into a release-prep custodian sink. Item 1 (T1): create reference-impl/lib/release-preflight.ts (~60 LOC) exporting runPreflightChecks(repoRoot) with six blocking checks (on-main, clean-tree, in-sync-with-origin, valid-version, changelog-section, tag-absent) and two warnings (npm-authenticated, gh-authenticated), all shelling out via child_process.execSync with errors captured per-check, never bubbled. Wire a new cloverleaf-cli release-preflight [--json] subcommand in lib/cli.ts: plain mode prints a human check list and exits 0/1; JSON mode emits {checks, version, tag, notes} and always exits 0. Create reference-impl/skills/cloverleaf-release/SKILL.md: args [--dry-run] [--yes]; flow: parse flags → call release-preflight --json → display checks → bail on any blocking failure → display plan → if --dry-run exit 0 → if not --yes prompt y/N → execute 5 commands bail-fast on first non-zero (git tag -a, git push origin main, git push origin <tag>, cd reference-impl && npm publish --access public, gh release create --notes-file /tmp/release-notes-$VERSION.md). Register the skill in reference-impl/.claude-plugin/plugin.json and root .claude-plugin/marketplace.json. Add tests: reference-impl/tests/release-preflight.test.ts (10 cases covering each blocking check and composed failures), tests/cli.test.ts (2 cases), tests/skills.test.ts (1 regression case). Item 2+3 (T2, same file): patch reference-impl/skills/cloverleaf-run-plan/SKILL.md — append --idle-after 600 to all claw-drive watch invocations in step 5c; add an idle event handler in step 5d that calls claw-drive status <child_session_id> when silent_for_ms >= 600000 for a child in qa-or-higher state, treating last_token=[DONE] or on-disk status final-gate/automated-gates as terminal; replace all retired token references ([INFO-FINISHED]→[DONE], [NEEDS-DECISION]→[NEEDS-INPUT], drop [INFO-CHECKPOINT]/[INFO-PROGRESS]); add cloverleaf-cli prep-worktree <repo_root> \"$WT\" immediately after git worktree add and before mcp__claw-drive__start_session. Add tests/skills.test.ts cases asserting --idle-after presence, prep-worktree call placement, and absence of all retired token names. Item 4 (T3): patch reference-impl/prompts/qa.md line 80 to append the runtime path sentence ('The compiled artifact is at <repoRoot>/reference-impl/dist/qa-report.mjs — invoke via node --input-type=module or import from there. Ensure the output directory exists first (mkdir -p).'); add a regression test asserting the prompt references dist/qa-report.mjs. T4 (custodian sink, depends on T1+T2+T3): bump package.json 0.6.4→0.6.5; rename CHANGELOG.md '## [Unreleased]' to '## 0.6.5 — 2026-04-28' consolidating Documenter entries. DAG: T1 ⟂ T2 ⟂ T3 → T4. Total ~300 LOC across ~13 files; test count grows from 649 to 665+. Standard stays at 0.4.1.",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "/cloverleaf-release --dry-run prints pre-flight check list and release plan then exits 0 without executing any release command.",
+    "/cloverleaf-release --yes runs the full five-command sequence unattended.",
+    "/cloverleaf-release (no flags) runs pre-flight, prints plan, prompts y/N, and executes on y.",
+    "Pre-flight detects each of the six blocking failures independently per the spec check table; warning-level checks render with a warning indicator and do not block execution.",
+    "Walker cloverleaf-run-plan/SKILL.md claw-drive watch invocations include --idle-after 600.",
+    "Walker SKILL.md contains an idle event handler that polls child terminal state via claw-drive status.",
+    "Walker SKILL.md does NOT reference any retired token names (INFO-FINISHED, NEEDS-DECISION, INFO-CHECKPOINT, INFO-PROGRESS).",
+    "Walker SKILL.md calls cloverleaf-cli prep-worktree <repo_root> \"$WT\" immediately after git worktree add.",
+    "prompts/qa.md references dist/qa-report.mjs as the runtime artifact path.",
+    "Test count increases by 16 or more new cases (npm test: 649 → 665+).",
+    "reference-impl/package.json version field is 0.6.5.",
+    "reference-impl/CHANGELOG.md contains a ## 0.6.5 section.",
+    "Tag reference-impl-v0.6.5 is pushed, npm publish succeeds, and a GitHub Release is live."
+  ],
+  "out_of_scope": [
+    "/cloverleaf-release auto-invocation by the walker — operator-invoked for v0.6.5; future automation is a separate decision.",
+    "Anthropic 5xx retry logic in the walker — manual send_turn nudge remains the recovery path; deferred.",
+    "The cloverleaf-cli load-rfc jq parse error in Session B — reproducible bug; needs investigation rather than a known fix.",
+    "Standard schema, contract, or conformance changes — standard stays at 0.4.1.",
+    "AJV / JSON Schema validation in release-preflight.ts — single-purpose check runner; hand-rolled is sufficient.",
+    "Multi-version release support (e.g., releasing standard + reference-impl atomically) — v0.6.5 ships only @cloverleaf/reference-impl.",
+    "Other v0.6.5 candidate work: walker 5xx retry, jq parse error investigation, metrics package, anti-patterns catalog."
+  ]
+}
