@@ -148,6 +148,32 @@ describe('cli', () => {
     expect(stdout.trim()).toMatch(/DEMO-001-u1\.json/);
   });
 
+  // CLV-75: load-task --pretty flag + jq-safe default
+  it('load-task default output is single-line JSON ending in \\n and parses with JSON.parse', () => {
+    const { stdout, exitCode } = run(['load-task', repoRoot, 'DEMO-001']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBe(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('DEMO-001');
+    expect(stdout.endsWith('\n')).toBe(true);
+  });
+
+  it('load-task --pretty output has multiple lines and parses with JSON.parse', () => {
+    const { stdout, exitCode } = run(['load-task', repoRoot, 'DEMO-001', '--pretty']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThan(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('DEMO-001');
+  });
+
+  it('load-task with missing args writes error to stderr and exits nonzero', () => {
+    const { exitCode, stderr } = run(['load-task', repoRoot]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr.length).toBeGreaterThan(0);
+  });
+
   describe('affected-routes', () => {
     beforeEach(() => {
       execSync('git init -q -b main', { cwd: repoRoot });
@@ -341,6 +367,50 @@ describe('cli — rfc', () => {
     expect(exitCode).not.toBe(0);
     expect(stderr.toLowerCase()).toMatch(/actor.*agent.*human|agent.*or.*human/);
   });
+
+  // CLV-75: load-rfc --pretty flag + jq-safe default
+  it('load-rfc default output is single-line JSON ending in \\n and parses with JSON.parse', () => {
+    const rfc = {
+      type: 'rfc', project: 'CLV', id: 'CLV-009', status: 'drafting',
+      owner: { kind: 'agent', id: 'researcher' },
+      title: 't', problem: 'p', solution: 's',
+      unknowns: [], acceptance_criteria: ['ac'], out_of_scope: [],
+    };
+    const p = join(tmp, 'r.json');
+    writeFileSync(p, JSON.stringify(rfc));
+    run(['save-rfc', tmp, p]);
+    const { stdout, exitCode } = run(['load-rfc', tmp, 'CLV-009']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBe(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('CLV-009');
+    expect(stdout.endsWith('\n')).toBe(true);
+  });
+
+  it('load-rfc --pretty output has multiple lines and parses with JSON.parse', () => {
+    const rfc = {
+      type: 'rfc', project: 'CLV', id: 'CLV-009', status: 'drafting',
+      owner: { kind: 'agent', id: 'researcher' },
+      title: 't', problem: 'p', solution: 's',
+      unknowns: [], acceptance_criteria: ['ac'], out_of_scope: [],
+    };
+    const p = join(tmp, 'r.json');
+    writeFileSync(p, JSON.stringify(rfc));
+    run(['save-rfc', tmp, p]);
+    const { stdout, exitCode } = run(['load-rfc', tmp, 'CLV-009', '--pretty']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThan(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('CLV-009');
+  });
+
+  it('load-rfc with missing args writes error to stderr and exits nonzero', () => {
+    const { exitCode, stderr } = run(['load-rfc', tmp]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr.length).toBeGreaterThan(0);
+  });
 });
 
 describe('cli — spike', () => {
@@ -384,6 +454,52 @@ describe('cli — spike', () => {
     expect(exitCode).toBe(0);
     const { stdout } = run(['load-spike', tmp, 'CLV-010']);
     expect(JSON.parse(stdout).status).toBe('running');
+  });
+
+  // CLV-75: load-spike --pretty flag + jq-safe default
+  it('load-spike default output is single-line JSON ending in \\n and parses with JSON.parse', () => {
+    const spike = {
+      type: 'spike', project: 'CLV', id: 'CLV-010',
+      title: 'test', status: 'pending',
+      owner: { kind: 'agent', id: 'researcher' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      question: 'q?', method: 'research',
+    };
+    const p = join(tmp, 's.json');
+    writeFileSync(p, JSON.stringify(spike));
+    run(['save-spike', tmp, p]);
+    const { stdout, exitCode } = run(['load-spike', tmp, 'CLV-010']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBe(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('CLV-010');
+    expect(stdout.endsWith('\n')).toBe(true);
+  });
+
+  it('load-spike --pretty output has multiple lines and parses with JSON.parse', () => {
+    const spike = {
+      type: 'spike', project: 'CLV', id: 'CLV-010',
+      title: 'test', status: 'pending',
+      owner: { kind: 'agent', id: 'researcher' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      question: 'q?', method: 'research',
+    };
+    const p = join(tmp, 's.json');
+    writeFileSync(p, JSON.stringify(spike));
+    run(['save-spike', tmp, p]);
+    const { stdout, exitCode } = run(['load-spike', tmp, 'CLV-010', '--pretty']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThan(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('CLV-010');
+  });
+
+  it('load-spike with missing args writes error to stderr and exits nonzero', () => {
+    const { exitCode, stderr } = run(['load-spike', tmp]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr.length).toBeGreaterThan(0);
   });
 });
 
@@ -447,6 +563,64 @@ describe('cli — plan', () => {
     expect(exitCode).toBe(0);
     const { stdout } = run(['load-plan', tmp, 'CLV-012']);
     expect(JSON.parse(stdout).status).toBe('gate-pending');
+  });
+
+  // CLV-75: load-plan --pretty flag + jq-safe default
+  it('load-plan default output is single-line JSON ending in \\n and parses with JSON.parse', () => {
+    const plan = {
+      type: 'plan', project: 'CLV', id: 'CLV-012', status: 'drafting',
+      owner: { kind: 'agent', id: 'plan' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      task_dag: { nodes: [{ project: 'CLV', id: 'CLV-013' }], edges: [] },
+      tasks: [{
+        type: 'task', project: 'CLV', id: 'CLV-013', title: 't',
+        status: 'pending', risk_class: 'high',
+        owner: { kind: 'agent', id: 'implementer' },
+        acceptance_criteria: ['a'], definition_of_done: ['d'],
+        context: { rfc: { project: 'CLV', id: 'CLV-009' } },
+      }],
+    };
+    const p = join(tmp, 'plan.json');
+    writeFileSync(p, JSON.stringify(plan));
+    run(['save-plan', tmp, p]);
+    const { stdout, exitCode } = run(['load-plan', tmp, 'CLV-012']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBe(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('CLV-012');
+    expect(stdout.endsWith('\n')).toBe(true);
+  });
+
+  it('load-plan --pretty output has multiple lines and parses with JSON.parse', () => {
+    const plan = {
+      type: 'plan', project: 'CLV', id: 'CLV-012', status: 'drafting',
+      owner: { kind: 'agent', id: 'plan' },
+      parent_rfc: { project: 'CLV', id: 'CLV-009' },
+      task_dag: { nodes: [{ project: 'CLV', id: 'CLV-013' }], edges: [] },
+      tasks: [{
+        type: 'task', project: 'CLV', id: 'CLV-013', title: 't',
+        status: 'pending', risk_class: 'high',
+        owner: { kind: 'agent', id: 'implementer' },
+        acceptance_criteria: ['a'], definition_of_done: ['d'],
+        context: { rfc: { project: 'CLV', id: 'CLV-009' } },
+      }],
+    };
+    const p = join(tmp, 'plan.json');
+    writeFileSync(p, JSON.stringify(plan));
+    run(['save-plan', tmp, p]);
+    const { stdout, exitCode } = run(['load-plan', tmp, 'CLV-012', '--pretty']);
+    expect(exitCode).toBe(0);
+    const lines = stdout.split('\n').filter(Boolean);
+    expect(lines.length).toBeGreaterThan(1);
+    const doc = JSON.parse(stdout);
+    expect(doc.id).toBe('CLV-012');
+  });
+
+  it('load-plan with missing args writes error to stderr and exits nonzero', () => {
+    const { exitCode, stderr } = run(['load-plan', tmp]);
+    expect(exitCode).not.toBe(0);
+    expect(stderr.length).toBeGreaterThan(0);
   });
 });
 

@@ -118,10 +118,13 @@ if (!command) {
 try {
   switch (command) {
     case 'load-task': {
-      const [repoRoot, taskId] = rest;
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [repoRoot, taskId] = positional;
       if (!repoRoot || !taskId) usage('load-task requires <repoRoot> <taskId>');
+      const pretty = flags.includes('--pretty');
       const task = loadTask(repoRoot, taskId);
-      process.stdout.write(JSON.stringify(task, null, 2) + '\n');
+      process.stdout.write((pretty ? JSON.stringify(task, null, 2) : JSON.stringify(task)) + '\n');
       break;
     }
 
@@ -349,9 +352,13 @@ try {
     }
 
     case 'load-rfc': {
-      const [repoRoot, id] = rest;
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [repoRoot, id] = positional;
       if (!repoRoot || !id) usage('load-rfc <repoRoot> <id>');
-      process.stdout.write(JSON.stringify(loadRfc(repoRoot, id), null, 2));
+      const pretty = flags.includes('--pretty');
+      const doc = loadRfc(repoRoot, id);
+      process.stdout.write((pretty ? JSON.stringify(doc, null, 2) : JSON.stringify(doc)) + '\n');
       break;
     }
 
@@ -373,9 +380,13 @@ try {
     }
 
     case 'load-spike': {
-      const [repoRoot, id] = rest;
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [repoRoot, id] = positional;
       if (!repoRoot || !id) usage('load-spike <repoRoot> <id>');
-      process.stdout.write(JSON.stringify(loadSpike(repoRoot, id), null, 2));
+      const pretty = flags.includes('--pretty');
+      const doc = loadSpike(repoRoot, id);
+      process.stdout.write((pretty ? JSON.stringify(doc, null, 2) : JSON.stringify(doc)) + '\n');
       break;
     }
 
@@ -396,9 +407,13 @@ try {
     }
 
     case 'load-plan': {
-      const [repoRoot, id] = rest;
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [repoRoot, id] = positional;
       if (!repoRoot || !id) usage('load-plan <repoRoot> <id>');
-      process.stdout.write(JSON.stringify(loadPlan(repoRoot, id), null, 2));
+      const pretty = flags.includes('--pretty');
+      const doc = loadPlan(repoRoot, id);
+      process.stdout.write((pretty ? JSON.stringify(doc, null, 2) : JSON.stringify(doc)) + '\n');
       break;
     }
 
