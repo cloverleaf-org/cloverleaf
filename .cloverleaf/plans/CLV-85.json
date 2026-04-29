@@ -1,0 +1,238 @@
+{
+  "type": "plan",
+  "id": "CLV-85",
+  "project": "CLV",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-84"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-86"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-87"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-88"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-89"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-86"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-87"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-87"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-89"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-88"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-89"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "type": "task",
+      "id": "CLV-86",
+      "project": "CLV",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-85"
+      },
+      "title": "Implement classifyFiles in lib/scope-check.ts with 12 unit tests",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-84"
+        }
+      },
+      "definition_of_done": [
+        "lib/scope-check.ts exports classifyFiles(taskDoc, modifiedFiles, siblingScopes) returning {contested, own, extension} per the brief's algorithm",
+        "tests/scope-check.test.ts covers all 12 cases: empty inputs, file-in-own/sibling/nobody, mixed, normalization, .cloverleaf/ exclusion, deterministic owner, missing own, missing sibling, literal-not-glob",
+        "npm test in reference-impl/ passes with all 12 new cases green"
+      ],
+      "acceptance_criteria": [
+        "classifyFiles is pure and deterministic: same inputs always return same output",
+        "All 12 test cases in tests/scope-check.test.ts pass",
+        "Bucket arrays are sorted lexicographically by file path",
+        ".cloverleaf/ prefixed paths are excluded from classification",
+        "Missing own (empty scope.files_touched) returns all-empty buckets",
+        "Lex-smallest sibling task id wins when a file is contested by multiple siblings"
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/lib/scope-check.ts",
+          "reference-impl/tests/scope-check.test.ts"
+        ]
+      }
+    },
+    {
+      "type": "task",
+      "id": "CLV-87",
+      "project": "CLV",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-85"
+      },
+      "title": "Add cloverleaf-cli check-scope and extend-scope subcommands",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-84"
+        }
+      },
+      "definition_of_done": [
+        "lib/cli.ts exposes check-scope <repo> <task> --branch <name> that reads task doc from feature branch via git show, sibling scopes from main, modified files via git diff main..<branch>, calls classifyFiles, prints JSON to stdout, exits 0 on happy path and 1 on missing branch or task doc",
+        "lib/cli.ts exposes extend-scope <repo> <task> --add <file>... --reason <text> that set-unions into scope.files_touched (sorted, deduped), validates, saves via saveTask, appends timestamped JSON line to .cloverleaf/runs/plan/<PLAN-ID>/audit.jsonl, is idempotent against task doc, exits 2 on missing flags",
+        "6 cases in tests/scope-extend.test.ts and 4 cases in tests/cli.test.ts pass",
+        "Both subcommands are documented in CLI usage output"
+      ],
+      "acceptance_criteria": [
+        "Both check-scope and extend-scope are documented in cloverleaf-cli usage output",
+        "check-scope returns valid JSON with three buckets: own, contested, extension",
+        "extend-scope is idempotent: re-running with the same --add files produces no change to the task doc",
+        "audit.jsonl entries match the brief's example shape with ts, kind, task_id, files, reason fields",
+        "Exit codes match spec: 0 happy path, 1 missing branch/task doc, 2 missing --reason or no --add",
+        "All 10 new test cases (6 scope-extend + 4 cli) pass"
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/lib/cli.ts",
+          "reference-impl/tests/scope-extend.test.ts",
+          "reference-impl/tests/cli.test.ts"
+        ]
+      }
+    },
+    {
+      "type": "task",
+      "id": "CLV-88",
+      "project": "CLV",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-85"
+      },
+      "title": "Patch walker SKILL.md and Implementer prompt with scope enforcement",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-84"
+        }
+      },
+      "definition_of_done": [
+        "walker cloverleaf-run-plan/SKILL.md step 5e contains a scope-check block BEFORE the y/N merge prompt that calls cloverleaf-cli check-scope, escalates on contested with a clear message and skips the prompt, and falls through to existing flow on tooling failure",
+        "A post-merge auto-extend block in SKILL.md invokes extend-scope when extension is non-empty and commits the amended task doc with message cloverleaf: <TASK-ID> scope auto-extended (+N files)",
+        "Walker Rules block contains the literal text: Scope-contested merges are escalated, never auto-resolved",
+        "prompts/implementer.md contains the one-paragraph scope-nudge after step 1 as specified in the brief",
+        "3 regression test cases in tests/skills.test.ts pass: literal cloverleaf-cli check-scope present, contested-escalation message template present, literal scope-nudge paragraph present"
+      ],
+      "acceptance_criteria": [
+        "3 new skills regression tests pass in tests/skills.test.ts",
+        "SKILL.md contains the literal string cloverleaf-cli check-scope",
+        "SKILL.md contains the contested-escalation message template",
+        "SKILL.md Rules block contains the literal rule: Scope-contested merges are escalated, never auto-resolved",
+        "prompts/implementer.md contains the literal scope-nudge paragraph from the brief",
+        "Tooling-failure (non-zero exit from check-scope) path is documented in SKILL.md as warn-and-proceed"
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/skills/cloverleaf-run-plan/SKILL.md",
+          "reference-impl/prompts/implementer.md",
+          "reference-impl/tests/skills.test.ts"
+        ]
+      }
+    },
+    {
+      "type": "task",
+      "id": "CLV-89",
+      "project": "CLV",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-85"
+      },
+      "title": "Release-prep: bump reference-impl to 0.7.1 and finalise CHANGELOG",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-84"
+        }
+      },
+      "definition_of_done": [
+        "reference-impl/package.json version is 0.7.1 and @cloverleaf/standard dep remains ^0.5.0",
+        "reference-impl/CHANGELOG.md has ## [Unreleased] renamed to ## 0.7.1 — 2026-04-29 consolidating Documenter entries from Items 1+2+3",
+        "CHANGELOG section calls out: walker pre-merge contested check, auto-extension on uncontested, two new CLI subcommands check-scope and extend-scope, Implementer prompt nudge",
+        "Local npm publish --dry-run in reference-impl/ succeeds",
+        "git tag reference-impl-v0.7.1 is ready (publish/release is operator action, not part of task DoD)"
+      ],
+      "acceptance_criteria": [
+        "package.json version field is exactly 0.7.1",
+        "@cloverleaf/standard dependency remains ^0.5.0 unchanged",
+        "CHANGELOG.md contains a section heading ## 0.7.1 — 2026-04-29",
+        "CHANGELOG section includes bullets for: walker pre-merge contested check, auto-extension on uncontested, check-scope subcommand, extend-scope subcommand, and Implementer prompt nudge",
+        "npm publish --dry-run in reference-impl/ exits 0 with no errors"
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/package.json",
+          "reference-impl/CHANGELOG.md"
+        ]
+      }
+    }
+  ]
+}
