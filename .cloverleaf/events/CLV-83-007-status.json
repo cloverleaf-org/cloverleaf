@@ -1,0 +1,17 @@
+{
+  "event_id": "e99c858d-9f36-4765-ac83-7221fc632f82",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-29T19:50:47.789Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-83"
+  },
+  "work_item_type": "task",
+  "from_status": "automated-gates",
+  "to_status": "merged",
+  "actor": {
+    "kind": "human",
+    "id": "local-user"
+  },
+  "reason": "gate=human_merge; path=fast_lane"
+}
