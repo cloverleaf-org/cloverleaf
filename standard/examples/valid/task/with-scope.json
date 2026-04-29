@@ -1,0 +1,25 @@
+{
+  "id": "ACME-202",
+  "type": "task",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "implementer" },
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-102" },
+  "title": "Add OAuth provider registration endpoint",
+  "context": {
+    "rfc": { "project": "ACME", "id": "ACME-100" }
+  },
+  "definition_of_done": [
+    "POST /auth/oauth/providers accepts a provider config and persists it."
+  ],
+  "acceptance_criteria": [
+    "POST a valid Google provider config returns 201 and the persisted record."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/lib/cli.ts",
+      "reference-impl/lib/auth.ts"
+    ]
+  }
+}

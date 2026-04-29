@@ -1,0 +1,22 @@
+{
+  "id": "ACME-203",
+  "type": "task",
+  "status": "pending",
+  "owner": { "kind": "agent", "id": "implementer" },
+  "project": "ACME",
+  "parent": { "project": "ACME", "id": "ACME-102" },
+  "title": "Task with invalid scope field",
+  "context": {
+    "rfc": { "project": "ACME", "id": "ACME-100" }
+  },
+  "definition_of_done": [
+    "Something must be done."
+  ],
+  "acceptance_criteria": [
+    "Something is verifiable."
+  ],
+  "risk_class": "low",
+  "scope": {
+    "unknownField": true
+  }
+}
