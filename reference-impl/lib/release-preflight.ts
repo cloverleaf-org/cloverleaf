@@ -159,9 +159,10 @@ export function runPreflightChecks(repoRoot: string): PreflightResult {
     try {
       const changelogPath = join(repoRoot, 'reference-impl', 'CHANGELOG.md');
       const changelog = readFileSync(changelogPath, 'utf-8');
-      const pattern = new RegExp(`^##\\s+\\[?${version.replace(/\./g, '\\.')}[^\\n]*\\n([\\s\\S]*?)(?=^##\\s|$)`, 'm');
-      const m = changelog.match(pattern);
-      notes = m ? m[1].trim() : '';
+      const versionRegex = new RegExp(`^##\\s+\\[?${version.replace(/\./g, '\\.')}`, 'm');
+      const sections = changelog.split(/\n(?=## )/);
+      const match = sections.find((s) => versionRegex.test(s));
+      notes = match ? match.replace(/^[^\n]*\n/, '').trim() : '';
     } catch {
       notes = '';
     }

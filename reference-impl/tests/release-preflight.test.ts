@@ -132,6 +132,10 @@ describe('release-preflight', () => {
     expect(ids).toContain('tag-absent');
     expect(ids).toContain('npm-authenticated');
     expect(ids).toContain('gh-authenticated');
+
+    // notes must be non-empty and contain the body of the version section
+    expect(result.notes.length).toBeGreaterThan(0);
+    expect(result.notes).toContain('initial release');
   });
 
   // -------------------------------------------------------------------------
@@ -289,5 +293,45 @@ describe('release-preflight', () => {
 
     // All must be independently recorded — total check count stays 8
     expect(result.checks).toHaveLength(8);
+  });
+
+  // -------------------------------------------------------------------------
+  // Test case 11: notes extraction — multi-section CHANGELOG, correct section
+  // -------------------------------------------------------------------------
+
+  it('(11) notes contains only the target version section body when multiple sections exist', () => {
+    tmp = buildRepo({
+      version: '0.6.6',
+      changelog:
+        '# Changelog\n\n## 0.6.6 — 2026-05-01\n\n### Added\n\n- foo\n\n## 0.6.5 — 2026-04-01\n\n### Fixed\n\n- bar\n',
+    });
+    const result = runPreflightChecks(tmp);
+
+    expect(result.notes).toContain('### Added');
+    expect(result.notes).toContain('- foo');
+    // Must NOT contain content from the 0.6.5 section
+    expect(result.notes).not.toContain('0.6.5');
+    expect(result.notes).not.toContain('- bar');
+  });
+
+  // -------------------------------------------------------------------------
+  // Test case 12: notes extraction — target version is the last section in CHANGELOG
+  // -------------------------------------------------------------------------
+
+  it('(12) notes are correctly extracted when target version is the last section in CHANGELOG', () => {
+    tmp = buildRepo({
+      version: '0.6.5',
+      changelog:
+        '# Changelog\n\n## 0.6.6 — 2026-05-01\n\n### Added\n\n- newer stuff\n\n## 0.6.5 — 2026-04-01\n\n### Fixed\n\n- last section content\n',
+    });
+    const result = runPreflightChecks(tmp);
+
+    expect(result.notes.length).toBeGreaterThan(0);
+    expect(result.notes).toContain('### Fixed');
+    expect(result.notes).toContain('- last section content');
+    // Must not have trailing whitespace cruft
+    expect(result.notes).toBe(result.notes.trim());
+    // Must not contain content from the 0.6.6 section
+    expect(result.notes).not.toContain('newer stuff');
   });
 });
