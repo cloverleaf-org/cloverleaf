@@ -1,0 +1,37 @@
+{
+  "type": "rfc",
+  "id": "CLV-84",
+  "project": "CLV",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "File-ownership enforcement in walker (reference-impl 0.7.1)",
+  "problem": "Standard 0.5.0 and reference-impl 0.7.0 introduced task.scope.files_touched and walker-time DAG edge inference from shared-file overlap, giving the Plan agent a way to declare per-task file ownership. However the Implementer agent has no awareness of that declared scope, and the walker performs no enforcement at merge time. During Plan CLV-79, the Implementer working CLV-81 modified standard/CHANGELOG.md and standard/schemas/task.schema.json, both of which were declared in CLV-80's scope.files_touched. Two manual --ours resolutions were required during walker recovery. The data model is in place; the enforcement layer is missing entirely.",
+  "solution": "Ship reference-impl 0.7.1 as an additive, walker-only release with no Standard schema changes. Add a new pure module lib/scope-check.ts exporting classifyFiles, which buckets a task's modified files into own (declared in the task's scope), contested (declared by a sibling task in the same Plan), and extension (touched but not declared by anyone). Add two new cloverleaf-cli subcommands: check-scope, which reads git diff and task docs then prints the JSON classification; and extend-scope, which set-unions new files into scope.files_touched and appends an audit line to .cloverleaf/runs/plan/<PLAN-ID>/audit.jsonl. Patch the walker SKILL.md step 5e to invoke check-scope at queue-pop time before the y/N merge prompt: contested merges are refused and escalated to the operator with a clear message; uncontested out-of-scope files are auto-extended post-merge. Add a one-paragraph scope nudge to prompts/implementer.md so the Implementer agent understands scope expectations before it starts work. Ship 25 new test cases covering all new logic. The hard enforcement gate lives in the walker; the Implementer nudge is advisory only.",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "lib/scope-check.ts::classifyFiles is deterministic and pure; all 12 unit test cases in tests/scope-check.test.ts pass",
+    "cloverleaf-cli check-scope <repo> <task> --branch <branch> returns valid JSON with three buckets (own, contested, extension) and exits 0 on happy path; exits 1 on missing branch or task doc",
+    "cloverleaf-cli extend-scope <repo> <task> --add <file>... --reason <text> mutates scope.files_touched in the task doc (sorted, deduped), appends a correctly-shaped audit line to .cloverleaf/runs/plan/<PLAN-ID>/audit.jsonl, is idempotent against the task doc, and exits 2 on missing --reason or no --add flags",
+    "Walker SKILL.md step 5e contains the scope-check block before the y/N merge prompt; contested merges surface the escalation message and do not show the prompt; tooling-failure falls through to the existing merge flow",
+    "Walker SKILL.md step 5e contains the post-merge auto-extend block that invokes extend-scope when extension is non-empty and commits the amended task doc",
+    "Walker Rules block contains the rule: scope-contested merges are escalated, never auto-resolved",
+    "prompts/implementer.md contains the scope-nudge paragraph describing own scope, discovery-during-implementation allowance, and contested-file consequences",
+    "All 25 new test cases pass: 12 in tests/scope-check.test.ts, 6 in tests/scope-extend.test.ts, 4 in tests/cli.test.ts, 3 in tests/skills.test.ts",
+    "reference-impl/package.json version is 0.7.1; @cloverleaf/standard dep remains ^0.5.0",
+    "reference-impl/CHANGELOG.md has a ## 0.7.1 — 2026-04-29 section covering the walker pre-merge gate, auto-extension, two new CLI subcommands, and the Implementer prompt nudge",
+    "Tag reference-impl-v0.7.1 pushed; npm @cloverleaf/reference-impl@0.7.1 published; GitHub Release live"
+  ],
+  "out_of_scope": [
+    "Standard schema changes — scope.files_touched already shipped in Standard 0.5.0",
+    "New event-type schemas — the audit.jsonl is walker-internal and not Standard-defined",
+    "Glob support in files_touched matching — exact-path comparison only, mirroring v0.7.0 dag-overlap.ts non-goals",
+    "Pre-Implementer enforcement — the Implementer worktree does not have a synchronized view of sibling scopes; only main has the canonical Plan view",
+    "Auto-bouncing the Implementer back with synthetic feedback on contested violations — the contested case is a Plan-decomposition error the agent cannot repair",
+    "Symbol-level overlap detection",
+    "v0.7 unified /cloverleaf-flow orchestrator",
+    "Automated Plan-agent file-ownership synthesis, Standard-versioning playbook, metrics package, and anti-patterns catalog"
+  ]
+}
