@@ -1,7 +1,7 @@
 {
   "id": "CLV-76",
   "type": "task",
-  "status": "pending",
+  "status": "automated-gates",
   "owner": {
     "kind": "agent",
     "id": "implementer"

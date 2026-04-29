@@ -35,13 +35,11 @@
  *   walk-state-read <repoRoot> <planId>
  *   walk-state-write <repoRoot> <walkStateJsonPath>
  *   walker-default-concurrency [--explain]
- *   release-preflight <repoRoot> [--json]
  */
 
 import { readFileSync, mkdirSync, copyFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { execSync } from 'node:child_process';
-import { runPreflightChecks } from './release-preflight.js';
 import { loadTask } from './task.js';
 import { advanceStatus } from './task.js';
 import { emitGateDecision } from './events.js';
@@ -537,36 +535,6 @@ try {
         process.stdout.write(`${cfg.maxConcurrent}\n`);
       }
       process.exit(0);
-    }
-
-    case 'release-preflight': {
-      const positional = rest.filter((a) => !a.startsWith('--'));
-      const flags = rest.filter((a) => a.startsWith('--'));
-      const [repoRoot] = positional;
-      if (!repoRoot) usage('release-preflight requires <repoRoot>');
-      const jsonMode = flags.includes('--json');
-      const result = runPreflightChecks(repoRoot);
-      if (jsonMode) {
-        process.stdout.write(JSON.stringify(result, null, 2) + '\n');
-        process.exit(0);
-      } else {
-        // Plain human-readable mode
-        for (const check of result.checks) {
-          let prefix: string;
-          if (check.status === 'pass') {
-            prefix = '✓';
-          } else if (check.level === 'warning') {
-            prefix = '⚠';
-          } else {
-            prefix = '✗';
-          }
-          process.stdout.write(`${prefix} ${check.id}: ${check.message}\n`);
-        }
-        const blockingFailed = result.checks.some(
-          (c) => c.level === 'blocking' && c.status === 'fail',
-        );
-        process.exit(blockingFailed ? 1 : 0);
-      }
     }
 
     default:
