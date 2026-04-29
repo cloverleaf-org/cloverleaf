@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- Walker SKILL (`cloverleaf-run-plan`): all state-mutating `git` invocations in walker bash blocks now use `git -C <repo_root>` so they resolve paths against the repo root regardless of shell cwd; added regression guard test in `tests/skills.test.ts`. ([CLV-70])
+
 ## 0.6.5 — 2026-04-28
 
 ### Changed
