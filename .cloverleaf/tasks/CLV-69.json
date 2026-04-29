@@ -1,0 +1,36 @@
+{
+  "id": "CLV-69",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-68"
+  },
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-67"
+    }
+  },
+  "title": "Fix runPreflightChecks notes extraction (section-split regex)",
+  "definition_of_done": [
+    "The broken one-shot regex block in reference-impl/lib/release-preflight.ts (around lines 156–168) is replaced with the section-split approach: changelog.split(/\\n(?=## )/), versionRegex.test(s) per section, match.replace(/^[^\\n]*\\n/, '').trim()",
+    "release-preflight.test.ts test count advances from 10 to 13: existing case 1 additionally asserts notes.length > 0 and that notes contains the version-header body text; new case 11 asserts notes contains '### Added' and '- foo' and does NOT contain 0.6.5 section content; new case 12 asserts notes are correctly extracted when the target version is the last section in the CHANGELOG with no trailing ## header",
+    "All 13 release-preflight tests pass (vitest run) with zero failures",
+    "No changes made outside reference-impl/lib/release-preflight.ts and reference-impl/tests/release-preflight.test.ts"
+  ],
+  "acceptance_criteria": [
+    "cloverleaf-cli release-preflight <repoRoot> --json returns a non-empty notes field for the current package.json::version when the corresponding ## <version> — DATE section exists in CHANGELOG.md",
+    "The notes string equals the section body (everything after the version header line up to the next ## header or EOF), trimmed of leading/trailing whitespace",
+    "Case 11: CHANGELOG containing ## 0.6.6 — DATE\\n\\n### Added\\n\\n- foo\\n\\n## 0.6.5 — ... with version=0.6.6 returns notes that contains '### Added' and '- foo' and does not contain any 0.6.5 content",
+    "Case 12: when the target version is the last section in the CHANGELOG (no subsequent ## header), notes is still correctly extracted and contains the section content with no trailing whitespace cruft",
+    "Updated case 1 (existing happy-path): notes.length > 0 and the captured notes contain the body of the version header section",
+    "vitest run on reference-impl reports 13 passing tests for the release-preflight suite, 0 failing"
+  ],
+  "risk_class": "high"
+}

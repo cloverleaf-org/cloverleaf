@@ -1,0 +1,36 @@
+{
+  "id": "CLV-71",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-68"
+  },
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-67"
+    }
+  },
+  "title": "Release-prep custodian: bump package.json to 0.6.6 and finalize CHANGELOG.md",
+  "definition_of_done": [
+    "reference-impl/package.json version field is updated from 0.6.5 to 0.6.6",
+    "reference-impl/CHANGELOG.md ## [Unreleased] heading is renamed to ## 0.6.6 — 2026-04-29, consolidating all Documenter [Unreleased] entries contributed by CLV-69 (notes extraction fix) and CLV-70 (walker CWD hardening)",
+    "The ## 0.6.6 — 2026-04-29 CHANGELOG section also notes the v0.6.5 plugin manifest hot-fix (commit 069c3ae) that removed the skills[] array to restore auto-discovery",
+    "No other files are modified by this task",
+    "All existing tests continue to pass after the version bump (vitest run reports 0 failures)"
+  ],
+  "acceptance_criteria": [
+    "reference-impl/package.json contains \"version\": \"0.6.6\"",
+    "reference-impl/CHANGELOG.md contains a ## 0.6.6 — 2026-04-29 section and does NOT contain a ## [Unreleased] heading",
+    "The ## 0.6.6 — 2026-04-29 section body includes entries covering: (a) the runPreflightChecks notes extraction fix (section-split approach), (b) the walker CWD hardening (git -C <repo_root> in SKILL.md), and (c) the v0.6.5 plugin manifest hot-fix commit 069c3ae removing skills[] for auto-discovery",
+    "The CHANGELOG entry for the hot-fix references commit 069c3ae explicitly",
+    "vitest run on reference-impl reports 0 failures after the bump"
+  ],
+  "risk_class": "low"
+}

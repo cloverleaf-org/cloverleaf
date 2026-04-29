@@ -1,0 +1,36 @@
+{
+  "id": "CLV-70",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-68"
+  },
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-67"
+    }
+  },
+  "title": "Walker CWD hardening — replace bare git calls in cloverleaf-run-plan/SKILL.md",
+  "definition_of_done": [
+    "All bare git invocations in walker bash blocks of reference-impl/skills/cloverleaf-run-plan/SKILL.md are replaced with git -C <repo_root> equivalents; specifically the six step-5e calls (git checkout main, git diff --name-only, git merge --no-ff, git add .cloverleaf/, git commit -m, git rev-parse HEAD) plus any other bare git invocations found by grepping ^\\s*git\\s+(?!-C\\b)",
+    "Grep of SKILL.md for bare git invocations outside the step-0 read-only allowlist (git rev-parse --abbrev-ref, git status) returns zero matches after the fix",
+    "A regression guard test is added to reference-impl/tests/skills.test.ts that scans cloverleaf-run-plan/SKILL.md line-by-line and asserts no bare git invocations exist outside the allowed read-only step-0 pre-flight commands",
+    "All existing plus the new skills.test.ts test pass (vitest run) with zero failures",
+    "No changes made outside reference-impl/skills/cloverleaf-run-plan/SKILL.md and reference-impl/tests/skills.test.ts"
+  ],
+  "acceptance_criteria": [
+    "Every state-mutating git call in walker bash blocks of SKILL.md uses git -C <repo_root> so git resolves paths against the repo root regardless of shell pwd",
+    "The six specific step-5e substitutions are present: git -C <repo_root> checkout main, git -C <repo_root> diff --name-only main..cloverleaf/<TASK-ID>, git -C <repo_root> merge --no-ff cloverleaf/<TASK-ID> -m '...', git -C <repo_root> add .cloverleaf/, git -C <repo_root> commit -m '...', git -C <repo_root> rev-parse HEAD",
+    "The regression guard test in skills.test.ts fails if any future bare git invocation (not in the allowlist) is introduced into SKILL.md — confirming the guard is live and correctly enforced",
+    "Allowlist in the test covers exactly: git rev-parse --abbrev-ref (step-0 pre-flight) and git status (step-0 pre-flight); all other git lines must use -C <repo_root>",
+    "vitest run on reference-impl reports the new regression guard test passing, 0 failing"
+  ],
+  "risk_class": "high"
+}
