@@ -1,7 +1,7 @@
 {
   "id": "CLV-81",
   "type": "task",
-  "status": "qa",
+  "status": "implementing",
   "owner": {
     "kind": "agent",
     "id": "implementer"
