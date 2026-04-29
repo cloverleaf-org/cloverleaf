@@ -1,0 +1,17 @@
+{
+  "event_id": "10fbaef4-a7ad-4c31-b27f-21008e892b79",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-29T00:22:19.879Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-61"
+  },
+  "work_item_type": "rfc",
+  "from_status": "gate-pending",
+  "to_status": "approved",
+  "actor": {
+    "kind": "human",
+    "id": "local-user"
+  },
+  "reason": "gate=rfc_strategy_gate"
+}
