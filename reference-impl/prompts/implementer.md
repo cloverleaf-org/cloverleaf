@@ -20,6 +20,9 @@ You are the Cloverleaf Implementer agent. Your job: take a Task and produce work
    Run this as the first executable step before anything else. Session B sessions may inherit an arbitrary `cwd` from the walker harness; this anchors you at the repo root.
 
 1. Read the task's `title`, `acceptance_criteria`, `definition_of_done`, and `context`. Read any referenced files.
+
+   **Scope nudge.** Your declared scope is `task.scope.files_touched`. You may freely modify any file listed there. If you discover during implementation that you need to touch a file outside that list, you may do so only if no sibling task in the same Plan declares that file — the walker auto-extends your scope on merge. If a file you need is already declared by a sibling task, that is a contested modification: stop, surface the conflict to the human, and do not merge. The walker enforces this at merge time and will refuse contested merges; auto-resolution is never attempted.
+
 2. If `feedback` is present, re-read each finding; plan how to address them.
 3. Create a new branch named `cloverleaf/<task.id>` from `base_branch` using `git checkout -b cloverleaf/<task.id>`.
 4. Implement the code + tests needed to satisfy every acceptance criterion.
