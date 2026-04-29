@@ -14,11 +14,5 @@
     "methodology",
     "ai-first",
     "reference-implementation"
-  ],
-  "skills": [
-    {
-      "name": "cloverleaf-release",
-      "description": "Publish a new @cloverleaf/reference-impl release. Runs pre-flight checks then executes git tag, git push, npm publish, gh release create. Accepts [--dry-run] [--yes] flags."
-    }
   ]
 }
