@@ -1,6 +1,4 @@
 {
-  "_comment": "Starting-point dogfood policy shipped with claw-drive. Tighten or loosen as you learn what a driven session actually does. Rules in order: auto_approve beats auto_reject; unmatched calls escalate.",
-
   "auto_approve": [
     { "tool": "Read" },
     { "tool": "Glob" },
