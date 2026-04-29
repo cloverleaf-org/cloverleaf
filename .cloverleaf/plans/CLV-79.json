@@ -1,0 +1,218 @@
+{
+  "type": "plan",
+  "id": "CLV-79",
+  "project": "CLV",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-78"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-80"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-81"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-82"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-83"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-80"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-83"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-81"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-83"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-82"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-83"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "CLV-80",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-79"
+      },
+      "title": "Standard 0.5.0: add task.scope.files_touched schema field, conformance fixtures, and release-prep",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-78"
+        }
+      },
+      "definition_of_done": [
+        "`standard/schemas/task.schema.json` has a new optional top-level `scope` object property with an `additionalProperties: false` constraint containing a `files_touched` string-array sub-field (uniqueItems, minLength 1 per item).",
+        "At least one new fixture file under `standard/conformance/fixtures/` demonstrates two tasks that share a file via `scope.files_touched`; all existing fixtures continue to validate without modification.",
+        "`standard/CHANGELOG.md` contains a new `## 0.5.0` section documenting the additive schema change.",
+        "`standard/package.json` version is bumped from `0.4.1` to `0.5.0`.",
+        "The Standard conformance Vitest suite passes green with the new fixture included."
+      ],
+      "acceptance_criteria": [
+        "`standard/schemas/task.schema.json` validates a task document that includes `scope.files_touched: [\"reference-impl/lib/cli.ts\"]` without AJV errors.",
+        "`standard/schemas/task.schema.json` validates a task document that omits `scope` entirely (field is optional, non-breaking).",
+        "A task document with `scope: { unknownField: true }` fails AJV validation due to `additionalProperties: false` on the `scope` object.",
+        "A fixture under `standard/conformance/fixtures/` passes schema validation with two task entries each declaring overlapping `scope.files_touched` paths.",
+        "`standard/package.json` reports version `0.5.0`.",
+        "`standard/CHANGELOG.md` contains a `## 0.5.0` heading.",
+        "All pre-existing conformance fixtures continue to pass the Vitest suite without any modifications."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-81",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-79"
+      },
+      "title": "reference-impl: new dag-overlap.ts module, savePlan integration, and tests",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-78"
+        }
+      },
+      "definition_of_done": [
+        "New module `reference-impl/lib/dag-overlap.ts` exports `computeOverlapEdges(tasks: TaskDoc[]): TaskDagEdge[]` implementing the algorithm from the design spec: per-task `scope?.files_touched` extraction, path normalization (strip leading `./`, trailing `/`, canonicalize separators), pairwise intersection with lower-id-first deterministic ordering, deduplication by `(from.id, to.id)`.",
+        "`reference-impl/lib/plan.ts::savePlan` is updated to call `computeOverlapEdges(plan.tasks)` between schema validation and disk write, merge overlap edges into `plan.task_dag.edges` via set-union, and throw with message `\"file overlap creates cycle: <task-id> ↔ <task-id> via <file>\"` if the augmented DAG contains a cycle.",
+        "New test file `reference-impl/tests/dag-overlap.test.ts` contains exactly 12 test cases covering all scenarios enumerated in the design spec (empty list, single task, no overlap, one overlap, multiple overlapping files, three-task chain, path normalization, absent field, empty array, triangle, determinism, UTF-8 filenames).",
+        "`reference-impl/tests/plan.test.ts` is extended with 4 new cases covering: logical-only edges with file-overlap tasks produce merged output, idempotent re-save, cycle-introducing overlap throws with the documented message, and pre-existing overlap edges are not duplicated.",
+        "All 16 new test cases pass; no existing tests regress."
+      ],
+      "acceptance_criteria": [
+        "`computeOverlapEdges([])` returns `[]`.",
+        "`computeOverlapEdges([a, b])` returns exactly one edge when `a` and `b` share at least one normalized file path, and `[]` when they share none.",
+        "`computeOverlapEdges` is deterministic: shuffling the input task array yields identical output edges in identical order.",
+        "Path normalization treats `./reference-impl/lib/cli.ts` and `reference-impl/lib/cli.ts` as the same file and emits exactly one edge.",
+        "Tasks without `scope.files_touched` (field absent) contribute zero overlap edges.",
+        "`savePlan` merges `computeOverlapEdges` results into `task_dag.edges` using set-union; re-saving a plan with already-merged overlap edges produces identical JSON output (idempotent).",
+        "`savePlan` throws an error whose message matches `\"file overlap creates cycle: <task-id> ↔ <task-id> via <file>\"` when inferred edges would introduce a cycle.",
+        "All 12 cases in `dag-overlap.test.ts` pass.",
+        "All 4 new cases in `plan.test.ts` pass.",
+        "No existing `reference-impl` tests regress."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-82",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-79"
+      },
+      "title": "reference-impl: Plan agent prompt update for scope.files_touched and gate-pending summary format",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-78"
+        }
+      },
+      "definition_of_done": [
+        "`reference-impl/prompts/plan.md` contains a new instruction block near the existing `task_dag` guidance directing the agent to populate `scope.files_touched` per task by transcribing repo-root-relative POSIX paths from the brief's Parallel-DAG conflict guidance section.",
+        "`reference-impl/prompts/plan.md` contains the explicit directive: \"Do NOT manually add edges for file overlap. The system computes them automatically when the Plan is saved.\"",
+        "The gate-pending summary template in `reference-impl/prompts/plan.md` is updated to group edges under `Logical:` and `Inferred from file overlap:` subsections, with the Plan agent computing the diff inline.",
+        "A regression test in `reference-impl/tests/skills.test.ts` or a new `reference-impl/tests/prompts.test.ts` asserts that `prompts/plan.md` contains both the literal `scope.files_touched` instruction string and the directive not to manually add overlap edges.",
+        "The new or extended test file passes; no existing tests regress."
+      ],
+      "acceptance_criteria": [
+        "`reference-impl/prompts/plan.md` contains the substring `scope.files_touched` in the context of a task-population instruction.",
+        "`reference-impl/prompts/plan.md` contains the literal directive text instructing the agent not to manually add edges for file overlap.",
+        "`reference-impl/prompts/plan.md` contains a gate-pending summary template with `Logical:` and `Inferred from file overlap:` edge groupings.",
+        "The regression test in `skills.test.ts` or `prompts.test.ts` asserts both required strings are present in `prompts/plan.md` and passes green.",
+        "No existing prompt-related tests regress."
+      ],
+      "risk_class": "high"
+    },
+    {
+      "id": "CLV-83",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-79"
+      },
+      "title": "reference-impl release-prep custodian: bump to 0.7.0, update Standard dep to ^0.5.0, write CHANGELOG",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-78"
+        }
+      },
+      "definition_of_done": [
+        "`reference-impl/package.json` version field is `0.7.0` and the `@cloverleaf/standard` dependency is `^0.5.0`.",
+        "`reference-impl/CHANGELOG.md` has a `## 0.7.0 — 2026-04-29` section that consolidates entries from CLV-81 (dag-overlap module + savePlan integration) and CLV-82 (Plan agent prompt update), and includes a `### Standard` subsection explicitly noting the coordinated Standard 0.5.0 release and the addition of `task.scope.files_touched`.",
+        "Any `## [Unreleased]` section previously at the top of `reference-impl/CHANGELOG.md` is renamed to `## 0.7.0 — 2026-04-29`."
+      ],
+      "acceptance_criteria": [
+        "`reference-impl/package.json` reports version `0.7.0`.",
+        "`reference-impl/package.json` lists `@cloverleaf/standard` at `^0.5.0`.",
+        "`reference-impl/CHANGELOG.md` contains a `## 0.7.0 — 2026-04-29` heading.",
+        "`reference-impl/CHANGELOG.md` contains a `### Standard` subsection under the `## 0.7.0 — 2026-04-29` section that references the `task.scope.files_touched` addition.",
+        "No `## [Unreleased]` heading remains in `reference-impl/CHANGELOG.md` after the rename.",
+        "`npm install` in `reference-impl/` resolves without error with `@cloverleaf/standard@^0.5.0` available."
+      ],
+      "risk_class": "low"
+    }
+  ]
+}
