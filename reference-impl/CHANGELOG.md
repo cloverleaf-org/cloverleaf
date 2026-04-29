@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `cloverleaf-run-plan` skill: step 5b now calls `cloverleaf-cli prep-worktree <repo_root> "$WT"` immediately after `git worktree add` and before `mcp__claw-drive__start_session`, ensuring every child worktree is fully primed before the session starts. All `claw-drive watch` invocations in step 5c now append `--idle-after 600` so child sessions emit synthetic idle events after 10 minutes of silence. Step 5d gains a new idle event handler: when a `silent_for_ms >= 600000` event arrives for a child session in qa-or-higher task state, the walker calls `claw-drive status <child_session_id>` to read `last_token`; if `last_token` is `[DONE]` or the on-disk task status is `final-gate`/`automated-gates`, the child is treated as terminal and drain proceeds. Retired claw-drive 0.5.7 token vocabulary replaced throughout. [CLV-64]
+
 ## 0.6.4 — 2026-04-28
 
 ### Added
