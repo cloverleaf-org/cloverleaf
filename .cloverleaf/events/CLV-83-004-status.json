@@ -1,0 +1,16 @@
+{
+  "event_id": "006e60c8-0fc1-452d-bef1-bd55c6f561b0",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-29T19:47:03.713Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-83"
+  },
+  "work_item_type": "task",
+  "from_status": "documenting",
+  "to_status": "review",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  }
+}
