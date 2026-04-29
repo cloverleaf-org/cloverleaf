@@ -479,6 +479,47 @@ describe('plan prompt', () => {
 });
 
 // ---------------------------------------------------------------------------
+// CLV-82: Plan agent prompt — scope.files_touched instruction and
+//         gate-pending summary format with edge groupings
+// ---------------------------------------------------------------------------
+
+describe('plan prompt (CLV-82 — scope.files_touched and gate-pending summary)', () => {
+  const body = readPrompt('plan');
+
+  it('contains a scope.files_touched instruction for populating per-task file paths', () => {
+    // The prompt must instruct the agent to populate scope.files_touched per task.
+    expect(body).toContain('scope.files_touched');
+    // Must reference transcribing from the brief's Parallel-DAG conflict guidance section.
+    expect(body.toLowerCase()).toMatch(/parallel.dag conflict guidance|brief.*parallel.dag|transcrib/i);
+  });
+
+  it('contains the explicit directive not to manually add edges for file overlap', () => {
+    // The exact required directive string.
+    expect(body).toContain('Do NOT manually add edges for file overlap. The system computes them automatically when the Plan is saved.');
+  });
+
+  it('gate-pending summary template contains Logical: and Inferred from file overlap: subsections', () => {
+    expect(body).toContain('Logical:');
+    expect(body).toContain('Inferred from file overlap:');
+    // Both must appear inside or near a gate-pending summary context.
+    // Use case-insensitive search for the section heading.
+    const gatePendingIdx = body.toLowerCase().indexOf('gate-pending summary');
+    expect(gatePendingIdx).toBeGreaterThan(-1);
+    const logicalIdx = body.indexOf('Logical:');
+    const inferredIdx = body.indexOf('Inferred from file overlap:');
+    // Both subsection headings must appear after the gate-pending summary template heading.
+    expect(logicalIdx).toBeGreaterThan(gatePendingIdx);
+    expect(inferredIdx).toBeGreaterThan(gatePendingIdx);
+  });
+
+  it('gate-pending summary template instructs agent not to add inferred edges to task_dag.edges', () => {
+    // Critical: the summary is for human review only; inferred overlap edges must NOT
+    // be added to task_dag.edges (the system does that automatically).
+    expect(body).toMatch(/Do NOT add these to `task_dag\.edges`|do not add.*task_dag\.edges/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CLV-19: baseline-approval sidecar — ui-reviewer prompt contract
 // ---------------------------------------------------------------------------
 

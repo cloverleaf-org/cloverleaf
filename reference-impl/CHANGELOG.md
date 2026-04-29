@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- Plan prompt (`prompts/plan.md`): added a `scope.files_touched` per-task population instruction alongside the `task_dag` guidance, an explicit directive that file-overlap edges must NOT be added manually (the system computes them automatically on Plan save), and a new "Gate-pending summary template" section that groups edges under `Logical:` and `Inferred from file overlap:` headings. Regression-guarded in `tests/prompts.test.ts` (`describe('plan prompt (CLV-82 — scope.files_touched and gate-pending summary)')`). [CLV-82]
+
 ## 0.6.7 — 2026-04-29
 
 ### Fixed
