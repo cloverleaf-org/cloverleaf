@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## 0.5.0 — 2026-04-29
+
+### Added
+- `task.scope` — new optional top-level object property on the Task schema. Contains a `files_touched` string-array sub-field (uniqueItems, minLength 1 per item). Declared with `additionalProperties: false` to prevent unrecognised fields.
+- `conformance/fixtures/scope-files-touched-overlap.json` — fixture demonstrating two tasks that share a path in `scope.files_touched`.
+- `conformance/tests/scope-fixtures.test.ts` — Vitest suite validating all fixture files under `conformance/fixtures/`.
+
+### Compatibility
+- Additive only. The `scope` field is optional; all documents valid under 0.4.x remain valid under 0.5.0.
+
 ## [0.4.1] — 2026-04-21
 
 ### Added

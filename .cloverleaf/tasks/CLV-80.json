@@ -1,7 +1,7 @@
 {
   "id": "CLV-80",
   "type": "task",
-  "status": "pending",
+  "status": "final-gate",
   "owner": {
     "kind": "agent",
     "id": "implementer"

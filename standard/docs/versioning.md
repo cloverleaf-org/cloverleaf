@@ -13,7 +13,7 @@ The current version lives in `VERSION` at the repo root.
 | Tier | Examples | Stability guarantee |
 |---|---|---|
 | Mandatory fields | `id`, `type`, `status`, `owner`, `definition_of_done`, `acceptance_criteria` | No breaking changes within a MAJOR version. |
-| Optional fields | `extensions`, `dependencies`, `parent` | May add fields; will not remove or repurpose within a MAJOR. |
+| Optional fields | `extensions`, `dependencies`, `parent`, `scope` | May add fields; will not remove or repurpose within a MAJOR. |
 | Contracts | OpenAPI specs | New endpoints may be added in MINOR; existing endpoint shapes stable within MAJOR. |
 | Examples | Documents under `examples/` | May change in PATCH; not part of the contract. |
 
