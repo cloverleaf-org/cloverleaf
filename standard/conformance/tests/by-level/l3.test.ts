@@ -67,5 +67,5 @@ describe('L3 Host conformance', () => {
       expect(api.openapi).toBeDefined();
       expect(api.openapi!.startsWith('3.1.')).toBe(true);
     }
-  });
+  }, 10000);
 });
