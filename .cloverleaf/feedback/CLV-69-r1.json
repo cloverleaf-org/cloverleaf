@@ -1,0 +1,22 @@
+{
+  "verdict": "bounce",
+  "summary": "The section-split implementation is logically correct and all 12 tests pass, but the Acceptance Criteria explicitly requires 13 passing tests and the branch delivers only 12. The DoD has an internal inconsistency (describes augmenting case 1 + 2 new cases = 12 total, yet states target is 13), and the AC is the authoritative source requiring 13. One additional test case (e.g. case 13 covering the [Unreleased] header or a bracketed-version format) must be added to satisfy the AC.",
+  "findings": [
+    {
+      "severity": "blocker",
+      "message": "Acceptance Criterion 6 and DoD item 3 both require 13 passing tests for the release-preflight suite. The branch delivers only 12 (cases 1–12). The DoD is internally inconsistent: it says 'test count advances from 10 to 13' but only specifies augmenting case 1 plus 2 new cases (11, 12), which sums to 12. The AC is authoritative — a 13th test case must be added and must pass.",
+      "location": {
+        "file": "reference-impl/tests/release-preflight.test.ts",
+        "line": 294
+      }
+    },
+    {
+      "severity": "warning",
+      "message": "The test file's top-level JSDoc comment still reads '10 cases covering each check and composed failures' — it should be updated to reflect the new test count (currently 12, or 13 after the blocker is resolved).",
+      "location": {
+        "file": "reference-impl/tests/release-preflight.test.ts",
+        "line": 2
+      }
+    }
+  ]
+}
