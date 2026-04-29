@@ -1,0 +1,31 @@
+{
+  "id": "CLV-64",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Walker SKILL.md: --idle-after adoption, token vocabulary refresh, auto-call prep-worktree",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-61"
+    }
+  },
+  "definition_of_done": [
+    "All `claw-drive watch` invocations in step 5c of `reference-impl/skills/cloverleaf-run-plan/SKILL.md` append `--idle-after 600` so children emit synthetic `idle` events after 10 minutes of silence.",
+    "A new `idle` event handler is added in step 5d: when `silent_for_ms >= 600000` arrives for a child session in `qa`-or-higher task state, the walker calls `claw-drive status <child_session_id>` to read `last_token`; if `last_token` is `[DONE]` or the on-disk task status is `final-gate`/`automated-gates`, the child is treated as terminal and drain proceeds.",
+    "All retired claw-drive 0.5.7 token references are replaced in `cloverleaf-run-plan/SKILL.md`: `[INFO-FINISHED]` → `[DONE]`, `[NEEDS-DECISION]` → `[NEEDS-INPUT]`; all occurrences of `[INFO-CHECKPOINT]` and `[INFO-PROGRESS]` are removed. The file contains no remaining references to any of the four retired token names.",
+    "In step 5b of `cloverleaf-run-plan/SKILL.md`, `cloverleaf-cli prep-worktree <repo_root> \"$WT\"` is called immediately after `git -C <repo_root> worktree add \"$WT\" -b cloverleaf/<TASK-ID> main` and before `mcp__claw-drive__start_session`.",
+    "`reference-impl/tests/skills.test.ts` is extended with 4 new regression cases asserting: (1) `cloverleaf-run-plan/SKILL.md` references `--idle-after` in a watch-command context; (2) `cloverleaf-run-plan/SKILL.md` calls `cloverleaf-cli prep-worktree` after `git worktree add`; (3) `cloverleaf-run-plan/SKILL.md` does not contain `INFO-FINISHED`, `NEEDS-DECISION`, `INFO-CHECKPOINT`, or `INFO-PROGRESS`; (4) `cloverleaf-run-plan/SKILL.md` contains an idle event handler referencing `claw-drive status`."
+  ],
+  "acceptance_criteria": [
+    "`cloverleaf-run-plan/SKILL.md` `claw-drive watch` invocations include `--idle-after 600` and the file contains an idle handler that calls `claw-drive status <child_session_id>` when `silent_for_ms >= 600000`.",
+    "`cloverleaf-run-plan/SKILL.md` contains zero occurrences of the strings `INFO-FINISHED`, `NEEDS-DECISION`, `INFO-CHECKPOINT`, and `INFO-PROGRESS`.",
+    "`cloverleaf-run-plan/SKILL.md` step 5b calls `cloverleaf-cli prep-worktree <repo_root> \"$WT\"` after `git worktree add` and before `mcp__claw-drive__start_session`.",
+    "`npm test` in `reference-impl/` passes all tests including the 4 new regression cases added by this task in `skills.test.ts`."
+  ],
+  "risk_class": "high"
+}

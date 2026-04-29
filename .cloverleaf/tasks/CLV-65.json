@@ -1,0 +1,28 @@
+{
+  "id": "CLV-65",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "QA prompt: clarify dist/qa-report.mjs as the runtime artifact path",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-61"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/prompts/qa.md` line ~80 is updated: after the existing sentence `Use \\`renderQaReport(runs)\\` from \\`lib/qa-report.ts\\` to produce the HTML.` a new sentence is appended: `The compiled artifact is at \\`<repoRoot>/reference-impl/dist/qa-report.mjs\\` — invoke via \\`node --input-type=module\\` or import from there. Ensure the output directory exists first (\\`mkdir -p\\`).`",
+    "A regression test asserting that `reference-impl/prompts/qa.md` references `dist/qa-report.mjs` is added to `reference-impl/tests/prompts.test.ts` (new file) or as an extension to `reference-impl/tests/skills.test.ts`.",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "`reference-impl/prompts/qa.md` contains the string `dist/qa-report.mjs` as the runtime artifact path reference.",
+    "`reference-impl/prompts/qa.md` retains the existing `lib/qa-report.ts` source path reference for spec context alongside the new runtime path clarification.",
+    "`npm test` in `reference-impl/` passes all tests including the 1 new regression case added by this task."
+  ],
+  "risk_class": "low"
+}

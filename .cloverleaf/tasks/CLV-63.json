@@ -1,0 +1,33 @@
+{
+  "id": "CLV-63",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Release skill: release-preflight.ts, CLI subcommand, SKILL.md, plugin manifests, tests",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-61"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/lib/release-preflight.ts` is a new file (~60 LOC) exporting `runPreflightChecks(repoRoot)` returning `{ checks, version, tag, notes }`. Six blocking checks (`on-main`, `clean-tree`, `in-sync-with-origin`, `valid-version`, `changelog-section`, `tag-absent`) and two warnings (`npm-authenticated`, `gh-authenticated`) are implemented per the design spec table. Each check shells out via `child_process.execSync`; errors are captured into the per-check `message` field and never bubbled to the caller.",
+    "`reference-impl/lib/cli.ts` contains a new `release-preflight [--json]` subcommand case. Plain mode prints a human check list (one line per check, prefixed `✓`/`✗`/`⚠`) and exits 0 if all blocking checks pass, 1 otherwise. JSON mode emits `{checks, version, tag, notes}` to stdout and always exits 0.",
+    "`reference-impl/skills/cloverleaf-release/SKILL.md` is a new skill file accepting `[--dry-run] [--yes]` flags. Flow: parse flags → call `cloverleaf-cli release-preflight --json` → display checks → bail on any blocking failure → display plan (5 commands + version + notes preview) → if `--dry-run` exit 0 → if not `--yes` prompt y/N → execute the 5 commands sequentially with bail-fast on first non-zero (`git tag -a`, `git push origin main`, `git push origin <tag>`, `cd reference-impl && npm publish --access public`, `gh release create --notes-file /tmp/release-notes-$VERSION.md`).",
+    "The new skill is registered in `reference-impl/.claude-plugin/plugin.json` and in `.claude-plugin/marketplace.json` at the repo root.",
+    "`reference-impl/tests/release-preflight.test.ts` is a new file containing exactly 10 cases covering: (1) all blocking pass, (2) detached HEAD, (3) feature branch name in message, (4) untracked files, (5) behind origin/main, (6) invalid semver version, (7) CHANGELOG section absent, (8) tag exists locally, (9) npm-authenticated warning fail, (10) multiple blocking failures composed.",
+    "`reference-impl/tests/cli.test.ts` is extended with 2 new cases: (1) `release-preflight --json` happy-path fixture → valid JSON with `checks/version/tag/notes`, exit 0; (2) `release-preflight` plain against a failing fixture → output contains `✗`, exit 1. `reference-impl/tests/skills.test.ts` is extended with 1 regression case asserting `cloverleaf-release/SKILL.md` exists and contains `cloverleaf-cli release-preflight`, `git tag -a`, `git push origin`, `npm publish`, `gh release create`."
+  ],
+  "acceptance_criteria": [
+    "`/cloverleaf-release --dry-run` prints the pre-flight check list and the 5-command release plan then exits 0 without executing any release command.",
+    "`/cloverleaf-release --yes` runs all 5 release commands unattended and prints `✓ Released reference-impl-v<version>` on success.",
+    "`/cloverleaf-release` (no flags) runs pre-flight, prints the plan, prompts `Proceed with release of <tag>? (y/N)`, and executes the 5 commands on `y`.",
+    "Pre-flight detects each of the 6 blocking failures independently; warning-level checks (`npm-authenticated`, `gh-authenticated`) render with `⚠` on failure but do not block execution.",
+    "`npm test` in `reference-impl/` passes all tests including the 13 new cases added by this task (10 in `release-preflight.test.ts`, 2 in `cli.test.ts`, 1 in `skills.test.ts`)."
+  ],
+  "risk_class": "high"
+}

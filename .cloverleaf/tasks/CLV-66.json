@@ -1,0 +1,30 @@
+{
+  "id": "CLV-66",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Release-prep custodian: bump package.json to 0.6.5 and rename CHANGELOG ## [Unreleased] to ## 0.6.5",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-61"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/package.json` `version` field is changed from `0.6.4` to `0.6.5`.",
+    "`reference-impl/CHANGELOG.md` `## [Unreleased]` section header is renamed to `## 0.6.5 — 2026-04-28`, consolidating the Documenter entries contributed by CLV-63, CLV-64, and CLV-65 under that section.",
+    "Any tests in `reference-impl/tests/` that assert the package version string are updated to expect `0.6.5`.",
+    "All pre-existing tests in `reference-impl/tests/` continue to pass."
+  ],
+  "acceptance_criteria": [
+    "`reference-impl/package.json` `version` field is exactly `\"0.6.5\"`.",
+    "`reference-impl/CHANGELOG.md` contains a section header matching `## 0.6.5 — 2026-04-28` and enumerates the changes from CLV-63 (release skill), CLV-64 (walker SKILL.md patches), and CLV-65 (QA prompt fix).",
+    "This task runs only after CLV-63, CLV-64, and CLV-65 have all merged, enforced by the DAG edges.",
+    "`npm test` in `reference-impl/` passes all tests after the version bump."
+  ],
+  "risk_class": "low"
+}
