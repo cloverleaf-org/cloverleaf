@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `lib/dag-overlap.ts` — new module exporting `computeOverlapEdges(tasks)` and `getFirstSharedFile(taskA, taskB)`. Infers serialization edges from `scope.files_touched`: pairwise intersection over normalized paths (strips leading `./`, trailing `/`, canonicalizes separators), emits one lower-id-first edge per unique `(from.id, to.id)` pair, deduplicates, and sorts output deterministically. [CLV-81]
+
+### Changed
+
+- `savePlan` in `lib/plan.ts` now: (1) validates against the Plan schema, (2) calls `computeOverlapEdges` on all inline tasks and set-union-merges inferred edges into `task_dag.edges`, (3) runs cycle detection on the augmented DAG and throws `"file overlap creates cycle: <task-id> ↔ <task-id> via <file>"` if a cycle is found, then (4) writes to disk. [CLV-81]
+
 ## 0.6.7 — 2026-04-29
 
 ### Fixed
