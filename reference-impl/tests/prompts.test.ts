@@ -339,6 +339,14 @@ describe('qa prompt', () => {
     // in fresh worktrees on CLV-16 and CLV-17 Delivery runs. prep-worktree primes the worktree.
     expect(body).toMatch(/cloverleaf-cli prep-worktree[^\n]*\{\{repo_root\}\}[^\n]*"?\$TMPDIR"?/);
   });
+
+  it('references dist/qa-report.mjs as the compiled runtime artifact (CLV-65)', () => {
+    // Regression guard: the prompt must document the compiled artifact path so agents
+    // know to invoke dist/qa-report.mjs (not the raw TypeScript source) at runtime.
+    expect(body).toContain('dist/qa-report.mjs');
+    // Must also retain the source-level reference for spec context.
+    expect(body).toContain('lib/qa-report.ts');
+  });
 });
 
 describe('reviewer prompt (v0.5.2 #B — worktree prep)', () => {
