@@ -1,7 +1,7 @@
 {
   "id": "CLV-65",
   "type": "task",
-  "status": "pending",
+  "status": "review",
   "owner": {
     "kind": "agent",
     "id": "implementer"
