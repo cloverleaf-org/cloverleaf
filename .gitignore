@@ -9,3 +9,6 @@ docs/superpowers/
 
 # Cloverleaf v0.4: baselines/ is tracked, runs/ is ephemeral per-task artifacts
 .cloverleaf/runs/
+
+# Local-only auth file (env-var indirection; no secret in file but kept untracked)
+.npmrc
