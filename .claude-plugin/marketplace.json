@@ -10,11 +10,11 @@
   "plugins": [
     {
       "name": "cloverleaf",
-      "description": "Cloverleaf reference implementation — Claude Code skills for task scaffolding and the Delivery pipeline (implement, document, review, UI review with multi-viewport visual diff, QA with HTML reports, merge).",
+      "description": "Cloverleaf reference implementation — Claude Code skills for task scaffolding and the Delivery pipeline (implement, document, review, UI review with multi-viewport visual diff, QA with HTML reports, merge, release).",
       "source": "./reference-impl",
       "category": "development",
       "homepage": "https://github.com/cloverleaf-org/cloverleaf",
-      "version": "0.6.0"
+      "version": "0.6.5"
     }
   ]
 }

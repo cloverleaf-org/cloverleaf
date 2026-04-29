@@ -862,3 +862,57 @@ describe('cli — walker-default-concurrency (CLV-58)', () => {
     expect(stdout).toBe('');
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-63: release-preflight CLI subcommand
+// ---------------------------------------------------------------------------
+
+describe('cli — release-preflight (CLV-63)', () => {
+  let repoTmp: string;
+
+  function buildValidRepo(version = '0.6.5'): string {
+    const root = mkdtempSync(join(tmpdir(), 'cli-preflight-'));
+    execSync('git init -q -b main', { cwd: root });
+    execSync('git config user.email test@test', { cwd: root });
+    execSync('git config user.name test', { cwd: root });
+    mkdirSync(join(root, 'reference-impl'));
+    writeFileSync(
+      join(root, 'reference-impl', 'package.json'),
+      JSON.stringify({ name: '@cloverleaf/reference-impl', version }),
+    );
+    writeFileSync(
+      join(root, 'reference-impl', 'CHANGELOG.md'),
+      `# Changelog\n\n## ${version} — 2026-04-28\n\n### Added\n\n- first release\n`,
+    );
+    execSync('git add . && git commit -q -m "initial"', { cwd: root });
+    return root;
+  }
+
+  afterEach(() => {
+    if (repoTmp) rmSync(repoTmp, { recursive: true, force: true });
+  });
+
+  // Test 1: --json happy-path → valid JSON with checks/version/tag/notes, exit 0
+  it('release-preflight --json happy-path fixture → valid JSON with checks/version/tag/notes, exit 0', () => {
+    repoTmp = buildValidRepo('0.6.5');
+    const { stdout, exitCode } = run(['release-preflight', repoTmp, '--json']);
+    expect(exitCode).toBe(0);
+    const parsed = JSON.parse(stdout);
+    expect(parsed).toHaveProperty('checks');
+    expect(parsed).toHaveProperty('version', '0.6.5');
+    expect(parsed).toHaveProperty('tag', 'reference-impl-v0.6.5');
+    expect(parsed).toHaveProperty('notes');
+    expect(Array.isArray(parsed.checks)).toBe(true);
+    expect(parsed.checks.length).toBe(8);
+  });
+
+  // Test 2: plain mode against a failing fixture → output contains ✗, exit 1
+  it('release-preflight plain against a failing fixture → output contains ✗, exit 1', () => {
+    repoTmp = buildValidRepo('not-semver');
+    // Dirty the tree so clean-tree also fails
+    writeFileSync(join(repoTmp, 'dirty.txt'), 'dirty');
+    const { stdout, exitCode } = run(['release-preflight', repoTmp]);
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('✗');
+  });
+});

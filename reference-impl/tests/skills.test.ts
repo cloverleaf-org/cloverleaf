@@ -1087,3 +1087,35 @@ describe('package.json (v0.6.4)', () => {
     expect(pkg.name).toBe('@cloverleaf/reference-impl');
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-63: cloverleaf-release skill regression guard
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-release skill (CLV-63)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-release', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('cloverleaf-release/SKILL.md exists and contains cloverleaf-cli release-preflight', () => {
+    expect(body).toContain('cloverleaf-cli release-preflight');
+  });
+
+  it('contains git tag -a release command', () => {
+    expect(body).toContain('git tag -a');
+  });
+
+  it('contains git push origin commands', () => {
+    expect(body).toMatch(/git push origin main/);
+    expect(body).toMatch(/git push origin/);
+  });
+
+  it('contains npm publish command', () => {
+    expect(body).toContain('npm publish');
+  });
+
+  it('contains gh release create command', () => {
+    expect(body).toContain('gh release create');
+  });
+});
