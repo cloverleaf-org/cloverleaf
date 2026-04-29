@@ -1,0 +1,23 @@
+{
+  "verdict": "bounce",
+  "summary": "reference-impl tests pass (698/698). Standard suite fails: L3 Host conformance test 'every agent contract dereferences as valid OpenAPI 3.1' times out at 5000ms on CLV-81 but passes on main in ~2.6s. Verified by running the same test against both main and the CLV-81 SHA in identical prep-worktree environments. The agent contracts (implementer/qa/reviewer) $ref task.schema.json; expanding it with the new scope.files_touched object pushes SwaggerParser dereferencing past the 5s timeout. Aggregate: 809/810 tests pass.",
+  "findings": [
+    {
+      "severity": "blocker",
+      "rule": "qa.standard.L3-host-conformance",
+      "message": "L3 Host conformance > every agent contract dereferences as valid OpenAPI 3.1 — Test timed out in 5000ms on cloverleaf/CLV-81 (SHA 1a0f9be). Confirmed CAUSED by CLV-81 changes: same test passes on main (269e323) in ~2.6s under identical prep-worktree environment. The implementer/qa/reviewer agent contracts $ref task.schema.json; expanding it with the new scope.files_touched object increases SwaggerParser validation time. Fix options: (1) bump the test's timeout to 10000ms by passing it as the third argument to the it() call (least invasive — does not change the schema's public surface), or (2) restructure the scope schema to be flatter / lighter (e.g., move files_touched to a top-level optional property without the wrapping scope object).",
+      "location": {
+        "file": "standard/conformance/tests/by-level/l3.test.ts",
+        "line": 57
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "qa-report",
+      "message": "QA report written",
+      "location": {
+        "file": ".cloverleaf/runs/CLV-81/qa/report.html"
+      }
+    }
+  ]
+}
