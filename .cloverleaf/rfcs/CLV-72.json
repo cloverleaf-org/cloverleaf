@@ -1,0 +1,35 @@
+{
+  "type": "rfc",
+  "id": "CLV-72",
+  "project": "CLV",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "reference-impl v0.6.7 — walker self-healing + load-rfc fix + release skill removal",
+  "problem": "Four technical debt items accumulated across the v0.6.4/v0.6.5/v0.6.6 walker runs: (1) the walker's idle handler fires only on the walker's own idle, not on children's, so every run since CLV-26 has required manual Session A nudges at final-gate; (2) transient Anthropic 5xx errors stall child sessions with no auto-recovery; (3) cloverleaf-cli load-rfc (and load-spike/load-plan/load-task) outputs pretty-printed JSON whose multi-line format injects control characters in bash subshell captures, breaking jq in Session B; (4) plugin.json has no regression guard against a repeat of the v0.6.5 skills-array regression that silently dropped 16 auto-discovered skills. Additionally, the operator has decided to retire the /cloverleaf-release skill because WebAuthn-only npm 2FA forces npm publish to remain manual regardless, making the partial automation net-negative friction.",
+  "solution": "Four tasks ship as @cloverleaf/reference-impl@0.6.7 under the DAG T1 ⟂ T2 → T3 → T4.\n\nT1 (Walker self-healing + plugin manifest regression test): Modify cloverleaf-run-plan/SKILL.md so that after spawning each child Session B the walker also invokes the harness Monitor tool against the child's watch_command (persistent: true, timeout_ms: 3600000). On child Monitor events the walker dispatches: idle events trigger a claw-drive status check and branch on last_token/recent-errors — [DONE] or final-gate/automated-gates on-disk drains the final-gate; [NEEDS-INPUT] surfaces to the walker driver; a transient 5xx error match sends a fire-and-forget retry turn; otherwise the walker continues waiting. turn_completed with [DONE] or [NEEDS-INPUT] and session_stopped events follow existing patterns. A new test case in tests/skills.test.ts asserts plugin.json has no skills key, guarding against auto-discovery regressions.\n\nT2 (jq-safe loader output): Change the default output of load-rfc, load-spike, load-plan, and load-task in reference-impl/lib/cli.ts from pretty-printed JSON to single-line compact JSON (process.stdout.write(JSON.stringify(doc) + '\\n')). Add a --pretty flag that restores multi-line output for human terminal use. Add 12 new test cases in tests/cli.test.ts (3 per loader: default single-line, --pretty multi-line, invalid-args error).\n\nT3 (Remove cloverleaf-release skill): Delete reference-impl/skills/cloverleaf-release/, reference-impl/lib/release-preflight.ts, and reference-impl/tests/release-preflight.test.ts. Prune cli.ts (remove import and case branch), tests/cli.test.ts (remove release-preflight test cases), and tests/skills.test.ts (remove cloverleaf-release regression assertion). The walker SKILL.md's existing 'Next steps (release publishing)' block remains the canonical manual-publish instruction.\n\nT4 (Release-prep custodian): Bump reference-impl/package.json to 0.6.7 and rename the CHANGELOG [Unreleased] section to '## 0.6.7 — 2026-04-29', consolidating Documenter entries from T1+T2+T3 and explicitly marking the cloverleaf-release skill removal as a breaking change.",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "After v0.6.7 merges, walker runs no longer require Session A to nudge the walker for child-idle reaction; the walker spawns a Monitor per child and autonomously reacts to children's [DONE], [NEEDS-INPUT], and 5xx-error idle events.",
+    "tests/skills.test.ts contains a regression test asserting that plugin.json has no skills key.",
+    "cloverleaf-cli load-rfc <repo> <id> outputs single-line JSON by default and multi-line JSON with --pretty; same semantics apply to load-spike, load-plan, and load-task.",
+    "tests/cli.test.ts gains 12 new loader-output test cases (3 per loader × 4 loaders).",
+    "reference-impl/skills/cloverleaf-release/ is deleted.",
+    "reference-impl/lib/release-preflight.ts is deleted.",
+    "reference-impl/tests/release-preflight.test.ts is deleted.",
+    "cloverleaf-cli release-preflight exits with a usage error (subcommand removed).",
+    "reference-impl/package.json version is 0.6.7.",
+    "reference-impl/CHANGELOG.md contains a '## 0.6.7 — 2026-04-29' section that explicitly lists the cloverleaf-release skill removal as a breaking change.",
+    "Tag reference-impl-v0.6.7 is pushed, npm publish is done, and the GitHub Release is live."
+  ],
+  "out_of_scope": [
+    "Walker self-healing beyond child-idle reaction and 5xx retry (e.g., reactive scaling or exponential backoff).",
+    "Schema deviation cleanup between the design directory and the shipped release-preflight implementation (moot after skill removal).",
+    "v0.7 architectural work such as unified /cloverleaf-flow or DAG-edge inference.",
+    "Plugin manifest hot-reload.",
+    "Standard schema, contract, or conformance changes (Standard stays at 0.4.1).",
+    "Other v0.6.7 candidate work including the metrics package and anti-patterns catalog."
+  ]
+}
