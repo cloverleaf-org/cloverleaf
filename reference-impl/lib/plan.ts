@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { plansDir, tasksDir } from './paths.js';
 import { validateOrThrow } from './validate.js';
 import { advanceWorkItemStatus, loadStateMachine } from './work-item.js';
+import { computeOverlapEdges, getFirstSharedFile } from './dag-overlap.js';
+import type { TaskDoc } from './task.js';
 
 export interface WorkItemRef {
   project: string;
@@ -34,7 +36,59 @@ export function loadPlan(repoRoot: string, id: string): PlanDoc {
 }
 
 export function savePlan(repoRoot: string, plan: PlanDoc): void {
+  // 1. Schema validation.
   validateOrThrow('https://cloverleaf.example/schemas/plan.schema.json', plan);
+
+  // 2. Compute overlap-inferred edges from task scope.files_touched and
+  //    merge them into task_dag.edges via set-union (idempotent).
+  const tasks = plan.tasks as unknown as TaskDoc[];
+  const overlapEdges = computeOverlapEdges(tasks);
+  if (overlapEdges.length > 0) {
+    const existingKeys = new Set(
+      plan.task_dag.edges.map(e => `${e.from.id}|${e.to.id}`)
+    );
+    const newEdges = overlapEdges.filter(
+      e => !existingKeys.has(`${e.from.id}|${e.to.id}`)
+    );
+    if (newEdges.length > 0) {
+      plan = {
+        ...plan,
+        task_dag: {
+          ...plan.task_dag,
+          edges: [...plan.task_dag.edges, ...newEdges],
+        },
+      };
+    }
+  }
+
+  // 3. Cycle detection on the augmented DAG. Only triggered when overlap
+  //    edges are present — if computeOverlapEdges emitted any edges, we
+  //    must verify the merged graph is acyclic. Report which pair and which
+  //    file caused the cycle.
+  if (overlapEdges.length > 0) {
+    const cycleNodeId = detectCycle(plan.task_dag);
+    if (cycleNodeId !== null) {
+      // Find the two tasks involved in the cycle that share a file.
+      const taskMap = new Map<string, TaskDoc>();
+      for (const t of tasks) taskMap.set(t.id, t);
+      let errorMsg = `file overlap creates cycle: ${cycleNodeId} ↔ (unknown) via (unknown)`;
+      // Try to find a concrete overlap pair that touches the cycle node.
+      outer: for (const edge of overlapEdges) {
+        const tFrom = taskMap.get(edge.from.id);
+        const tTo = taskMap.get(edge.to.id);
+        if (!tFrom || !tTo) continue;
+        if (edge.from.id !== cycleNodeId && edge.to.id !== cycleNodeId) continue;
+        const sharedFile = getFirstSharedFile(tFrom, tTo);
+        if (sharedFile) {
+          errorMsg = `file overlap creates cycle: ${edge.from.id} ↔ ${edge.to.id} via ${sharedFile}`;
+          break outer;
+        }
+      }
+      throw new Error(errorMsg);
+    }
+  }
+
+  // 4. Write to disk.
   mkdirSync(plansDir(repoRoot), { recursive: true });
   const path = join(plansDir(repoRoot), `${plan.id}.json`);
   writeFileSync(path, JSON.stringify(plan, null, 2) + '\n');
