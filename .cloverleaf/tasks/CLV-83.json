@@ -1,0 +1,35 @@
+{
+  "id": "CLV-83",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-79"
+  },
+  "title": "reference-impl release-prep custodian: bump to 0.7.0, update Standard dep to ^0.5.0, write CHANGELOG",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-78"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/package.json` version field is `0.7.0` and the `@cloverleaf/standard` dependency is `^0.5.0`.",
+    "`reference-impl/CHANGELOG.md` has a `## 0.7.0 — 2026-04-29` section that consolidates entries from CLV-81 (dag-overlap module + savePlan integration) and CLV-82 (Plan agent prompt update), and includes a `### Standard` subsection explicitly noting the coordinated Standard 0.5.0 release and the addition of `task.scope.files_touched`.",
+    "Any `## [Unreleased]` section previously at the top of `reference-impl/CHANGELOG.md` is renamed to `## 0.7.0 — 2026-04-29`."
+  ],
+  "acceptance_criteria": [
+    "`reference-impl/package.json` reports version `0.7.0`.",
+    "`reference-impl/package.json` lists `@cloverleaf/standard` at `^0.5.0`.",
+    "`reference-impl/CHANGELOG.md` contains a `## 0.7.0 — 2026-04-29` heading.",
+    "`reference-impl/CHANGELOG.md` contains a `### Standard` subsection under the `## 0.7.0 — 2026-04-29` section that references the `task.scope.files_touched` addition.",
+    "No `## [Unreleased]` heading remains in `reference-impl/CHANGELOG.md` after the rename.",
+    "`npm install` in `reference-impl/` resolves without error with `@cloverleaf/standard@^0.5.0` available."
+  ],
+  "risk_class": "low"
+}

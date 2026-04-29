@@ -1,0 +1,38 @@
+{
+  "id": "CLV-80",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-79"
+  },
+  "title": "Standard 0.5.0: add task.scope.files_touched schema field, conformance fixtures, and release-prep",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-78"
+    }
+  },
+  "definition_of_done": [
+    "`standard/schemas/task.schema.json` has a new optional top-level `scope` object property with an `additionalProperties: false` constraint containing a `files_touched` string-array sub-field (uniqueItems, minLength 1 per item).",
+    "At least one new fixture file under `standard/conformance/fixtures/` demonstrates two tasks that share a file via `scope.files_touched`; all existing fixtures continue to validate without modification.",
+    "`standard/CHANGELOG.md` contains a new `## 0.5.0` section documenting the additive schema change.",
+    "`standard/package.json` version is bumped from `0.4.1` to `0.5.0`.",
+    "The Standard conformance Vitest suite passes green with the new fixture included."
+  ],
+  "acceptance_criteria": [
+    "`standard/schemas/task.schema.json` validates a task document that includes `scope.files_touched: [\"reference-impl/lib/cli.ts\"]` without AJV errors.",
+    "`standard/schemas/task.schema.json` validates a task document that omits `scope` entirely (field is optional, non-breaking).",
+    "A task document with `scope: { unknownField: true }` fails AJV validation due to `additionalProperties: false` on the `scope` object.",
+    "A fixture under `standard/conformance/fixtures/` passes schema validation with two task entries each declaring overlapping `scope.files_touched` paths.",
+    "`standard/package.json` reports version `0.5.0`.",
+    "`standard/CHANGELOG.md` contains a `## 0.5.0` heading.",
+    "All pre-existing conformance fixtures continue to pass the Vitest suite without any modifications."
+  ],
+  "risk_class": "high"
+}

@@ -1,0 +1,36 @@
+{
+  "id": "CLV-82",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-79"
+  },
+  "title": "reference-impl: Plan agent prompt update for scope.files_touched and gate-pending summary format",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-78"
+    }
+  },
+  "definition_of_done": [
+    "`reference-impl/prompts/plan.md` contains a new instruction block near the existing `task_dag` guidance directing the agent to populate `scope.files_touched` per task by transcribing repo-root-relative POSIX paths from the brief's Parallel-DAG conflict guidance section.",
+    "`reference-impl/prompts/plan.md` contains the explicit directive: \"Do NOT manually add edges for file overlap. The system computes them automatically when the Plan is saved.\"",
+    "The gate-pending summary template in `reference-impl/prompts/plan.md` is updated to group edges under `Logical:` and `Inferred from file overlap:` subsections, with the Plan agent computing the diff inline.",
+    "A regression test in `reference-impl/tests/skills.test.ts` or a new `reference-impl/tests/prompts.test.ts` asserts that `prompts/plan.md` contains both the literal `scope.files_touched` instruction string and the directive not to manually add overlap edges.",
+    "The new or extended test file passes; no existing tests regress."
+  ],
+  "acceptance_criteria": [
+    "`reference-impl/prompts/plan.md` contains the substring `scope.files_touched` in the context of a task-population instruction.",
+    "`reference-impl/prompts/plan.md` contains the literal directive text instructing the agent not to manually add edges for file overlap.",
+    "`reference-impl/prompts/plan.md` contains a gate-pending summary template with `Logical:` and `Inferred from file overlap:` edge groupings.",
+    "The regression test in `skills.test.ts` or `prompts.test.ts` asserts both required strings are present in `prompts/plan.md` and passes green.",
+    "No existing prompt-related tests regress."
+  ],
+  "risk_class": "high"
+}
