@@ -1,0 +1,177 @@
+{
+  "type": "plan",
+  "id": "CLV-91",
+  "project": "CLV",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-90"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-92"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-93"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-94"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-92"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-94"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-93"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-94"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "type": "task",
+      "id": "CLV-92",
+      "project": "CLV",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "title": "Merged-sibling filter in check-scope CLI",
+      "definition_of_done": [
+        "reference-impl/lib/cli.ts check-scope subcommand skips any sibling task whose status equals 'merged' when loading sibling scopes, at the CLI/query boundary before calling classifyFiles",
+        "reference-impl/tests/cli.test.ts contains 2 new test cases: (1) a sibling with status 'merged' and overlapping files_touched does not produce a contested result; (2) a sibling with status 'review' and overlapping files_touched still produces a contested result",
+        "npm test in reference-impl/ passes with all new cases green"
+      ],
+      "acceptance_criteria": [
+        "cloverleaf-cli check-scope skips siblings whose status === 'merged' when reading sibling task docs from main",
+        "Both new cli.test.ts cases pass: merged sibling is not contested, non-merged sibling is still contested",
+        "lib/scope-check.ts classifyFiles function is not modified — filter lives entirely in cli.ts",
+        "npm test exits 0 with all 2 new cases green"
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/lib/cli.ts",
+          "reference-impl/tests/cli.test.ts"
+        ]
+      },
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-91"
+      },
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-90"
+        }
+      }
+    },
+    {
+      "type": "task",
+      "id": "CLV-93",
+      "project": "CLV",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "title": "Partial-scope warning in Plan-agent gate-pending summary",
+      "definition_of_done": [
+        "reference-impl/prompts/plan.md contains a count instruction near the existing edge-groupings guidance directing the Plan agent to count tasks where scope.files_touched is absent or empty and list them under a warning line in the gate-pending summary",
+        "reference-impl/prompts/plan.md contains the literal warning-template line appended to the gate-pending summary template: '⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>' with the advisory note that the walker will silent-skip enforcement on undeclared tasks",
+        "The template line is documented as omitted entirely when every task has non-empty scope.files_touched",
+        "reference-impl/tests/skills.test.ts contains 1 new regression test case asserting both the literal count-instruction sentence and the literal warning-template string are present in prompts/plan.md",
+        "npm test in reference-impl/ passes with all new cases green"
+      ],
+      "acceptance_criteria": [
+        "prompts/plan.md contains the literal count instruction sentence directing the Plan agent to count tasks where scope.files_touched is absent or an empty array",
+        "prompts/plan.md contains the literal warning-template string '⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>'",
+        "1 new skills.test.ts regression test passes asserting both literal strings are present in prompts/plan.md",
+        "No lib or CLI files are modified by this task",
+        "npm test exits 0 with the new case green"
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/prompts/plan.md",
+          "reference-impl/tests/skills.test.ts"
+        ]
+      },
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-91"
+      },
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-90"
+        }
+      }
+    },
+    {
+      "type": "task",
+      "id": "CLV-94",
+      "project": "CLV",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "title": "Release-prep: bump reference-impl to 0.7.2 and finalise CHANGELOG",
+      "definition_of_done": [
+        "reference-impl/package.json version is 0.7.2 and @cloverleaf/standard dep remains ^0.5.0",
+        "reference-impl/CHANGELOG.md has the Unreleased section renamed to '## 0.7.2 — 2026-04-29' consolidating bullets from Items 1 and 2",
+        "CHANGELOG section calls out: merged-sibling exclusion in check-scope, partial-scope warning in plan-agent gate-pending summary",
+        "Local npm publish --dry-run in reference-impl/ succeeds",
+        "git tag reference-impl-v0.7.2 is ready (publish/release is operator action, not part of task DoD)"
+      ],
+      "acceptance_criteria": [
+        "package.json version field is exactly 0.7.2",
+        "@cloverleaf/standard dependency remains ^0.5.0 unchanged",
+        "CHANGELOG.md contains a section heading '## 0.7.2 — 2026-04-29'",
+        "CHANGELOG section includes bullets for: merged-sibling exclusion in check-scope and partial-scope warning in plan-agent gate-pending summary",
+        "npm publish --dry-run in reference-impl/ exits 0 with no errors"
+      ],
+      "risk_class": "low",
+      "scope": {
+        "files_touched": [
+          "reference-impl/package.json",
+          "reference-impl/CHANGELOG.md"
+        ]
+      },
+      "parent": {
+        "project": "CLV",
+        "id": "CLV-91"
+      },
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-90"
+        }
+      }
+    }
+  ]
+}
