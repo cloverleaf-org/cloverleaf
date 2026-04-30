@@ -1,0 +1,32 @@
+{
+  "type": "rfc",
+  "id": "CLV-95",
+  "project": "CLV",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Walker reads notification_contract (reference-impl 0.7.3)",
+  "problem": "The walker SKILL.md hardcodes claw-drive's sentinel tokens ([DONE], [NEEDS-INPUT]) and the watch-command idle threshold (--idle-after 600). Since claw-drive 0.5.7+ returns a notification_contract from start_session — carrying idle_after_seconds and a vocabulary array — these values could be read at spawn time rather than maintained as literals. Each past vocab change (CLV-64, CLV-74) required a coordinated manual sweep of the walker; a future rename or idle-threshold change would again diverge silently. There is no mechanism to warn the operator that the walker's dispatch table has drifted from what claw-drive advertises.",
+  "solution": "Ship reference-impl 0.7.3 (additive, walker-only, no Standard change) with two surgical changes to reference-impl/skills/cloverleaf-run-plan/SKILL.md. First, immediately after the start_session call in step 5b, capture notification_contract.idle_after_seconds into IDLE_AFTER (jq fallback to 600 for older claw-drive versions) and validate that notification_contract.vocabulary contains both DONE and NEEDS-INPUT, emitting a stderr warning on drift but proceeding. Second, replace the literal --idle-after 600 with --idle-after $IDLE_AFTER in both the step 5b Monitor invocation and the step 5c resume Monitor invocation. A Notes-section paragraph (Vocab dependency) is appended to the SKILL.md Rules block documenting the dispatch-table dependency so future vocab changes surface at review time. One regression test case is added to reference-impl/tests/skills.test.ts asserting the three text landmarks are present. Release-prep updates reference-impl/package.json to 0.7.3 and adds a CHANGELOG entry. The dispatch table itself remains hardcoded on [DONE] and [NEEDS-INPUT]; the validation block is the early-warning mechanism, not a runtime replacement.",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "cloverleaf-run-plan/SKILL.md step 5b captures notification_contract.idle_after_seconds into IDLE_AFTER with a // 600 jq fallback.",
+    "cloverleaf-run-plan/SKILL.md step 5b validates that notification_contract.vocabulary contains both DONE and NEEDS-INPUT tokens and warns to stderr on drift.",
+    "cloverleaf-run-plan/SKILL.md steps 5b and 5c Monitor invocations use --idle-after $IDLE_AFTER instead of the literal --idle-after 600.",
+    "cloverleaf-run-plan/SKILL.md Notes section contains the literal **Vocab dependency.** paragraph.",
+    "1 new test case in reference-impl/tests/skills.test.ts passes, asserting presence of notification_contract.idle_after_seconds reference, the EXPECTED_TOKENS=\"DONE NEEDS-INPUT\" validation block, and the Vocab dependency Notes paragraph.",
+    "reference-impl/package.json version is 0.7.3.",
+    "reference-impl/CHANGELOG.md contains a ## 0.7.3 — 2026-04-30 section describing the contract-aware walker changes.",
+    "Tag reference-impl-v0.7.3 is pushed, npm publish completes, and a GitHub Release is live."
+  ],
+  "out_of_scope": [
+    "Standard schema changes. No new fields, no version bump on @cloverleaf/standard.",
+    "New CLI subcommands or lib files. SKILL.md prose change only.",
+    "role-based vocab dispatch. The contract has no role field; adding one is a claw-drive change, deferred.",
+    "wrapper_enabled: false legacy fallback. Walker always spawns with wrapper today; a no-token dispatch path is not justified yet.",
+    "Adopting notification_contract.watch_command as a string. Walker injects --since <last_seq> for resume semantics that the contract does not track; manual construction is simpler.",
+    "Rewriting the dispatch table in step 5d. Token names stay literal; the validation block in step 5b is the early-warning mechanism."
+  ]
+}
