@@ -25,6 +25,7 @@
   "risk_class": "high",
   "scope": {
     "files_touched": [
+      "reference-impl/CHANGELOG.md",
       "reference-impl/prompts/plan.md",
       "reference-impl/tests/skills.test.ts"
     ]
