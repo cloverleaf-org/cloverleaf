@@ -2,7 +2,7 @@
   "type": "task",
   "id": "CLV-92",
   "project": "CLV",
-  "status": "automated-gates",
+  "status": "qa",
   "owner": {
     "kind": "agent",
     "id": "implementer"
