@@ -22,6 +22,7 @@
   "risk_class": "high",
   "scope": {
     "files_touched": [
+      "reference-impl/CHANGELOG.md",
       "reference-impl/lib/cli.ts",
       "reference-impl/tests/cli.test.ts"
     ]
