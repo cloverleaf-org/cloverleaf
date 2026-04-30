@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `prompts/plan.md` — added a **Partial-scope warning** block directing the Plan agent to count tasks where `scope.files_touched` is absent or an empty array and, when that count is greater than zero, append a `⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>` warning line at the bottom of the gate-pending summary with an advisory that the walker will silent-skip scope enforcement on those tasks; the warning is omitted entirely when every task has a non-empty `scope.files_touched`. Regression-guarded by two new test cases in `tests/skills.test.ts` (`describe('Plan prompt (CLV-93 — partial-scope warning in gate-pending summary)')`). [CLV-93]
+
 ## 0.7.1 — 2026-04-29
 
 ### Added
