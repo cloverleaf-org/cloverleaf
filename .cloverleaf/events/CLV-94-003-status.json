@@ -1,0 +1,16 @@
+{
+  "event_id": "6de22243-579f-4a07-a7a8-5e2764e7e4dc",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-30T03:18:29.081Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-94"
+  },
+  "work_item_type": "task",
+  "from_status": "implementing",
+  "to_status": "documenting",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  }
+}
