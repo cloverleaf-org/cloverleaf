@@ -111,11 +111,23 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
       Record the returned `session_id`, `worktree_path`, and `branch_name` in walk-state with `state: "running"`, `started_at: <now>`, `last_seq: 0`. Persist via `walk-state-write`.
 
-      Immediately after `mcp__claw-drive__start_session` returns, attach a Monitor tool stream for the new session:
+      Immediately after `mcp__claw-drive__start_session` returns, read the `notification_contract` from the session response and validate it:
+
+      ```bash
+      IDLE_AFTER=$(echo "$START_SESSION_RESPONSE" | jq -r '.notification_contract.idle_after_seconds // 600')
+      EXPECTED_TOKENS="DONE NEEDS-INPUT"
+      for tok in $EXPECTED_TOKENS; do
+        if ! echo "$START_SESSION_RESPONSE" | jq -e ".notification_contract.vocabulary | index(\"$tok\")" > /dev/null 2>&1; then
+          echo "WARNING: notification_contract.vocabulary missing expected token '$tok' — vocab drift detected" >&2
+        fi
+      done
+      ```
+
+      Then attach a Monitor tool stream for the new session:
 
       ```
       Monitor(
-        watch_command: "claw-drive watch <session_id> --since 0 --idle-after 600",
+        watch_command: "claw-drive watch <session_id> --since 0 --idle-after $IDLE_AFTER",
         persistent: true,
         timeout_ms: 3600000
       )
@@ -127,13 +139,13 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
       ```
       Monitor(
-        watch_command: "claw-drive watch <session_id> --since <last_seq> --idle-after 600",
+        watch_command: "claw-drive watch <session_id> --since <last_seq> --idle-after $IDLE_AFTER",
         persistent: true,
         timeout_ms: 3600000
       )
       ```
 
-      The `--idle-after 600` flag instructs claw-drive to emit a synthetic `idle` event if a session produces no output for 600 seconds (10 minutes), enabling the walker to detect stalled sessions without polling.
+      The `--idle-after $IDLE_AFTER` flag instructs claw-drive to emit a synthetic `idle` event if a session produces no output for `$IDLE_AFTER` seconds, enabling the walker to detect stalled sessions without polling.
 
    d. **Handle events.** Dispatch each incoming Monitor event by type:
 
@@ -342,3 +354,7 @@ The concrete policy JSON is the same one used during the CLV-16..CLV-20 dogfood 
 - Final-gate drain is serial across tasks — one prompt, one decision.
 - The walker exits after the loop reports the final status; it does not auto-retry escalated tasks.
 - Scope-contested merges are escalated, never auto-resolved.
+
+## Notes
+
+**Vocab dependency.** The walker reads `notification_contract.vocabulary` from the `start_session` response advisorily — if the expected tokens (`DONE`, `NEEDS-INPUT`) are absent it warns to stderr but continues. The authoritative source of truth for which tokens Session B will emit is the SDK's `--driven-tokens` flag passed when claw-drive spawns the session. A mismatch between the contract and the actual flag signals a version skew between the claw-drive server and the reference-impl skill; upgrade both components together to keep them in sync.

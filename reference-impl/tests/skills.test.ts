@@ -1103,7 +1103,10 @@ describe('cloverleaf-run-plan skill (CLV-64 — --idle-after, prep-worktree, tok
   );
 
   it('references --idle-after in a claw-drive watch command context (CLV-64 #1)', () => {
-    expect(body).toMatch(/claw-drive watch[^\n]*--idle-after 600/);
+    // CLV-97: the literal 600 was replaced by $IDLE_AFTER (read from notification_contract).
+    // The guard now checks that --idle-after appears in a claw-drive watch line, regardless
+    // of whether the value is a literal or a shell variable.
+    expect(body).toMatch(/claw-drive watch[^\n]*--idle-after/);
   });
 
   it('calls cloverleaf-cli prep-worktree after git worktree add (CLV-64 #2)', () => {
@@ -1350,5 +1353,45 @@ describe('Plan prompt (CLV-93 — partial-scope warning in gate-pending summary)
   it('contains the literal warning-template string for partial-scope tasks', () => {
     // The gate-pending summary template must include this exact warning line.
     expect(body).toContain('⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-97: notification_contract consumption — idle_after_seconds, vocab guard,
+//          and Vocab dependency Notes paragraph
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan skill (CLV-97 — notification_contract consumption)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('step 5b reads idle_after_seconds from notification_contract with jq // 600 fallback', () => {
+    // The walker must extract IDLE_AFTER from the start_session response, falling
+    // back to 600 if the field is absent. This removes the hardcoded literal 600.
+    expect(body).toContain(
+      "IDLE_AFTER=$(echo \"$START_SESSION_RESPONSE\" | jq -r '.notification_contract.idle_after_seconds // 600')",
+    );
+  });
+
+  it('step 5b validates notification_contract.vocabulary contains DONE and NEEDS-INPUT, warns to stderr on drift', () => {
+    // The skill must check that both required sentinel tokens are declared in the
+    // contract's vocabulary array and emit a warning to stderr if either is missing.
+    expect(body).toContain('EXPECTED_TOKENS="DONE NEEDS-INPUT"');
+    // The warning must go to stderr (>&2) so it does not pollute stdout event processing.
+    expect(body).toMatch(/>&2/);
+    // The block must reference vocab drift in the warning text.
+    expect(body).toMatch(/vocab.*drift|drift.*detected/i);
+  });
+
+  it('Notes section contains the **Vocab dependency.** paragraph', () => {
+    // A Notes section with a **Vocab dependency.** heading must be present so that
+    // operators understand the advisory nature of the contract check and the SDK flag
+    // as the authoritative source of truth for driven tokens.
+    const notesIdx = body.indexOf('## Notes');
+    expect(notesIdx).toBeGreaterThan(-1);
+    const notesSection = body.slice(notesIdx);
+    expect(notesSection).toContain('**Vocab dependency.**');
   });
 });
