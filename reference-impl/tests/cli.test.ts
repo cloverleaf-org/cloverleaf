@@ -1133,5 +1133,64 @@ describe('cli — check-scope (CLV-87)', () => {
     expect(result.extension).toContain('lib/unexpected.ts');
     expect(result.own).toEqual([]);
   });
+
+  // CLV-92: merged sibling filter
+  it('merged sibling with overlapping files_touched does NOT produce a contested result', () => {
+    // Add a sibling task on main with status 'merged' that claims lib/foo.ts
+    execSync('git checkout -q main', { cwd: repoRoot });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-002.json'), JSON.stringify({
+      type: 'task', project: 'DEMO', id: 'DEMO-002',
+      title: 'sibling', status: 'merged', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['a'], definition_of_done: ['d'],
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-1' } },
+      scope: { files_touched: ['lib/foo.ts'] },
+    }));
+    execSync('git add . && git commit -q -m "add merged sibling"', { cwd: repoRoot });
+    execSync('git checkout -q cloverleaf/DEMO-001', { cwd: repoRoot });
+
+    // Touch lib/foo.ts on the feature branch
+    mkdirSync(join(repoRoot, 'lib'), { recursive: true });
+    writeFileSync(join(repoRoot, 'lib', 'foo.ts'), 'export const x = 1;');
+    execSync('git add . && git commit -q -m "touch lib/foo.ts"', { cwd: repoRoot });
+
+    const { stdout, exitCode } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/DEMO-001',
+    ]);
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    // lib/foo.ts is in DEMO-001's own scope — must be in own, NOT contested
+    expect(result.own).toContain('lib/foo.ts');
+    expect(result.contested).toEqual([]);
+  });
+
+  it('non-merged sibling (status: review) with overlapping files_touched DOES produce a contested result', () => {
+    // Add a sibling task on main with status 'review' that claims lib/bar.ts
+    execSync('git checkout -q main', { cwd: repoRoot });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-003.json'), JSON.stringify({
+      type: 'task', project: 'DEMO', id: 'DEMO-003',
+      title: 'sibling-review', status: 'review', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['a'], definition_of_done: ['d'],
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-1' } },
+      scope: { files_touched: ['lib/bar.ts'] },
+    }));
+    execSync('git add . && git commit -q -m "add review sibling"', { cwd: repoRoot });
+    execSync('git checkout -q cloverleaf/DEMO-001', { cwd: repoRoot });
+
+    // Touch lib/bar.ts on the feature branch (not in DEMO-001's own scope)
+    mkdirSync(join(repoRoot, 'lib'), { recursive: true });
+    writeFileSync(join(repoRoot, 'lib', 'bar.ts'), 'export const z = 3;');
+    execSync('git add . && git commit -q -m "touch lib/bar.ts"', { cwd: repoRoot });
+
+    const { stdout, exitCode } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/DEMO-001',
+    ]);
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    // lib/bar.ts is claimed by DEMO-003 (review) → must appear in contested
+    const contestedFiles = result.contested.map((e: { file: string }) => e.file);
+    expect(contestedFiles).toContain('lib/bar.ts');
+  });
 });
 

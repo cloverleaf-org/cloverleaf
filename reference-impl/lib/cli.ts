@@ -604,6 +604,8 @@ try {
               stdio: ['pipe', 'pipe', 'pipe'],
             });
             const sibling = JSON.parse(raw) as Record<string, unknown>;
+            // Skip siblings that are already merged — they no longer contest scope
+            if (sibling['status'] === 'merged') continue;
             const scope = sibling['scope'] as Record<string, unknown> | undefined;
             const files = Array.isArray(scope?.['files_touched'])
               ? (scope!['files_touched'] as unknown[]).filter((x): x is string => typeof x === 'string')
