@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `cloverleaf-cli check-scope` now skips sibling tasks whose `status` is `"merged"` when gathering sibling scopes. Merged siblings no longer contest scope, so files they touched are no longer returned in the `contested` bucket. Non-merged siblings (e.g. `status: "review"`) continue to contest as before. [CLV-92]
+
 ## 0.7.1 — 2026-04-29
 
 ### Added
