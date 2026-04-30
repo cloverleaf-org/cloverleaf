@@ -2,6 +2,12 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.7.3 — 2026-04-30
+
+### Changed
+
+- Walker reads `notification_contract.idle_after_seconds` from the walker config (falls back to 600 when absent) and passes the resolved value as `--idle-after` to `claw-drive watch`, replacing the previously hardcoded 600 s constant. Walker validates the notification-contract vocab on session spawn and warns on drift (unknown keys are logged but do not block execution); dispatch remains hardcoded on `[DONE]` / `[NEEDS-INPUT]` terminal tokens. [CLV-98]
+
 ## 0.7.2 — 2026-04-29
 
 ### Changed
