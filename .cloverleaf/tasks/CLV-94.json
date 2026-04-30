@@ -25,8 +25,7 @@
   "risk_class": "low",
   "scope": {
     "files_touched": [
-      "reference-impl/package.json",
-      "reference-impl/CHANGELOG.md"
+      "reference-impl/package.json"
     ]
   },
   "parent": {
