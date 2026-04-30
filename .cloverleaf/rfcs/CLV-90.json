@@ -1,0 +1,30 @@
+{
+  "type": "rfc",
+  "id": "CLV-90",
+  "project": "CLV",
+  "status": "planning",
+  "owner": {
+    "kind": "agent",
+    "id": "researcher"
+  },
+  "title": "Scope enforcement refinements",
+  "problem": "v0.7.1 (Plan CLV-85) introduced walker-side file-ownership enforcement via `cloverleaf-cli check-scope`, which classifies modified files into own/contested/extension buckets. Two edges were not fully covered. First, the check-scope CLI subcommand reads sibling task docs from main without filtering by sibling status, so a file declared in an already-merged sibling's scope is still treated as contested — even though the merge poses zero conflict risk. CLV-89's version-assertion sync in tests/skills.test.ts demonstrated this false-escalation against the already-merged CLV-88. Second, when a v0.7.0+ Plan mixes tasks that declare scope.files_touched with tasks that do not, the undeclared tasks silently skip enforcement (Q3a legacy-compat rule), creating an asymmetry the human reviewer cannot see at the task_batch_gate before approving the Plan.",
+  "solution": "Ship reference-impl 0.7.2 with three additive changes and no Standard schema changes. Item 1: in reference-impl/lib/cli.ts, add one filter line in the check-scope subcommand's sibling-scope-loading loop to skip any sibling whose status equals 'merged'. The filter lives at the CLI/query boundary so that lib/scope-check.ts's classifyFiles function stays pure and unaware of state-machine semantics — the CLI decides which siblings count. Two new test cases in reference-impl/tests/cli.test.ts verify the filter: a merged sibling with overlapping files_touched does not produce a contested result, while a non-merged sibling still does. Item 2: in reference-impl/prompts/plan.md, add a count instruction near the existing edge-groupings guidance directing the Plan agent to count tasks where scope.files_touched is absent or empty and list them under a warning line in the gate-pending summary, and append a literal warning-template line to the existing gate-pending summary template; the line is omitted entirely when every task has non-empty scope.files_touched. One new regression test in reference-impl/tests/skills.test.ts asserts that both the literal count-instruction sentence and the literal warning-template string are present in prompts/plan.md. Item 3: bump reference-impl/package.json from 0.7.1 to 0.7.2 and rename the CHANGELOG.md Unreleased section to '## 0.7.2 — 2026-04-29', noting both refinements. T1 (Item 1) and T2 (Item 2) are file-disjoint and can run in parallel; T3 (release-prep custodian) sequentialises after both.",
+  "unknowns": [],
+  "acceptance_criteria": [
+    "cloverleaf-cli check-scope skips siblings whose status === 'merged' when reading from main; both new cli.test.ts cases pass.",
+    "prompts/plan.md contains the literal count instruction and the literal warning template.",
+    "The summary template line emits only when at least one task lacks scope (verified by reading the prompt; no runtime assertion needed for v0.7.2).",
+    "3 new test cases pass (2 cli + 1 prompt).",
+    "reference-impl/package.json version is 0.7.2.",
+    "reference-impl/CHANGELOG.md has a '## 0.7.2 — 2026-04-29' section.",
+    "Tag reference-impl-v0.7.2 pushed; npm @cloverleaf/reference-impl@0.7.2 published; GitHub Release live."
+  ],
+  "out_of_scope": [
+    "Standard schema changes. No new fields, no version bump on @cloverleaf/standard.",
+    "New CLI subcommands. No new lib files.",
+    "Walker SKILL.md changes. The walker already invokes check-scope; the merged-filter lives entirely inside that subcommand.",
+    "Hard-blocking partial-scope Plans. The warning is advisory — the human still decides at the gate.",
+    "Auto-populating scope.files_touched for tasks that don't declare it. Plan agents should continue to transcribe verbatim from the brief; the warning surfaces the gap rather than guessing files."
+  ]
+}
