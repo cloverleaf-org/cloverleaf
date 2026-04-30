@@ -1,0 +1,43 @@
+{
+  "type": "task",
+  "id": "CLV-97",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-96"
+  },
+  "title": "Walker SKILL.md updates + skills.test.ts regression",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-95"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/skills/cloverleaf-run-plan/SKILL.md step 5b captures notification_contract.idle_after_seconds into IDLE_AFTER with a // 600 jq fallback.",
+    "reference-impl/skills/cloverleaf-run-plan/SKILL.md step 5b validates that notification_contract.vocabulary contains both DONE and NEEDS-INPUT tokens and warns to stderr on drift.",
+    "reference-impl/skills/cloverleaf-run-plan/SKILL.md steps 5b and 5c Monitor invocations use --idle-after $IDLE_AFTER instead of the literal --idle-after 600.",
+    "reference-impl/skills/cloverleaf-run-plan/SKILL.md Notes section contains the literal **Vocab dependency.** paragraph.",
+    "1 new test case in reference-impl/tests/skills.test.ts passes, asserting presence of notification_contract.idle_after_seconds reference, the EXPECTED_TOKENS=\"DONE NEEDS-INPUT\" validation block, and the Vocab dependency Notes paragraph."
+  ],
+  "acceptance_criteria": [
+    "SKILL.md step 5b contains: IDLE_AFTER=$(echo \"$START_SESSION_RESPONSE\" | jq -r '.notification_contract.idle_after_seconds // 600')",
+    "SKILL.md step 5b contains the EXPECTED_TOKENS loop warning to stderr on vocab drift.",
+    "SKILL.md step 5b Monitor invocation uses --idle-after $IDLE_AFTER (not literal 600).",
+    "SKILL.md step 5c Monitor invocation uses --idle-after $IDLE_AFTER (not literal 600).",
+    "SKILL.md Notes section contains the paragraph beginning with **Vocab dependency.**",
+    "New test case in skills.test.ts asserts all three text landmarks are present in cloverleaf-run-plan/SKILL.md and passes."
+  ],
+  "risk_class": "low",
+  "scope": {
+    "files_touched": [
+      "reference-impl/skills/cloverleaf-run-plan/SKILL.md",
+      "reference-impl/tests/skills.test.ts"
+    ]
+  }
+}

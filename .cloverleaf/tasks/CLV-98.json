@@ -1,0 +1,36 @@
+{
+  "type": "task",
+  "id": "CLV-98",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-96"
+  },
+  "title": "reference-impl release-prep custodian: package.json bump to 0.7.3",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-95"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/package.json version field is 0.7.3.",
+    "reference-impl/CHANGELOG.md contains a ## 0.7.3 — 2026-04-30 section with a bullet describing: walker reads notification_contract.idle_after_seconds (falls back to 600), walker validates vocab on spawn and warns on drift, dispatch remains hardcoded on [DONE] / [NEEDS-INPUT]."
+  ],
+  "acceptance_criteria": [
+    "reference-impl/package.json version is exactly \"0.7.3\".",
+    "reference-impl/CHANGELOG.md has a ## 0.7.3 — 2026-04-30 heading.",
+    "CHANGELOG 0.7.3 section bullet mentions notification_contract.idle_after_seconds, fallback to 600, vocab validation warn-and-proceed, and hardcoded dispatch on [DONE] / [NEEDS-INPUT]."
+  ],
+  "risk_class": "low",
+  "scope": {
+    "files_touched": [
+      "reference-impl/package.json"
+    ]
+  }
+}
