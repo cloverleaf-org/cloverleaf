@@ -1,0 +1,42 @@
+{
+  "type": "task",
+  "id": "CLV-93",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "title": "Partial-scope warning in Plan-agent gate-pending summary",
+  "definition_of_done": [
+    "reference-impl/prompts/plan.md contains a count instruction near the existing edge-groupings guidance directing the Plan agent to count tasks where scope.files_touched is absent or empty and list them under a warning line in the gate-pending summary",
+    "reference-impl/prompts/plan.md contains the literal warning-template line appended to the gate-pending summary template: '⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>' with the advisory note that the walker will silent-skip enforcement on undeclared tasks",
+    "The template line is documented as omitted entirely when every task has non-empty scope.files_touched",
+    "reference-impl/tests/skills.test.ts contains 1 new regression test case asserting both the literal count-instruction sentence and the literal warning-template string are present in prompts/plan.md",
+    "npm test in reference-impl/ passes with all new cases green"
+  ],
+  "acceptance_criteria": [
+    "prompts/plan.md contains the literal count instruction sentence directing the Plan agent to count tasks where scope.files_touched is absent or an empty array",
+    "prompts/plan.md contains the literal warning-template string '⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>'",
+    "1 new skills.test.ts regression test passes asserting both literal strings are present in prompts/plan.md",
+    "No lib or CLI files are modified by this task",
+    "npm test exits 0 with the new case green"
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/prompts/plan.md",
+      "reference-impl/tests/skills.test.ts"
+    ]
+  },
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-91"
+  },
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-90"
+    }
+  }
+}

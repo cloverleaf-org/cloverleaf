@@ -1,0 +1,39 @@
+{
+  "type": "task",
+  "id": "CLV-92",
+  "project": "CLV",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "title": "Merged-sibling filter in check-scope CLI",
+  "definition_of_done": [
+    "reference-impl/lib/cli.ts check-scope subcommand skips any sibling task whose status equals 'merged' when loading sibling scopes, at the CLI/query boundary before calling classifyFiles",
+    "reference-impl/tests/cli.test.ts contains 2 new test cases: (1) a sibling with status 'merged' and overlapping files_touched does not produce a contested result; (2) a sibling with status 'review' and overlapping files_touched still produces a contested result",
+    "npm test in reference-impl/ passes with all new cases green"
+  ],
+  "acceptance_criteria": [
+    "cloverleaf-cli check-scope skips siblings whose status === 'merged' when reading sibling task docs from main",
+    "Both new cli.test.ts cases pass: merged sibling is not contested, non-merged sibling is still contested",
+    "lib/scope-check.ts classifyFiles function is not modified — filter lives entirely in cli.ts",
+    "npm test exits 0 with all 2 new cases green"
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/lib/cli.ts",
+      "reference-impl/tests/cli.test.ts"
+    ]
+  },
+  "parent": {
+    "project": "CLV",
+    "id": "CLV-91"
+  },
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-90"
+    }
+  }
+}
