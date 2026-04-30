@@ -89,3 +89,11 @@ Dependencies:
 **How to compute the diff inline:**
 - **Logical** edges: edges you explicitly declared in `task_dag.edges` for sequencing reasons.
 - **Inferred from file overlap**: edges the system will auto-compute by comparing `scope.files_touched` across tasks. For the summary, compute these yourself: for each pair of tasks (A, B) where A has lower task-number, if `scope.files_touched` sets overlap, list an inferred edge A → B with the overlapping paths. Do NOT add these to `task_dag.edges` — list them only in this summary so the human can sanity-check before approval.
+
+**Partial-scope warning:** Count the tasks where `scope.files_touched` is absent or an empty array. If that count is greater than zero, append the following warning line at the bottom of the gate-pending summary (substituting the actual task IDs), then add an advisory note that the walker will silent-skip scope enforcement on those tasks:
+
+```
+⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>
+```
+
+Omit this warning line entirely when every task has a non-empty `scope.files_touched`.

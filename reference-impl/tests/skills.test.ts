@@ -1331,3 +1331,24 @@ describe('Implementer prompt (CLV-88 — scope nudge)', () => {
     expect(body).toContain('refuse contested merges');
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-93: partial-scope warning in Plan-agent gate-pending summary
+// ---------------------------------------------------------------------------
+
+describe('Plan prompt (CLV-93 — partial-scope warning in gate-pending summary)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'prompts', 'plan.md'),
+    'utf-8',
+  );
+
+  it('contains the count-instruction sentence for tasks missing scope.files_touched', () => {
+    // The Plan agent must be directed to count tasks where scope.files_touched is absent or empty.
+    expect(body).toContain('Count the tasks where `scope.files_touched` is absent or an empty array');
+  });
+
+  it('contains the literal warning-template string for partial-scope tasks', () => {
+    // The gate-pending summary template must include this exact warning line.
+    expect(body).toContain('⚠ Tasks without scope.files_touched: <CLV-XX, CLV-YY>');
+  });
+});
