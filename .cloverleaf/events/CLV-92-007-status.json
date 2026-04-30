@@ -1,0 +1,17 @@
+{
+  "event_id": "b61de82b-73cb-4da9-b971-3002dd46a8b2",
+  "event_type": "status_transition",
+  "occurred_at": "2026-04-30T02:42:19.343Z",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-92"
+  },
+  "work_item_type": "task",
+  "from_status": "qa",
+  "to_status": "final-gate",
+  "actor": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "reason": "gate=--path=full_pipeline"
+}
