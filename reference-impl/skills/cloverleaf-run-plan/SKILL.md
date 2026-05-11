@@ -292,11 +292,36 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
    If not every task is merged (some escalated or awaiting), do NOT advance the Plan. Print the partial-completion report from the bullets above.
 
-   **RFC completion is operator-driven, not walker-driven (v0.7.4).** RFCs may aggregate multiple Plans; the multi-plan completion semantics are not yet wired into the walker. When the operator has verified that all sibling plans of `parent_rfc.id` are in a terminal status (`completed`/`rejected`/`abandoned`) and at least one is `completed`, they can manually advance the RFC:
+   **RFC auto-advance (Standard 0.6.0+).** Immediately after the Plan-advance commit lands, check whether the parent RFC can also advance to `completed`. Read the just-completed plan's `parent_rfc` (project + id), then scan all sibling plans of that RFC:
+
    ```bash
-   cloverleaf-cli advance-rfc <repo_root> <RFC-ID> completed agent
+   PARENT_RFC_PROJECT=$(jq -r '.parent_rfc.project' <repo_root>/.cloverleaf/plans/<PLAN-ID>.json)
+   PARENT_RFC_ID=$(jq -r '.parent_rfc.id' <repo_root>/.cloverleaf/plans/<PLAN-ID>.json)
+   RFC_STATUS=$(jq -r '.status' <repo_root>/.cloverleaf/rfcs/"$PARENT_RFC_ID".json)
+
+   # Count sibling Plans still in-flight (drafting, gate-pending, or approved)
+   INFLIGHT=$(jq -s --arg proj "$PARENT_RFC_PROJECT" --arg id "$PARENT_RFC_ID" \
+     '[.[] | select(.parent_rfc.project == $proj and .parent_rfc.id == $id and (.status == "drafting" or .status == "gate-pending" or .status == "approved"))] | length' \
+     <repo_root>/.cloverleaf/plans/*.json)
+
+   # Count sibling Plans in completed (need at least one to advance)
+   COMPLETED=$(jq -s --arg proj "$PARENT_RFC_PROJECT" --arg id "$PARENT_RFC_ID" \
+     '[.[] | select(.parent_rfc.project == $proj and .parent_rfc.id == $id and .status == "completed")] | length' \
+     <repo_root>/.cloverleaf/plans/*.json)
+
+   if [ "$RFC_STATUS" = "approved" ] && [ "$INFLIGHT" = "0" ] && [ "$COMPLETED" != "0" ]; then
+     cloverleaf-cli advance-rfc <repo_root> "$PARENT_RFC_ID" completed agent
+     git -C <repo_root> add .cloverleaf/rfcs/"$PARENT_RFC_ID".json .cloverleaf/events/
+     git -C <repo_root> commit -m "cloverleaf: rfc $PARENT_RFC_ID completed ($COMPLETED sibling plans completed, 0 in-flight)"
+     echo "✓ RFC $PARENT_RFC_ID advanced approved → completed."
+   fi
    ```
-   This block is informational — the walker does NOT perform it.
+
+   Auto-advance rules in plain language:
+   - Skip entirely if the RFC's `status` is not `approved` (already terminal, already abandoned, or somehow still pre-approval — leave it).
+   - Skip if any sibling Plan is still in-flight (`drafting`, `gate-pending`, or `approved`) — more work is pending on this RFC.
+   - Skip if no sibling Plan is `completed` (all `rejected`) — the RFC's decomposition was uniformly rejected; operator must decide whether to abandon or re-decompose.
+   - Otherwise advance the RFC to `completed`. Idempotent: the status guard makes re-runs safe.
 
    ## Next steps (release publishing)
 

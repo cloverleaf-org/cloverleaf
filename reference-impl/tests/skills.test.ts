@@ -1431,13 +1431,48 @@ describe('cloverleaf-run-plan skill (v0.7.4 — Plan advance on completion)', ()
   it('commits the plan-advance state change with a descriptive message', () => {
     expect(body).toMatch(/git -C <repo_root> commit -m "cloverleaf: plan <PLAN-ID> completed/);
   });
+});
 
-  it('does NOT auto-advance the parent RFC (operator-driven in v0.7.4)', () => {
-    expect(body).toMatch(/RFC completion is operator-driven/i);
-    expect(body).toMatch(/walker does NOT/);
+describe('cloverleaf-run-plan skill (v0.7.4 — RFC auto-advance on Plan completion)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('auto-advances the parent RFC via cloverleaf-cli advance-rfc when conditions hold', () => {
+    expect(body).toMatch(/cloverleaf-cli advance-rfc\s+<repo_root>\s+"?\$?PARENT_RFC_ID"?\s+completed\s+agent/);
   });
 
-  it('documents the operator-side advance-rfc command for manual RFC completion', () => {
-    expect(body).toMatch(/cloverleaf-cli advance-rfc\s+<repo_root>\s+<RFC-ID>\s+completed\s+agent/);
+  it('reads parent_rfc.project and parent_rfc.id from the just-completed plan', () => {
+    expect(body).toMatch(/jq -r '\.parent_rfc\.project'/);
+    expect(body).toMatch(/jq -r '\.parent_rfc\.id'/);
+  });
+
+  it('checks RFC status is "approved" before advancing (idempotency / abandoned-skip)', () => {
+    expect(body).toMatch(/RFC_STATUS=\$\(jq -r '\.status'/);
+    expect(body).toMatch(/\$RFC_STATUS"?\s*=\s*"approved"/);
+  });
+
+  it('treats drafting, gate-pending, AND approved sibling plans as in-flight', () => {
+    expect(body).toMatch(/\.status == "drafting"[\s\S]*?\.status == "gate-pending"[\s\S]*?\.status == "approved"/);
+  });
+
+  it('requires at least one sibling plan to be completed (skips RFCs with only rejected siblings)', () => {
+    expect(body).toMatch(/COMPLETED=\$\(jq -s/);
+    expect(body).toMatch(/select\([^)]*\.status == "completed"\)/);
+    expect(body).toMatch(/\$COMPLETED"?\s*!=\s*"0"/);
+  });
+
+  it('commits the rfc-advance state change with sibling-count detail', () => {
+    expect(body).toMatch(/git -C <repo_root> commit -m "cloverleaf: rfc \$PARENT_RFC_ID completed/);
+  });
+
+  it('documents the three skip conditions in plain language', () => {
+    const advanceIdx = body.indexOf('**RFC auto-advance');
+    expect(advanceIdx).toBeGreaterThan(-1);
+    const advanceBlock = body.slice(advanceIdx);
+    expect(advanceBlock.toLowerCase()).toMatch(/already terminal|already abandoned/);
+    expect(advanceBlock.toLowerCase()).toMatch(/still in-flight|more work is pending/);
+    expect(advanceBlock.toLowerCase()).toMatch(/all\s+`?rejected`?|uniformly rejected/);
   });
 });
