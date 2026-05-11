@@ -8,9 +8,14 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 
 - `/cloverleaf-new-task` accepts a `--rfc=<RFC-ID>` flag and, when present, populates `context.rfc` from `<repo_root>/.cloverleaf/rfcs/<RFC-ID>.json` with the workItemRef shape `{ "project": "<rfc-project>", "id": "<RFC-ID>" }`. The `project` is read from the on-disk RFC (a task in project FOO may legitimately reference an RFC in project BAR). Aborts with a verify-the-RFC-ID message when the target file is absent. When `--rfc` is omitted, `context` remains `{}` — pre-v0.7.4 behavior preserved. Use to scaffold the standalone-task-from-RFC pattern (no Plan parent, no task_batch_gate) — practiced by claw-crypto's CC-43/44 and CC-045..052, previously required a post-hoc `context.rfc` retrofit commit.
 
+### Changed
+
+- `npm test` now runs `scripts/check-standard-prepped.mjs` as a `pretest` hook. Fails fast with an actionable error when `standard/node_modules/` or `standard/dist/` is absent, instead of bombing partway through `tests/conformance.test.ts` with a cryptic `ERR_MODULE_NOT_FOUND: @apidevtools/swagger-parser`. Same script was already used by `prepublishOnly`.
+
 ### Tests
 
 - +4 regression tests in `tests/skills.test.ts` covering the flag documentation, the rfcs/ file read, the workItemRef JSON shape, and the abort-on-missing-RFC behavior.
+- `tests/conformance.test.ts` now passes again on a fully-prepped checkout (was failing because `standard/node_modules/` was missing in fresh clones / post-rebase states).
 
 ## 0.7.3 — 2026-04-30
 
