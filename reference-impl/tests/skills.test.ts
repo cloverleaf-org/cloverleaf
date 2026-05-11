@@ -1412,3 +1412,32 @@ describe('cloverleaf-run-plan skill (CLV-97 — notification_contract consumptio
     expect(notesSection).toContain('**Vocab dependency.**');
   });
 });
+
+describe('cloverleaf-run-plan skill (v0.7.4 — Plan advance on completion)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('advances Plan approved → completed via cloverleaf-cli advance-plan after final task merge', () => {
+    expect(body).toMatch(/cloverleaf-cli advance-plan\s+<repo_root>\s+<PLAN-ID>\s+completed\s+agent/);
+  });
+
+  it('guards the advance on plan.status === "approved" (idempotent re-runs)', () => {
+    expect(body).toMatch(/on-disk\s+`?status`?\s+is\s+`?"?approved"?`?/i);
+    expect(body.toLowerCase()).toMatch(/idempotent|already at `?completed`?|skip the advance if/);
+  });
+
+  it('commits the plan-advance state change with a descriptive message', () => {
+    expect(body).toMatch(/git -C <repo_root> commit -m "cloverleaf: plan <PLAN-ID> completed/);
+  });
+
+  it('does NOT auto-advance the parent RFC (operator-driven in v0.7.4)', () => {
+    expect(body).toMatch(/RFC completion is operator-driven/i);
+    expect(body).toMatch(/walker does NOT/);
+  });
+
+  it('documents the operator-side advance-rfc command for manual RFC completion', () => {
+    expect(body).toMatch(/cloverleaf-cli advance-rfc\s+<repo_root>\s+<RFC-ID>\s+completed\s+agent/);
+  });
+});

@@ -280,7 +280,23 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
    - `awaiting_final_gate: [ ... ]` — user said `n`; re-invoke `/cloverleaf-merge <TASK-ID>` to retry.
    - `unreachable: [ ... ]` — descendants of escalated tasks.
 
-   If every task in the plan's `task_dag.nodes` has `state: "merged"`, print: "✓ Plan `<PLAN-ID>` complete."
+   **Plan completion (Standard 0.6.0+).** If every task in the plan's `task_dag.nodes` has `state: "merged"` AND the Plan's on-disk `status` is `"approved"`, advance the Plan to `completed`:
+
+   ```bash
+   cloverleaf-cli advance-plan <repo_root> <PLAN-ID> completed agent
+   git -C <repo_root> add .cloverleaf/plans/<PLAN-ID>.json .cloverleaf/events/
+   git -C <repo_root> commit -m "cloverleaf: plan <PLAN-ID> completed (all tasks merged)"
+   ```
+
+   This closes the previous state-sync gap where Plans whose tasks were all merged stayed at `status: "approved"` indefinitely. Skip the advance if the Plan is already at `completed` (idempotent re-runs of `/cloverleaf-run-plan` on a fully-merged plan must not error). After the advance, print: "✓ Plan `<PLAN-ID>` completed (status advanced approved → completed)."
+
+   If not every task is merged (some escalated or awaiting), do NOT advance the Plan. Print the partial-completion report from the bullets above.
+
+   **RFC completion is operator-driven, not walker-driven (v0.7.4).** RFCs may aggregate multiple Plans; the multi-plan completion semantics are not yet wired into the walker. When the operator has verified that all sibling plans of `parent_rfc.id` are in a terminal status (`completed`/`rejected`/`abandoned`) and at least one is `completed`, they can manually advance the RFC:
+   ```bash
+   cloverleaf-cli advance-rfc <repo_root> <RFC-ID> completed agent
+   ```
+   This block is informational — the walker does NOT perform it.
 
    ## Next steps (release publishing)
 
