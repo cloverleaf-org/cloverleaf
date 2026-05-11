@@ -2,13 +2,14 @@
   "type": "plan",
   "states": {
     "initial": ["drafting"],
-    "terminal": ["approved", "rejected"],
-    "all": ["drafting", "gate-pending", "approved", "rejected"]
+    "terminal": ["completed", "rejected"],
+    "all": ["drafting", "gate-pending", "approved", "completed", "rejected"]
   },
   "transitions": [
     { "from": "drafting", "to": "gate-pending", "allowed_actors": ["agent"], "gate": "task_batch_gate" },
     { "from": "gate-pending", "to": "approved", "allowed_actors": ["human"], "gate": "task_batch_gate" },
     { "from": "gate-pending", "to": "rejected", "allowed_actors": ["human"], "gate": "task_batch_gate" },
+    { "from": "approved", "to": "completed", "allowed_actors": ["agent"], "description": "All child tasks merged; walker advances after the final task's merge commit." },
     { "from": "rejected", "to": "drafting", "allowed_actors": ["agent", "human"], "description": "Re-decompose after rejection." }
   ]
 }

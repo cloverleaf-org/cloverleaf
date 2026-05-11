@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## 0.6.0 — 2026-05-11
+
+### Added
+- **Plan state machine: new `completed` terminal state.** New transition `approved → completed` (`allowed_actors: ["agent"]`). Walker advances a Plan to `completed` after the final child task's merge commit. Previously, `approved` was the only post-gate terminal state — Plans whose tasks were all merged stayed at `approved` indefinitely, making it impossible to distinguish "decomposition approved, work in flight" from "decomposition approved, work fully delivered" by status alone. Surfaced by claw-crypto dogfood (Plans CC-10/CC-27/CC-37 all stuck at `approved` after every child task merged). `terminal` updated to `["completed", "rejected"]`; `all` gains `"completed"`.
+- **RFC state machine: new `completed` terminal state.** New transition `approved → completed` (`allowed_actors: ["agent", "human"]`). Operator-driven in this release: a human or agent advances an RFC to `completed` after verifying all child Plans are in a terminal state (`completed`/`rejected`/`abandoned`) and at least one is `completed`. **Walker auto-advance for RFC is intentionally NOT shipped in 0.6.0** — RFCs may aggregate multiple Plans, and the multi-plan completion semantics (e.g. RFC with some Plans `completed` and some `abandoned`) need brainstorm before automation. `terminal` updated to include `"completed"`; `all` gains `"completed"`.
+- Schemas (`plan.schema.json`, `rfc.schema.json`) status enums extended with `"completed"`.
+
+### Compatibility
+- Additive only. Plan/RFC documents valid under 0.5.x remain valid under 0.6.0 — no existing field shape changed. Documents that previously sat at `status: "approved"` after all work merged continue to validate; they can be manually advanced to `completed` via `cloverleaf-cli advance-plan <repo> <plan-id> completed agent` (and similarly `advance-rfc`) if backfilling is desired.
+
 ## 0.5.0 — 2026-04-29
 
 ### Added

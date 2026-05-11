@@ -10,7 +10,7 @@
     "type": { "const": "rfc" },
     "status": {
       "type": "string",
-      "enum": ["drafting", "spike-in-flight", "planning", "gate-pending", "approved", "rejected", "abandoned"]
+      "enum": ["drafting", "spike-in-flight", "planning", "gate-pending", "approved", "completed", "rejected", "abandoned"]
     },
     "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
     "project": { "type": "string", "minLength": 1 },

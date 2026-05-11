@@ -2,8 +2,8 @@
   "type": "rfc",
   "states": {
     "initial": ["drafting"],
-    "terminal": ["approved", "rejected", "abandoned"],
-    "all": ["drafting", "spike-in-flight", "planning", "gate-pending", "approved", "rejected", "abandoned"]
+    "terminal": ["completed", "rejected", "abandoned"],
+    "all": ["drafting", "spike-in-flight", "planning", "gate-pending", "approved", "completed", "rejected", "abandoned"]
   },
   "transitions": [
     { "from": "drafting", "to": "spike-in-flight", "allowed_actors": ["agent", "human"], "description": "Unknowns identified; spikes required." },
@@ -15,6 +15,7 @@
     { "from": "gate-pending", "to": "rejected", "allowed_actors": ["human"], "gate": "rfc_strategy_gate" },
     { "from": "gate-pending", "to": "drafting", "allowed_actors": ["human"], "gate": "rfc_strategy_gate", "description": "Revise decision — return to drafting." },
     { "from": "rejected", "to": "drafting", "allowed_actors": ["agent", "human"], "description": "Revise and re-submit." },
+    { "from": "approved", "to": "completed", "allowed_actors": ["agent", "human"], "description": "All child plans reached a terminal state (completed or rejected) and at least one was completed. Operator-driven in v0.7.4; walker auto-advance deferred to a future release pending multi-plan-RFC semantics design." },
     { "from": "approved", "to": "abandoned", "allowed_actors": ["human"], "description": "Superseded by another RFC." },
     { "from": "drafting", "to": "abandoned", "allowed_actors": ["human"] },
     { "from": "spike-in-flight", "to": "abandoned", "allowed_actors": ["human"] },
