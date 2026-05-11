@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## Unreleased
+
+### Added
+
+- `/cloverleaf-new-task` accepts a `--rfc=<RFC-ID>` flag and, when present, populates `context.rfc` from `<repo_root>/.cloverleaf/rfcs/<RFC-ID>.json` with the workItemRef shape `{ "project": "<rfc-project>", "id": "<RFC-ID>" }`. The `project` is read from the on-disk RFC (a task in project FOO may legitimately reference an RFC in project BAR). Aborts with a verify-the-RFC-ID message when the target file is absent. When `--rfc` is omitted, `context` remains `{}` — pre-v0.7.4 behavior preserved. Use to scaffold the standalone-task-from-RFC pattern (no Plan parent, no task_batch_gate) — practiced by claw-crypto's CC-43/44 and CC-045..052, previously required a post-hoc `context.rfc` retrofit commit.
+
+### Tests
+
+- +4 regression tests in `tests/skills.test.ts` covering the flag documentation, the rfcs/ file read, the workItemRef JSON shape, and the abort-on-missing-RFC behavior.
+
 ## 0.7.3 — 2026-04-30
 
 ### Changed

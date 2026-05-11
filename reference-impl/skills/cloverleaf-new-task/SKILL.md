@@ -32,12 +32,22 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
      "owner": { "kind": "agent", "id": "implementer" },
      "project": "<project>",
      "title": "<concise title derived from brief>",
-     "context": {},
+     "context": <see "context.rfc injection" below>,
      "acceptance_criteria": ["<criterion 1>", "<criterion 2>", "..."],
      "definition_of_done": ["<terminal statement of completion>"],
      "risk_class": "low"
    }
    ```
+
+   **`context.rfc` injection:**
+
+   - If the brief includes `--rfc=<RFC-ID>` (e.g. `/cloverleaf-new-task --rfc=CLV-9 "Brief text..."`), read `<repo_root>/.cloverleaf/rfcs/<RFC-ID>.json` and inject the workItemRef shape:
+     ```json
+     "context": { "rfc": { "project": "<rfc-project-field>", "id": "<RFC-ID>" } }
+     ```
+     The `project` field comes from the loaded RFC document, NOT the task's own project (a task in project FOO may legitimately reference an RFC in project BAR).
+   - If `<repo_root>/.cloverleaf/rfcs/<RFC-ID>.json` does not exist, abort and ask the user to verify the RFC ID. Do not write the task file.
+   - If `--rfc=<ID>` is not passed, leave `context` as `{}` — same as pre-v0.7.4 behavior.
 
    Derive 2-5 acceptance criteria from the brief. Each must be verifiable. Derive one or more Definition of Done strings as an array.
 
@@ -65,6 +75,7 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
 ## Rules
 
 - Do not guess at acceptance criteria. If the brief is too vague (e.g., "make it faster" with no target), ask the user a clarifying question before writing the file.
+- **`--rfc=<ID>` flag:** When the brief includes `--rfc=<RFC-ID>`, the task's `context.rfc` is populated from the on-disk RFC document (see step 4). Use this when scaffolding a standalone task linked to an RFC without a Plan parent — e.g., a hotfix-task pattern off an open RFC, as practiced by claw-crypto's CC-43/44 and CC-045..052. If `--rfc` is omitted, `context` is left empty; the task can be attached to a Plan later via Plan formation, or `context.rfc` can be edited in by hand.
 - **risk_class inference:** `risk_class` determines the Delivery pipeline (`"low"` → fast lane; `"high"` → full pipeline). Rules:
   1. If the user passed `--risk=high` or `--risk=low` as a flag on the skill invocation, honor it.
   2. Otherwise, set `risk_class: "high"` when the brief OR any acceptance criterion matches (case-insensitive) any of these keywords:

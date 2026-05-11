@@ -32,6 +32,23 @@ describe('cloverleaf-new-task skill', () => {
     expect(body.toLowerCase()).toMatch(/risk class|risk_class/);
     expect(body).toMatch(/override/i);
   });
+
+  it('documents the --rfc=<ID> flag', () => {
+    expect(body).toMatch(/--rfc=<RFC-ID>|--rfc=<ID>/);
+  });
+
+  it('reads the RFC document from .cloverleaf/rfcs/ to populate context.rfc', () => {
+    expect(body).toMatch(/\.cloverleaf\/rfcs\/<RFC-ID>\.json/);
+    expect(body).toMatch(/context\.rfc/);
+  });
+
+  it('specifies the workItemRef shape { project, id } for context.rfc', () => {
+    expect(body).toMatch(/"rfc":\s*\{\s*"project":\s*"<rfc-project-field>",\s*"id":\s*"<RFC-ID>"\s*\}/);
+  });
+
+  it('aborts if the --rfc target file does not exist', () => {
+    expect(body).toMatch(/does not exist.*verify|verify.*RFC ID/i);
+  });
 });
 
 describe('cloverleaf-document skill', () => {
