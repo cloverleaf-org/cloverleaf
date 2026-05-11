@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## Unreleased
+## 0.7.4 — 2026-05-11
 
 ### Added
 
