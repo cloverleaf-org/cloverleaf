@@ -1194,3 +1194,72 @@ describe('cli — check-scope (CLV-87)', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// CLV-98 v0.7.5 Task 3: rfc-tasks subcommand
+// ---------------------------------------------------------------------------
+
+describe('cli — rfc-tasks (v0.7.5)', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-cli-rfc-tasks-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'rfcs'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'plans'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  function writeRfc(id: string, status: string): void {
+    writeFileSync(join(tmp, `.cloverleaf/rfcs/${id}.json`), JSON.stringify({
+      type: 'rfc', project: 'CC', id, status,
+      title: 't', problem: 'p', solution: 's', unknowns: [],
+      acceptance_criteria: [], out_of_scope: [],
+      owner: { kind: 'agent', id: 'researcher' },
+    }) + '\n');
+  }
+
+  function writeStandaloneTask(id: string, rfcId: string, status: string): void {
+    writeFileSync(join(tmp, `.cloverleaf/tasks/${id}.json`), JSON.stringify({
+      type: 'task', project: 'CC', id, status,
+      context: { rfc: { project: 'CC', id: rfcId } },
+      title: 't', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['ac'], definition_of_done: ['dod'],
+    }) + '\n');
+  }
+
+  it('rfc-tasks emits compact JSON by default', () => {
+    writeRfc('CC-21', 'approved');
+    writeStandaloneTask('CC-100', 'CC-21', 'merged');
+
+    const r = run(['rfc-tasks', tmp, 'CC-21']);
+    expect(r.exitCode).toBe(0);
+    // Compact = no intermediate newlines (trailing \n from process.stdout.write is OK)
+    expect(r.stdout.trimEnd()).not.toMatch(/\n/);
+    const view = JSON.parse(r.stdout);
+    expect(view.summary.can_auto_advance_rfc).toBe(true);
+    expect(view.standalone_tasks[0].id).toBe('CC-100');
+  });
+
+  it('rfc-tasks --pretty emits indented JSON', () => {
+    writeRfc('CC-21', 'approved');
+    writeStandaloneTask('CC-100', 'CC-21', 'merged');
+
+    const r = run(['rfc-tasks', tmp, 'CC-21', '--pretty']);
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toMatch(/\n/); // multi-line
+    expect(r.stdout).toMatch(/^\{\n  "rfc"/);
+  });
+
+  it('rfc-tasks exits 2 with actionable stderr when RFC missing', () => {
+    const r = run(['rfc-tasks', tmp, 'CC-999']);
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr.toLowerCase()).toMatch(/rfc.*cc-999.*not found/);
+  });
+
+  it('rfc-tasks usage error when args missing', () => {
+    const r = run(['rfc-tasks']);
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr).toMatch(/rfc-tasks/);
+  });
+});
+

@@ -20,6 +20,7 @@
  *   load-rfc <repoRoot> <id>
  *   save-rfc <repoRoot> <filePath>
  *   advance-rfc <repoRoot> <id> <toStatus> <agent|human> [gate]
+ *   rfc-tasks <repoRoot> <rfcId> [--pretty]
  *   load-spike <repoRoot> <id>
  *   save-spike <repoRoot> <filePath>
  *   advance-spike <repoRoot> <id> <toStatus> <agent|human>
@@ -66,6 +67,7 @@ import { readWalkState, writeWalkState, walkStatePath } from './walk-state.js';
 import { loadWalkerConfig } from './walker-config.js';
 import { classifyFiles } from './scope-check.js';
 import type { SiblingScope } from './scope-check.js';
+import { computeRfcTasksView } from './rfc-tasks.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -92,6 +94,7 @@ function usage(msg?: string): never {
       '  load-rfc <repoRoot> <id>\n' +
       '  save-rfc <repoRoot> <filePath>\n' +
       '  advance-rfc <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
+      '  rfc-tasks <repoRoot> <rfcId> [--pretty]\n' +
       '  load-spike <repoRoot> <id>\n' +
       '  save-spike <repoRoot> <filePath>\n' +
       '  advance-spike <repoRoot> <id> <toStatus> <agent|human>\n' +
@@ -380,6 +383,24 @@ try {
       if (actor !== 'agent' && actor !== 'human') usage('advance-rfc: actor must be agent or human');
       const opts = gate ? { gate } : {};
       advanceRfcStatus(repoRoot, id, toStatus, actor as 'agent' | 'human', opts);
+      break;
+    }
+
+    case 'rfc-tasks': {
+      const args = rest.filter(a => !a.startsWith('--'));
+      const flags = rest.filter(a => a.startsWith('--'));
+      const [repoRoot, rfcId] = args;
+      if (!repoRoot || !rfcId) usage('rfc-tasks <repoRoot> <rfcId> [--pretty]');
+      const pretty = flags.includes('--pretty');
+      let view;
+      try {
+        view = computeRfcTasksView(repoRoot, rfcId);
+      } catch (err) {
+        process.stderr.write(`cloverleaf-cli rfc-tasks: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(2);
+      }
+      process.stdout.write(pretty ? JSON.stringify(view, null, 2) : JSON.stringify(view));
+      process.stdout.write('\n');
       break;
     }
 
