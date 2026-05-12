@@ -259,4 +259,78 @@ describe('computeRfcTasksView', () => {
     const view = computeRfcTasksView(tmp, 'CC-21');
     expect(view.standalone_tasks).toEqual([]);
   });
+
+  it('tolerates missing plans/ and tasks/ directories', () => {
+    // Don't use setupRepo() — set up a minimal repo without plans/ or tasks/ dirs
+    const bareRoot = mkdtempSync(join(tmpdir(), 'cl-rfc-tasks-bare-'));
+    mkdirSync(join(bareRoot, '.cloverleaf', 'rfcs'), { recursive: true });
+    try {
+      writeJson(join(bareRoot, '.cloverleaf/rfcs/CC-21.json'), {
+        type: 'rfc', project: 'CC', id: 'CC-21', status: 'approved',
+        title: 't', problem: 'p', solution: 's', unknowns: [],
+        acceptance_criteria: [], out_of_scope: [],
+        owner: { kind: 'agent', id: 'researcher' },
+      });
+      const view = computeRfcTasksView(bareRoot, 'CC-21');
+      expect(view.plans).toEqual([]);
+      expect(view.standalone_tasks).toEqual([]);
+      expect(view.summary).toEqual({
+        inflight_plans: 0,
+        inflight_standalone: 0,
+        delivered_plans: 0,
+        delivered_standalone: 0,
+        can_auto_advance_rfc: false,
+      });
+    } finally {
+      rmSync(bareRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('all-rejected mixed: rejected Plan + escalated standalone + rejected standalone → no delivered, cannot advance', () => {
+    writeJson(join(tmp, '.cloverleaf/rfcs/CC-21.json'), {
+      type: 'rfc', project: 'CC', id: 'CC-21', status: 'approved',
+      title: 't', problem: 'p', solution: 's', unknowns: [],
+      acceptance_criteria: [], out_of_scope: [],
+      owner: { kind: 'agent', id: 'researcher' },
+    });
+    writeJson(join(tmp, '.cloverleaf/plans/CC-27.json'), {
+      type: 'plan', project: 'CC', id: 'CC-27', status: 'rejected',
+      parent_rfc: { project: 'CC', id: 'CC-21' },
+      owner: { kind: 'agent', id: 'plan' },
+      task_dag: { nodes: [], edges: [] }, tasks: [],
+    });
+    writeJson(join(tmp, '.cloverleaf/tasks/CC-100.json'), {
+      type: 'task', project: 'CC', id: 'CC-100', status: 'escalated',
+      context: { rfc: { project: 'CC', id: 'CC-21' } },
+      title: 't', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['ac'], definition_of_done: ['dod'],
+    });
+    writeJson(join(tmp, '.cloverleaf/tasks/CC-101.json'), {
+      type: 'task', project: 'CC', id: 'CC-101', status: 'rejected',
+      context: { rfc: { project: 'CC', id: 'CC-21' } },
+      title: 't', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['ac'], definition_of_done: ['dod'],
+    });
+    const view = computeRfcTasksView(tmp, 'CC-21');
+    expect(view.summary.inflight_plans).toBe(0);
+    expect(view.summary.inflight_standalone).toBe(0); // escalated + rejected are terminal
+    expect(view.summary.delivered_plans).toBe(0);
+    expect(view.summary.delivered_standalone).toBe(0);
+    expect(view.summary.can_auto_advance_rfc).toBe(false);
+  });
+
+  it('empty workspace: RFC exists but zero plans, zero tasks → cannot advance (no delivered)', () => {
+    writeJson(join(tmp, '.cloverleaf/rfcs/CC-21.json'), {
+      type: 'rfc', project: 'CC', id: 'CC-21', status: 'approved',
+      title: 't', problem: 'p', solution: 's', unknowns: [],
+      acceptance_criteria: [], out_of_scope: [],
+      owner: { kind: 'agent', id: 'researcher' },
+    });
+    const view = computeRfcTasksView(tmp, 'CC-21');
+    expect(view.plans).toEqual([]);
+    expect(view.standalone_tasks).toEqual([]);
+    expect(view.summary.can_auto_advance_rfc).toBe(false);
+  });
 });

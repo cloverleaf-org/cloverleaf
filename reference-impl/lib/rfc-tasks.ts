@@ -2,6 +2,7 @@ import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { plansDir, tasksDir, rfcsDir } from './paths.js';
 import type { TaskDoc } from './task.js';
+import type { PlanDoc } from './plan.js';
 
 /**
  * A task is "standalone" (RFC-direct) iff it has no parent (absent or null)
@@ -54,11 +55,7 @@ export function computeRfcTasksView(repoRoot: string, rfcId: string): RfcTasksVi
   if (existsSync(plansDirPath)) {
     for (const f of readdirSync(plansDirPath)) {
       if (!f.endsWith('.json')) continue;
-      const plan = JSON.parse(readFileSync(join(plansDirPath, f), 'utf-8')) as {
-        project: string; id: string; status: string;
-        parent_rfc?: { project: string; id: string };
-        task_dag?: { nodes?: Array<{ project: string; id: string }> };
-      };
+      const plan = JSON.parse(readFileSync(join(plansDirPath, f), 'utf-8')) as PlanDoc;
       if (plan.parent_rfc?.project !== rfc.project || plan.parent_rfc.id !== rfc.id) continue;
 
       const tasks: Array<{ id: string; status: string }> = [];
@@ -71,6 +68,7 @@ export function computeRfcTasksView(repoRoot: string, rfcId: string): RfcTasksVi
       plans.push({ project: plan.project, id: plan.id, status: plan.status, tasks });
     }
   }
+  plans.sort((a, b) => a.id.localeCompare(b.id));
 
   // Load standalone tasks: parent absent/null AND context.rfc matches
   const standalone: Array<{ id: string; status: string }> = [];
