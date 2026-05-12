@@ -1095,13 +1095,12 @@ describe('CHANGELOG.md (v0.6.1)', () => {
   });
 });
 
-describe('package.json (v0.7.4)', () => {
+describe('package.json (v0.7.5)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.7.4', () => {
-    // v0.7.4: state-sync bug fixes (Plan + RFC auto-advance to completed)
-    //         and /cloverleaf-new-task --rfc=<ID> flag.
-    expect(pkg.version).toBe('0.7.4');
+  it('reports version 0.7.5', () => {
+    // v0.7.5: RFC-direct tasks formalisation (lib/rfc-tasks.ts + cloverleaf-cli rfc-tasks + walker auto-advance fix).
+    expect(pkg.version).toBe('0.7.5');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
