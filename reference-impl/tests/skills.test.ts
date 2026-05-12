@@ -1475,3 +1475,28 @@ describe('cloverleaf-run-plan skill (v0.7.5 — RFC auto-advance via rfc-tasks)'
     expect(notesSection.toLowerCase()).toMatch(/rfc-direct|standalone task/);
   });
 });
+
+describe('README — Plans vs RFC-direct tasks section (v0.7.5)', () => {
+  const readme = readFileSync(
+    resolve(__dirname, '..', 'README.md'),
+    'utf-8',
+  );
+
+  it('contains the section heading', () => {
+    expect(readme).toMatch(/##\s+Plans vs RFC-direct tasks/);
+  });
+
+  it('describes both task-creation patterns', () => {
+    expect(readme).toMatch(/\/cloverleaf-discover/);
+    expect(readme).toMatch(/\/cloverleaf-new-task --rfc/);
+  });
+
+  it('documents auto-advance semantics', () => {
+    expect(readme.toLowerCase()).toMatch(/can_auto_advance_rfc|advance.*completed/);
+    expect(readme).toMatch(/cloverleaf-cli rfc-tasks/);
+  });
+
+  it('calls out the task_batch_gate tradeoff', () => {
+    expect(readme).toMatch(/task_batch_gate/);
+  });
+});
