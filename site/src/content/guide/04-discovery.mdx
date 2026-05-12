@@ -52,6 +52,6 @@ Sometimes the work doesn't fit a Plan. Two cases recur:
 
 In both cases the operator can emit a task directly against the approved RFC, no Plan, no `task_batch_gate`. The task gets `context.rfc` set; its `parent` field stays absent. The walker still drives it through Delivery normally via `/cloverleaf-run`.
 
-The walker's RFC auto-advance treats these RFC-direct tasks as first-class. After every Plan completes, the walker asks `cloverleaf-cli rfc-tasks <RFC-ID>` whether the RFC can advance — and that check considers both sibling Plans and standalone tasks of the same RFC. An in-flight standalone task blocks the advance; a merged one counts toward "at least one delivered."
+The walker's RFC auto-advance treats these RFC-direct tasks as first-class. After every Plan completes, the walker asks `cloverleaf-cli rfc-tasks <repo_root> <RFC-ID>` whether the RFC can advance — and that check considers both sibling Plans and standalone tasks of the same RFC. An in-flight standalone task blocks the advance; a merged one counts toward "at least one delivered."
 
 The tradeoff is real: skipping the Plan means skipping `task_batch_gate`. That's the right call for hotfixes and one-task-at-a-time work, where there's no decomposition to review. It's the wrong call for a large multi-task scope, where the human's review of the decomposition is the load-bearing checkpoint. Plans are a checkpoint, not ceremony — use them when the checkpoint earns its keep.

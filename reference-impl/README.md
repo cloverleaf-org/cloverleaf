@@ -179,7 +179,7 @@ Cloverleaf has two ways to get from an approved RFC to executed Tasks. Both are 
 
 ### Auto-advance: how the walker treats them
 
-When the walker (`/cloverleaf-run-plan`) finishes a Plan's final task, it asks `cloverleaf-cli rfc-tasks <RFC-ID>` whether the parent RFC can also advance from `approved` to `completed`. The check considers BOTH sibling Plans AND RFC-direct tasks under the same RFC:
+When the walker (`/cloverleaf-run-plan`) finishes a Plan's final task, it asks `cloverleaf-cli rfc-tasks <repo_root> <RFC-ID>` whether the parent RFC can also advance from `approved` to `completed`. The check considers BOTH sibling Plans AND RFC-direct tasks under the same RFC:
 
 - An **in-flight** Plan (`drafting`/`gate-pending`/`approved`) OR standalone task (any non-terminal state) blocks the RFC advance — there's still work pending under this RFC.
 - A **delivered** Plan (`completed`) OR standalone task (`merged`) counts toward the at-least-one-delivered requirement — the RFC must have produced at least one successful piece of work to advance.
