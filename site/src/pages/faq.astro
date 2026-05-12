@@ -31,6 +31,10 @@ const items = [
     q: 'How do I cite Cloverleaf?',
     a: 'Cite the live guide at https://cloverleaf-org.github.io/cloverleaf/ and pin to the Standard version shown in the footer (currently v0.3.0). A DOI may follow.'
   },
+  {
+    q: 'When should I use a Plan vs go RFC → Task directly?',
+    a: '<p>Plans are checkpoints. The <code>task_batch_gate</code> exists so a human reviews the decomposition before any task materialises — it\'s the load-bearing review point of the Discovery track. Use a Plan when the work spans three or more related tasks AND there\'s real value in reviewing the decomposition as a unit. The cost of forming a Plan pays for itself in the form of catching bad scope decisions early.</p><p>RFC-direct tasks (<code>/cloverleaf-new-task --rfc=&lt;RFC-ID&gt;</code>) skip the Plan and the gate. That\'s the right call for hotfixes (one task; nothing to review at the decomposition level) and for incremental RFC progress where the operator hasn\'t yet committed to a batch shape. The walker treats RFC-direct tasks as first-class — they participate in the RFC\'s auto-advance check alongside sibling Plans (see chapter 4 § "RFC-direct tasks"). Skip the Plan only when the checkpoint wouldn\'t earn its keep.</p>'
+  },
 ];
 ---
 <Layout title="FAQ — Cloverleaf">

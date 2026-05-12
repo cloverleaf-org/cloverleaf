@@ -166,6 +166,38 @@ npm test        # run the Vitest suite
 npm run test:watch
 ```
 
+## Plans vs RFC-direct tasks
+
+Cloverleaf has two ways to get from an approved RFC to executed Tasks. Both are first-class; the right one depends on the size and shape of the work.
+
+**Plan-task (Discovery flow):** Operator invokes `/cloverleaf-discover`. The Plan agent decomposes the RFC into a Plan with a `task_dag`; the operator approves the decomposition at `task_batch_gate`; tasks are materialised under the Plan; the walker drives them through Delivery. Use this when the work spans ≥3 related tasks AND there's value in reviewing the decomposition before any task materializes (the gate is a checkpoint, not ceremony).
+
+**RFC-direct task (skip the Plan layer):** Operator invokes `/cloverleaf-new-task --rfc=<RFC-ID> "<brief>"`. A single task is created with `context.rfc` set and `parent` absent — no Plan, no `task_batch_gate`. Use this for:
+
+- **Hotfixes after a Plan has delivered** — a small bug or polish item surfaces after the Plan's tasks are all merged. Creating a new Plan for one task is pure overhead; an RFC-direct task is faster and equally trackable.
+- **Incremental RFC progress without batch decomposition** — operator hasn't yet decided how to decompose the next chunk of work, but a single concrete task is clear. Create it now; defer the Plan formation until later (or skip Plans entirely if the work continues to arrive one task at a time).
+
+### Auto-advance: how the walker treats them
+
+When the walker (`/cloverleaf-run-plan`) finishes a Plan's final task, it asks `cloverleaf-cli rfc-tasks <repo_root> <RFC-ID>` whether the parent RFC can also advance from `approved` to `completed`. The check considers BOTH sibling Plans AND RFC-direct tasks under the same RFC:
+
+- An **in-flight** Plan (`drafting`/`gate-pending`/`approved`) OR standalone task (any non-terminal state) blocks the RFC advance — there's still work pending under this RFC.
+- A **delivered** Plan (`completed`) OR standalone task (`merged`) counts toward the at-least-one-delivered requirement — the RFC must have produced at least one successful piece of work to advance.
+- If all delivered work was rejected/escalated, the operator decides: abandon the RFC, re-decompose, or accept the RFC as not-shippable. The walker won't auto-advance.
+
+### Operator visibility
+
+```bash
+cloverleaf-cli rfc-tasks <repo_root> <RFC-ID>            # compact JSON
+cloverleaf-cli rfc-tasks <repo_root> <RFC-ID> --pretty   # indented for humans
+```
+
+Returns the RFC's status, all sibling Plans (with their child tasks), all standalone tasks, and a summary block with in-flight/delivered counts plus `can_auto_advance_rfc`. Pure read; no side effects.
+
+### The tradeoff to name
+
+Skipping the Plan = skipping `task_batch_gate`. That's the right tradeoff for hotfixes (one task; no decomposition to review) and for one-task-at-a-time incremental work. It's the wrong tradeoff for a large multi-task scope where the human's review of the decomposition is the load-bearing checkpoint. Plans are a checkpoint, not ceremony.
+
 ## License
 
 MIT — see [../LICENSE](../LICENSE).

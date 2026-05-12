@@ -1095,13 +1095,12 @@ describe('CHANGELOG.md (v0.6.1)', () => {
   });
 });
 
-describe('package.json (v0.7.4)', () => {
+describe('package.json (v0.7.5)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.7.4', () => {
-    // v0.7.4: state-sync bug fixes (Plan + RFC auto-advance to completed)
-    //         and /cloverleaf-new-task --rfc=<ID> flag.
-    expect(pkg.version).toBe('0.7.4');
+  it('reports version 0.7.5', () => {
+    // v0.7.5: RFC-direct tasks formalisation (lib/rfc-tasks.ts + cloverleaf-cli rfc-tasks + walker auto-advance fix).
+    expect(pkg.version).toBe('0.7.5');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
@@ -1434,46 +1433,121 @@ describe('cloverleaf-run-plan skill (v0.7.4 — Plan advance on completion)', ()
   });
 });
 
-describe('cloverleaf-run-plan skill (v0.7.4 — RFC auto-advance on Plan completion)', () => {
+describe('cloverleaf-run-plan skill (v0.7.5 — RFC auto-advance via rfc-tasks)', () => {
   const body = readFileSync(
     resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'),
     'utf-8',
   );
 
-  it('auto-advances the parent RFC via cloverleaf-cli advance-rfc when conditions hold', () => {
+  it('invokes cloverleaf-cli rfc-tasks to compute the auto-advance check', () => {
+    expect(body).toMatch(/cloverleaf-cli rfc-tasks\s+<repo_root>\s+"?\$?PARENT_RFC_ID"?/);
+  });
+
+  it('reads summary.can_auto_advance_rfc from the rfc-tasks output', () => {
+    expect(body).toMatch(/\.summary\.can_auto_advance_rfc/);
+  });
+
+  it('advances the RFC via cloverleaf-cli advance-rfc when can_auto_advance_rfc is true', () => {
+    expect(body).toMatch(/CAN_ADVANCE"?\s*=\s*"true"/);
     expect(body).toMatch(/cloverleaf-cli advance-rfc\s+<repo_root>\s+"?\$?PARENT_RFC_ID"?\s+completed\s+agent/);
   });
 
-  it('reads parent_rfc.project and parent_rfc.id from the just-completed plan', () => {
-    expect(body).toMatch(/jq -r '\.parent_rfc\.project'/);
-    expect(body).toMatch(/jq -r '\.parent_rfc\.id'/);
-  });
-
-  it('checks RFC status is "approved" before advancing (idempotency / abandoned-skip)', () => {
-    expect(body).toMatch(/RFC_STATUS=\$\(jq -r '\.status'/);
-    expect(body).toMatch(/\$RFC_STATUS"?\s*=\s*"approved"/);
-  });
-
-  it('treats drafting, gate-pending, AND approved sibling plans as in-flight', () => {
-    expect(body).toMatch(/\.status == "drafting"[\s\S]*?\.status == "gate-pending"[\s\S]*?\.status == "approved"/);
-  });
-
-  it('requires at least one sibling plan to be completed (skips RFCs with only rejected siblings)', () => {
-    expect(body).toMatch(/COMPLETED=\$\(jq -s/);
-    expect(body).toMatch(/select\([^)]*\.status == "completed"\)/);
-    expect(body).toMatch(/\$COMPLETED"?\s*!=\s*"0"/);
-  });
-
-  it('commits the rfc-advance state change with sibling-count detail', () => {
-    expect(body).toMatch(/git -C <repo_root> commit -m "cloverleaf: rfc \$PARENT_RFC_ID completed/);
+  it('commit message references delivered_plans AND delivered_standalone counts', () => {
+    expect(body).toMatch(/cloverleaf: rfc \$PARENT_RFC_ID completed/);
+    expect(body).toMatch(/delivered_plans/);
+    expect(body).toMatch(/delivered_standalone/);
   });
 
   it('documents the three skip conditions in plain language', () => {
     const advanceIdx = body.indexOf('**RFC auto-advance');
     expect(advanceIdx).toBeGreaterThan(-1);
     const advanceBlock = body.slice(advanceIdx);
-    expect(advanceBlock.toLowerCase()).toMatch(/already terminal|already abandoned/);
-    expect(advanceBlock.toLowerCase()).toMatch(/still in-flight|more work is pending/);
-    expect(advanceBlock.toLowerCase()).toMatch(/all\s+`?rejected`?|uniformly rejected/);
+    expect(advanceBlock.toLowerCase()).toMatch(/not at\s+`?approved`?|already terminal/);
+    expect(advanceBlock.toLowerCase()).toMatch(/in-flight|still pending/);
+    expect(advanceBlock.toLowerCase()).toMatch(/at\s+least\s+one\s+delivered|no\s+plan.*delivered/);
+  });
+
+  it('Notes section calls out RFC-direct task participation', () => {
+    const notesIdx = body.indexOf('## Notes');
+    expect(notesIdx).toBeGreaterThan(-1);
+    const notesSection = body.slice(notesIdx);
+    expect(notesSection.toLowerCase()).toMatch(/rfc-direct|standalone task/);
+  });
+});
+
+describe('README — Plans vs RFC-direct tasks section (v0.7.5)', () => {
+  const readme = readFileSync(
+    resolve(__dirname, '..', 'README.md'),
+    'utf-8',
+  );
+
+  it('contains the section heading', () => {
+    expect(readme).toMatch(/##\s+Plans vs RFC-direct tasks/);
+  });
+
+  it('describes both task-creation patterns', () => {
+    expect(readme).toMatch(/\/cloverleaf-discover/);
+    expect(readme).toMatch(/\/cloverleaf-new-task --rfc/);
+  });
+
+  it('documents auto-advance semantics', () => {
+    expect(readme.toLowerCase()).toMatch(/can_auto_advance_rfc|advance.*completed/);
+    expect(readme).toMatch(/cloverleaf-cli rfc-tasks/);
+  });
+
+  it('calls out the task_batch_gate tradeoff', () => {
+    expect(readme).toMatch(/task_batch_gate/);
+  });
+});
+
+describe('Site — guide chapter 4: RFC-direct tasks (v0.7.5)', () => {
+  const ch4 = readFileSync(
+    resolve(__dirname, '..', '..', 'site', 'src', 'content', 'guide', '04-discovery.mdx'),
+    'utf-8',
+  );
+
+  it('contains the section heading', () => {
+    expect(ch4).toMatch(/##\s+RFC-direct tasks/);
+  });
+
+  it('documents both use cases (hotfix + incremental)', () => {
+    expect(ch4.toLowerCase()).toMatch(/hotfix/);
+    expect(ch4.toLowerCase()).toMatch(/incremental/);
+  });
+
+  it('mentions cloverleaf-cli rfc-tasks for visibility', () => {
+    expect(ch4).toMatch(/cloverleaf-cli rfc-tasks/);
+  });
+
+  it('calls out the task_batch_gate tradeoff', () => {
+    expect(ch4).toMatch(/task_batch_gate/);
+  });
+});
+
+describe('Site — guide chapter 6: Task parent clarification (v0.7.5)', () => {
+  const ch6 = readFileSync(
+    resolve(__dirname, '..', '..', 'site', 'src', 'content', 'guide', '06-work-items.mdx'),
+    'utf-8',
+  );
+
+  it('mentions parent: null + context.rfc as the RFC-direct task shape', () => {
+    expect(ch6).toMatch(/parent/);
+    expect(ch6).toMatch(/context\.rfc/);
+    expect(ch6.toLowerCase()).toMatch(/rfc-direct|standalone/);
+  });
+});
+
+describe('Site — FAQ entry for Plan vs RFC-direct (v0.7.5)', () => {
+  const faq = readFileSync(
+    resolve(__dirname, '..', '..', 'site', 'src', 'pages', 'faq.astro'),
+    'utf-8',
+  );
+
+  it('contains a question about Plan vs RFC → Task directly', () => {
+    expect(faq.toLowerCase()).toMatch(/plan.*vs.*rfc.*task|rfc.*direct/);
+  });
+
+  it('mentions task_batch_gate as the tradeoff', () => {
+    expect(faq).toMatch(/task_batch_gate/);
   });
 });

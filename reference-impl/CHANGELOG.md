@@ -2,6 +2,33 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.7.5 — 2026-05-12
+
+### Added
+
+- **RFC-direct task pattern formalised.** A task with `parent` absent/null AND `context.rfc` set is now a first-class workflow shape ("RFC-direct task" / "standalone task"). Surfaced by claw-crypto's `CC-43`, `CC-44`, and `CC-045..052` (10 tasks across two RFCs, parented to RFCs only, no Plan). See `README.md` § "Plans vs RFC-direct tasks" for the full pattern docs.
+- **New CLI subcommand `cloverleaf-cli rfc-tasks <repoRoot> <RFC-ID>`** returns a categorized JSON view: the RFC's status, sibling Plans (with their child tasks), standalone tasks under this RFC, and a summary block with `inflight_plans` / `inflight_standalone` / `delivered_plans` / `delivered_standalone` / `can_auto_advance_rfc`. Compact by default; `--pretty` for human reading. Read-only; exit 2 with actionable stderr when the RFC file is absent.
+- **New pure-lib module `lib/rfc-tasks.ts`** exporting `isStandaloneTask(task)` and `computeRfcTasksView(repoRoot, rfcId)`. Used by the CLI subcommand above and (transitively) by the walker.
+
+### Changed
+
+- **Walker RFC auto-advance now considers standalone tasks.** The `cloverleaf-run-plan` SKILL.md's RFC auto-advance block replaces its v0.7.4 inline `jq` sibling-Plan scan with a single `cloverleaf-cli rfc-tasks` call and reads `summary.can_auto_advance_rfc`. Standalone tasks under the same `parent_rfc` block the advance when in-flight and count toward the at-least-one-delivered requirement when merged. Closes the latent v0.7.4 bug where an RFC could be advanced while standalone tasks were still pending under it.
+- `/cloverleaf-new-task` SKILL.md `--rfc=<ID>` Rules entry now cross-links to the README § "Plans vs RFC-direct tasks" and names the workflow shape it produces.
+
+### Docs
+
+- New section in `reference-impl/README.md` titled "Plans vs RFC-direct tasks": when to use each, auto-advance semantics, the `task_batch_gate` tradeoff.
+- New section in methodology site `guide/04-discovery.mdx` titled "RFC-direct tasks".
+- Clarifying sentence in `guide/06-work-items.mdx` Task entry covering the `parent: null + context.rfc` shape.
+- New FAQ entry: "When should I use a Plan vs go RFC → Task directly?"
+
+### Tests
+
+- +18 unit tests in `tests/rfc-tasks.test.ts` (`isStandaloneTask` + `computeRfcTasksView` happy path, in-flight blocks, all-rejected, all-rejected-mixed, standalone-only, RFC-not-approved, missing RFC, cross-project, orphan exclusion, missing-dirs guard, empty workspace).
+- +4 CLI integration tests in `tests/cli.test.ts` (compact / `--pretty` / missing-RFC exit 2 / usage error).
+- Walker v0.7.4 RFC-advance regression block (7 tests) replaced with v0.7.5 block (6 tests) reflecting the new CLI-driven shape.
+- +11 content-guard tests in `tests/skills.test.ts` (README section, chapter 4 section, chapter 6 clarification, FAQ entry, package.json version).
+
 ## 0.7.4 — 2026-05-11
 
 ### Added

@@ -292,36 +292,29 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
    If not every task is merged (some escalated or awaiting), do NOT advance the Plan. Print the partial-completion report from the bullets above.
 
-   **RFC auto-advance (Standard 0.6.0+).** Immediately after the Plan-advance commit lands, check whether the parent RFC can also advance to `completed`. Read the just-completed plan's `parent_rfc` (project + id), then scan all sibling plans of that RFC:
+   **RFC auto-advance (Standard 0.6.0+ + rfc-tasks 0.7.5+).** Immediately after the Plan-advance commit lands, ask `cloverleaf-cli rfc-tasks` whether the parent RFC can also advance to `completed`. The CLI considers BOTH sibling Plans AND RFC-direct (standalone) tasks under the same `parent_rfc` — an in-flight standalone task blocks the advance, a merged standalone task counts toward the at-least-one-delivered requirement.
 
    ```bash
-   PARENT_RFC_PROJECT=$(jq -r '.parent_rfc.project' <repo_root>/.cloverleaf/plans/<PLAN-ID>.json)
    PARENT_RFC_ID=$(jq -r '.parent_rfc.id' <repo_root>/.cloverleaf/plans/<PLAN-ID>.json)
-   RFC_STATUS=$(jq -r '.status' <repo_root>/.cloverleaf/rfcs/"$PARENT_RFC_ID".json)
 
-   # Count sibling Plans still in-flight (drafting, gate-pending, or approved)
-   INFLIGHT=$(jq -s --arg proj "$PARENT_RFC_PROJECT" --arg id "$PARENT_RFC_ID" \
-     '[.[] | select(.parent_rfc.project == $proj and .parent_rfc.id == $id and (.status == "drafting" or .status == "gate-pending" or .status == "approved"))] | length' \
-     <repo_root>/.cloverleaf/plans/*.json)
+   RFC_VIEW=$(cloverleaf-cli rfc-tasks <repo_root> "$PARENT_RFC_ID")
+   CAN_ADVANCE=$(echo "$RFC_VIEW" | jq -r '.summary.can_auto_advance_rfc')
 
-   # Count sibling Plans in completed (need at least one to advance)
-   COMPLETED=$(jq -s --arg proj "$PARENT_RFC_PROJECT" --arg id "$PARENT_RFC_ID" \
-     '[.[] | select(.parent_rfc.project == $proj and .parent_rfc.id == $id and .status == "completed")] | length' \
-     <repo_root>/.cloverleaf/plans/*.json)
-
-   if [ "$RFC_STATUS" = "approved" ] && [ "$INFLIGHT" = "0" ] && [ "$COMPLETED" != "0" ]; then
+   if [ "$CAN_ADVANCE" = "true" ]; then
+     DELIVERED=$(echo "$RFC_VIEW" | jq -r '"\(.summary.delivered_plans) plans, \(.summary.delivered_standalone) standalone tasks"')
      cloverleaf-cli advance-rfc <repo_root> "$PARENT_RFC_ID" completed agent
      git -C <repo_root> add .cloverleaf/rfcs/"$PARENT_RFC_ID".json .cloverleaf/events/
-     git -C <repo_root> commit -m "cloverleaf: rfc $PARENT_RFC_ID completed ($COMPLETED sibling plans completed, 0 in-flight)"
+     git -C <repo_root> commit -m "cloverleaf: rfc $PARENT_RFC_ID completed ($DELIVERED delivered, 0 in-flight)"
      echo "✓ RFC $PARENT_RFC_ID advanced approved → completed."
    fi
    ```
 
-   Auto-advance rules in plain language:
-   - Skip entirely if the RFC's `status` is not `approved` (already terminal, already abandoned, or somehow still pre-approval — leave it).
-   - Skip if any sibling Plan is still in-flight (`drafting`, `gate-pending`, or `approved`) — more work is pending on this RFC.
-   - Skip if no sibling Plan is `completed` (all `rejected`) — the RFC's decomposition was uniformly rejected; operator must decide whether to abandon or re-decompose.
-   - Otherwise advance the RFC to `completed`. Idempotent: the status guard makes re-runs safe.
+   Skip conditions encoded in `can_auto_advance_rfc`:
+   - RFC is not at `approved` (already terminal, abandoned, or somehow still pre-approval).
+   - Any sibling Plan is in-flight (`drafting`, `gate-pending`, or `approved`) OR any standalone task is in a non-terminal state.
+   - No Plan reached `completed` AND no standalone task reached `merged` — the RFC has nothing delivered (e.g. all child Plans were rejected); operator must decide whether to abandon or re-decompose.
+
+   Idempotent: the `rfc.status === "approved"` guard inside `can_auto_advance_rfc` makes re-runs of `/cloverleaf-run-plan` against a fully-merged plan safe.
 
    ## Next steps (release publishing)
 
@@ -399,3 +392,5 @@ The concrete policy JSON is the same one used during the CLV-16..CLV-20 dogfood 
 ## Notes
 
 **Vocab dependency.** The walker reads `notification_contract.vocabulary` from the `start_session` response advisorily — if the expected tokens (`DONE`, `NEEDS-INPUT`) are absent it warns to stderr but continues. The authoritative source of truth for which tokens Session B will emit is the SDK's `--driven-tokens` flag passed when claw-drive spawns the session. A mismatch between the contract and the actual flag signals a version skew between the claw-drive server and the reference-impl skill; upgrade both components together to keep them in sync.
+
+**RFC-direct task participation in RFC auto-advance.** Tasks with no `parent` field but with `context.rfc` set (created via `/cloverleaf-new-task --rfc=<RFC-ID>`) are *first-class* participants in the `can_auto_advance_rfc` check. They block the advance when in-flight; they count toward delivery when merged. See `cloverleaf-cli rfc-tasks <repo_root> <RFC-ID>` for the categorized view this dispatch reads from, or `reference-impl/README.md` § "Plans vs RFC-direct tasks" for the user-facing pattern docs.
