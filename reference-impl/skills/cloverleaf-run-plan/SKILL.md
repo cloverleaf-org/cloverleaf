@@ -295,7 +295,6 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
    **RFC auto-advance (Standard 0.6.0+ + rfc-tasks 0.7.5+).** Immediately after the Plan-advance commit lands, ask `cloverleaf-cli rfc-tasks` whether the parent RFC can also advance to `completed`. The CLI considers BOTH sibling Plans AND RFC-direct (standalone) tasks under the same `parent_rfc` — an in-flight standalone task blocks the advance, a merged standalone task counts toward the at-least-one-delivered requirement.
 
    ```bash
-   PARENT_RFC_PROJECT=$(jq -r '.parent_rfc.project' <repo_root>/.cloverleaf/plans/<PLAN-ID>.json)
    PARENT_RFC_ID=$(jq -r '.parent_rfc.id' <repo_root>/.cloverleaf/plans/<PLAN-ID>.json)
 
    RFC_VIEW=$(cloverleaf-cli rfc-tasks <repo_root> "$PARENT_RFC_ID")
@@ -394,4 +393,4 @@ The concrete policy JSON is the same one used during the CLV-16..CLV-20 dogfood 
 
 **Vocab dependency.** The walker reads `notification_contract.vocabulary` from the `start_session` response advisorily — if the expected tokens (`DONE`, `NEEDS-INPUT`) are absent it warns to stderr but continues. The authoritative source of truth for which tokens Session B will emit is the SDK's `--driven-tokens` flag passed when claw-drive spawns the session. A mismatch between the contract and the actual flag signals a version skew between the claw-drive server and the reference-impl skill; upgrade both components together to keep them in sync.
 
-**RFC-direct task participation in RFC auto-advance.** Tasks with no `parent` field but with `context.rfc` set (created via `/cloverleaf-new-task --rfc=<RFC-ID>`) are *first-class* participants in the `can_auto_advance_rfc` check. They block the advance when in-flight; they count toward delivery when merged. See `cloverleaf-cli rfc-tasks <RFC-ID>` for the categorized view this dispatch reads from, or `reference-impl/README.md` § "Plans vs RFC-direct tasks" for the user-facing pattern docs.
+**RFC-direct task participation in RFC auto-advance.** Tasks with no `parent` field but with `context.rfc` set (created via `/cloverleaf-new-task --rfc=<RFC-ID>`) are *first-class* participants in the `can_auto_advance_rfc` check. They block the advance when in-flight; they count toward delivery when merged. See `cloverleaf-cli rfc-tasks <repo_root> <RFC-ID>` for the categorized view this dispatch reads from, or `reference-impl/README.md` § "Plans vs RFC-direct tasks" for the user-facing pattern docs.
