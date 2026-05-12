@@ -1537,3 +1537,18 @@ describe('Site — guide chapter 6: Task parent clarification (v0.7.5)', () => {
     expect(ch6.toLowerCase()).toMatch(/rfc-direct|standalone/);
   });
 });
+
+describe('Site — FAQ entry for Plan vs RFC-direct (v0.7.5)', () => {
+  const faq = readFileSync(
+    resolve(__dirname, '..', '..', 'site', 'src', 'pages', 'faq.astro'),
+    'utf-8',
+  );
+
+  it('contains a question about Plan vs RFC → Task directly', () => {
+    expect(faq.toLowerCase()).toMatch(/plan.*vs.*rfc.*task|rfc.*direct/);
+  });
+
+  it('mentions task_batch_gate as the tradeoff', () => {
+    expect(faq).toMatch(/task_batch_gate/);
+  });
+});
