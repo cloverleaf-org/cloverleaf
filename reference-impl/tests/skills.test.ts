@@ -1524,3 +1524,16 @@ describe('Site — guide chapter 4: RFC-direct tasks (v0.7.5)', () => {
     expect(ch4).toMatch(/task_batch_gate/);
   });
 });
+
+describe('Site — guide chapter 6: Task parent clarification (v0.7.5)', () => {
+  const ch6 = readFileSync(
+    resolve(__dirname, '..', '..', 'site', 'src', 'content', 'guide', '06-work-items.mdx'),
+    'utf-8',
+  );
+
+  it('mentions parent: null + context.rfc as the RFC-direct task shape', () => {
+    expect(ch6).toMatch(/parent/);
+    expect(ch6).toMatch(/context\.rfc/);
+    expect(ch6.toLowerCase()).toMatch(/rfc-direct|standalone/);
+  });
+});
