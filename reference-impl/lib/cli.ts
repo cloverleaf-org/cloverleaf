@@ -67,7 +67,7 @@ import { readWalkState, writeWalkState, walkStatePath } from './walk-state.js';
 import { loadWalkerConfig } from './walker-config.js';
 import { classifyFiles } from './scope-check.js';
 import type { SiblingScope } from './scope-check.js';
-import { computeRfcTasksView } from './rfc-tasks.js';
+import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -387,12 +387,12 @@ try {
     }
 
     case 'rfc-tasks': {
-      const args = rest.filter(a => !a.startsWith('--'));
-      const flags = rest.filter(a => a.startsWith('--'));
-      const [repoRoot, rfcId] = args;
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [repoRoot, rfcId] = positional;
       if (!repoRoot || !rfcId) usage('rfc-tasks <repoRoot> <rfcId> [--pretty]');
       const pretty = flags.includes('--pretty');
-      let view;
+      let view: RfcTasksView;
       try {
         view = computeRfcTasksView(repoRoot, rfcId);
       } catch (err) {
