@@ -1500,3 +1500,27 @@ describe('README — Plans vs RFC-direct tasks section (v0.7.5)', () => {
     expect(readme).toMatch(/task_batch_gate/);
   });
 });
+
+describe('Site — guide chapter 4: RFC-direct tasks (v0.7.5)', () => {
+  const ch4 = readFileSync(
+    resolve(__dirname, '..', '..', 'site', 'src', 'content', 'guide', '04-discovery.mdx'),
+    'utf-8',
+  );
+
+  it('contains the section heading', () => {
+    expect(ch4).toMatch(/##\s+RFC-direct tasks/);
+  });
+
+  it('documents both use cases (hotfix + incremental)', () => {
+    expect(ch4.toLowerCase()).toMatch(/hotfix/);
+    expect(ch4.toLowerCase()).toMatch(/incremental/);
+  });
+
+  it('mentions cloverleaf-cli rfc-tasks for visibility', () => {
+    expect(ch4).toMatch(/cloverleaf-cli rfc-tasks/);
+  });
+
+  it('calls out the task_batch_gate tradeoff', () => {
+    expect(ch4).toMatch(/task_batch_gate/);
+  });
+});
