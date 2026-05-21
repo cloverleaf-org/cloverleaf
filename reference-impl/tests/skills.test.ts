@@ -1573,3 +1573,29 @@ describe('security-reviewer prompt (v0.8.0)', () => {
     expect(body).toMatch(/info|warning|error/);
   });
 });
+
+describe('cloverleaf-security-review skill (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-security-review', 'SKILL.md'), 'utf-8');
+  it('has frontmatter name cloverleaf-security-review', () => {
+    expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-security-review[\s\S]*?---/);
+  });
+  it('verifies task status is security-review', () => {
+    expect(body).toMatch(/status.*security-review/);
+  });
+  it('runs deterministic secret-scan (Pass A)', () => {
+    expect(body).toMatch(/cloverleaf-cli secret-scan <repo_root> --branch/);
+  });
+  it('dispatches the security-reviewer subagent (Pass B)', () => {
+    expect(body).toMatch(/prompts\/security-reviewer\.md/);
+    expect(body).toMatch(/subagent_type.*general-purpose/);
+  });
+  it('merges both passes and maps to all three transitions', () => {
+    expect(body).toMatch(/blocker.*escalate|escalate.*blocker/);
+    expect(body).toMatch(/automated-gates/);
+    expect(body).toMatch(/implementing/);
+    expect(body).toMatch(/escalated/);
+  });
+  it('writes feedback on non-pass', () => {
+    expect(body).toMatch(/write-feedback/);
+  });
+});
