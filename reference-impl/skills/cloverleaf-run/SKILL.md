@@ -30,7 +30,9 @@ Run this immediately after the task reaches `automated-gates` (Reviewer passed) 
 cloverleaf-cli classify-security <repo_root> <TASK-ID> --branch cloverleaf/<TASK-ID>
 ```
 
-Parse the JSON. If `effective == "low"` → skip the gate, proceed with the lane.
+Parse the JSON. If `classify-security` exits non-zero or emits unparseable output, do NOT silently skip security review (fail-open is unsafe for a security gate). Warn to the user and treat the task as `effective: "high"` — i.e. proceed into security-review anyway (fail toward more scrutiny). If `/cloverleaf-security-review` then cannot run either (e.g. branch/tooling broken), surface the failure and stop rather than merging unreviewed.
+
+If `effective == "low"` → skip the gate, proceed with the lane.
 
 If `effective == "high"`:
 - If `declared == "low"` (under-classification: `diff_detected` true), write back: load the task, set `security_class: "high"`, save it, then commit `cloverleaf: <TASK-ID> security_class → high (diff-detected)`.
@@ -109,7 +111,7 @@ Loop:
 
 - `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`
 - Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> escalated (bounce budget exhausted)"`.
-- Report: "✗ Escalated `<TASK-ID>`. Review `.cloverleaf/feedback/` and either refine the task or take over manually. Counters: reviewer=<N>, ui_reviewer=<N>, qa=<N>."
+- Report: "✗ Escalated `<TASK-ID>`. Review `.cloverleaf/feedback/` and either refine the task or take over manually. Counters: reviewer=<N>, ui_reviewer=<N>, qa=<N>, security=<N>."
 
 ## Rules
 
