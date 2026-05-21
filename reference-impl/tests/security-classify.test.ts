@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { loadSecurityPathsConfig, matchesSensitivePath, matchesSensitiveKeyword, computeSecurityClassification } from '../lib/security-classify.js';
 
 const cfg = loadSecurityPathsConfig(process.cwd());
@@ -61,5 +64,16 @@ describe('loadSecurityPathsConfig', () => {
   it('loads the shipped default', () => {
     expect(cfg.path_patterns.length).toBeGreaterThan(0);
     expect(cfg.keyword_patterns.length).toBeGreaterThan(0);
+  });
+  it('falls back to the default when the consumer override is malformed JSON', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'cloverleaf-test-'));
+    try {
+      mkdirSync(join(tmp, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(join(tmp, '.cloverleaf', 'config', 'security-paths.json'), '{ not valid json');
+      const result = loadSecurityPathsConfig(tmp);
+      expect(result.path_patterns.length).toBeGreaterThan(0);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
