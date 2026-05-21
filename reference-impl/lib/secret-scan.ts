@@ -16,9 +16,19 @@ export interface SecretFinding {
 }
 
 function normalize(doc: Partial<SecretPatternsConfig>): SecretPatternsConfig {
+  const raw = Array.isArray(doc.patterns) ? doc.patterns : [];
+  const validSeverities = new Set(['error', 'blocker']);
+  const patterns = raw.filter(
+    (p): p is SecretPattern =>
+      typeof (p as SecretPattern).name === 'string' && (p as SecretPattern).name.length > 0 &&
+      typeof (p as SecretPattern).regex === 'string' && (p as SecretPattern).regex.length > 0 &&
+      validSeverities.has((p as SecretPattern).severity),
+  );
   return {
-    patterns: Array.isArray(doc.patterns) ? doc.patterns : [],
-    placeholder_excludes: Array.isArray(doc.placeholder_excludes) ? doc.placeholder_excludes : [],
+    patterns,
+    placeholder_excludes: Array.isArray(doc.placeholder_excludes)
+      ? (doc.placeholder_excludes as unknown[]).filter((s): s is string => typeof s === 'string')
+      : [],
   };
 }
 
@@ -35,9 +45,23 @@ export function loadSecretPatternsConfig(repoRoot: string): SecretPatternsConfig
  * templates, obvious placeholders), keeping precision high.
  */
 function compileRegex(pattern: string): RegExp {
-  // Support (?i) inline flag prefix (not valid in JS) by converting to the 'i' flag
-  if (pattern.startsWith('(?i)')) return new RegExp(pattern.slice(4), 'i');
-  return new RegExp(pattern);
+  // Support (?i) inline flag prefix (not valid in JS) by converting to the 'i' flag.
+  // Only a *leading* (?i) is supported; any occurrence elsewhere is almost certainly
+  // a mistake (it would be a JS syntax error) — reject it with a clear message.
+  const original = pattern;
+  let flags = '';
+  if (pattern.startsWith('(?i)')) {
+    pattern = pattern.slice(4);
+    flags = 'i';
+  }
+  if (pattern.includes('(?i)')) {
+    throw new Error('secret-scan: inline (?i) flag is only supported as a leading prefix: ' + original);
+  }
+  try {
+    return new RegExp(pattern, flags);
+  } catch (err) {
+    throw new Error('secret-scan: invalid pattern regex /' + pattern + '/: ' + (err as Error).message);
+  }
 }
 
 export function scanSecrets(text: string, config: SecretPatternsConfig, file?: string): SecretFinding[] {
@@ -46,6 +70,10 @@ export function scanSecrets(text: string, config: SecretPatternsConfig, file?: s
   const findings: SecretFinding[] = [];
   const lines = text.split('\n');
   lines.forEach((line, idx) => {
+    // Deliberate line-level tradeoff: a line matching any exclude pattern is
+    // skipped entirely.  If a real secret happens to share a line with a
+    // placeholder token (e.g. a comment), it becomes a false-negative.
+    // This keeps precision high and avoids alert fatigue from generated files.
     if (excludes.some((re) => re.test(line))) return;
     for (const p of compiled) {
       if (p.re.test(line)) {

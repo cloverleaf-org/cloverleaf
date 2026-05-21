@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { scanSecrets, loadSecretPatternsConfig } from '../lib/secret-scan.js';
 
 const cfg = loadSecretPatternsConfig(process.cwd()); // shipped default (no consumer override at cwd)
@@ -49,10 +52,55 @@ describe('scanSecrets', () => {
     expect(f).toHaveProperty('severity');
     expect(f).toHaveProperty('message');
     expect(f).toHaveProperty('rule');
+    expect(f).toHaveProperty('location');
   });
 
   it('loadSecretPatternsConfig loads the shipped default patterns', () => {
     expect(cfg.patterns.length).toBeGreaterThan(0);
     expect(Array.isArray(cfg.placeholder_excludes)).toBe(true);
+  });
+});
+
+describe('secret-scan robustness', () => {
+  it('throws a descriptive error on an invalid pattern regex', () => {
+    const badCfg = {
+      patterns: [{ name: 'bad', regex: '(', severity: 'blocker' as const }],
+      placeholder_excludes: [],
+    };
+    expect(() => scanSecrets('x', badCfg)).toThrow(/invalid pattern regex/);
+  });
+
+  it('throws on a non-leading (?i)', () => {
+    const badCfg = {
+      patterns: [{ name: 'nonleading', regex: 'foo(?i)bar', severity: 'blocker' as const }],
+      placeholder_excludes: [],
+    };
+    expect(() => scanSecrets('x', badCfg)).toThrow(/leading prefix/);
+  });
+
+  it('loader drops malformed pattern entries', () => {
+    const tmp = mkdtempSync(join(tmpdir(), 'secret-scan-test-'));
+    try {
+      const configDir = join(tmp, '.cloverleaf', 'config');
+      mkdirSync(configDir, { recursive: true });
+      writeFileSync(
+        join(configDir, 'secret-patterns.json'),
+        JSON.stringify({
+          patterns: [
+            { name: 'valid-pattern', regex: 'AKIAIOSFODNN7', severity: 'blocker' },
+            { name: 'missing-regex', severity: 'blocker' },
+            { name: '', regex: 'something', severity: 'blocker' },
+            { name: 'bad-severity', regex: 'something', severity: 'warning' },
+            { regex: 'no-name', severity: 'error' },
+          ],
+          placeholder_excludes: [],
+        }),
+      );
+      const loaded = loadSecretPatternsConfig(tmp);
+      expect(loaded.patterns).toHaveLength(1);
+      expect(loaded.patterns[0].name).toBe('valid-pattern');
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
