@@ -1642,3 +1642,19 @@ describe('cloverleaf-run-plan — security escalation note (v0.8.0)', () => {
     expect(notes.toLowerCase()).toMatch(/security/);
   });
 });
+
+describe('README — Security review section (v0.8.0)', () => {
+  const readme = readFileSync(resolve(__dirname, '..', 'README.md'), 'utf-8');
+  it('has a Security review section', () => {
+    expect(readme).toMatch(/##\s+Security review/);
+  });
+  it('documents security_class + the two passes', () => {
+    expect(readme).toMatch(/security_class/);
+    expect(readme.toLowerCase()).toMatch(/secret scan|secret-scan/);
+    expect(readme.toLowerCase()).toMatch(/llm|judgment|vulnerab/);
+  });
+  it('names the override config files', () => {
+    expect(readme).toMatch(/security-paths\.json/);
+    expect(readme).toMatch(/secret-patterns\.json/);
+  });
+});
