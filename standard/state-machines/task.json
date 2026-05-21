@@ -5,7 +5,7 @@
     "terminal": ["merged", "rejected", "escalated"],
     "all": [
       "pending", "tactical-plan", "implementing", "documenting",
-      "review", "automated-gates", "ui-review", "qa", "final-gate",
+      "review", "automated-gates", "security-review", "ui-review", "qa", "final-gate",
       "merged", "rejected", "escalated"
     ]
   },
@@ -21,6 +21,10 @@
     { "from": "automated-gates", "to": "qa", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "No UI changes; skip UI Review." },
     { "from": "automated-gates", "to": "merged", "path": "fast_lane", "allowed_actors": ["human"], "gate": "human_merge", "description": "Fast Lane: gated by single Human Merge." },
     { "from": "automated-gates", "to": "implementing", "allowed_actors": ["agent"], "description": "Automated check failed; back to Implementer." },
+    { "from": "automated-gates", "to": "security-review", "allowed_actors": ["agent"] },
+    { "from": "security-review", "to": "automated-gates", "allowed_actors": ["agent"] },
+    { "from": "security-review", "to": "implementing", "allowed_actors": ["agent"] },
+    { "from": "security-review", "to": "escalated", "allowed_actors": ["agent", "human"] },
     { "from": "ui-review", "to": "qa", "path": "full_pipeline", "allowed_actors": ["agent"] },
     { "from": "ui-review", "to": "implementing", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "UI Review bounced." },
     { "from": "qa", "to": "final-gate", "path": "full_pipeline", "allowed_actors": ["agent"] },

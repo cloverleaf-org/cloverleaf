@@ -1,9 +1,12 @@
 /**
  * Conformance tests for standard/conformance/fixtures/.
  *
- * Each fixture file is a JSON object with a `tasks` array.  Every task entry
- * must validate against the task schema.  This suite is the canonical home for
- * multi-task fixture scenarios (e.g. overlapping scope.files_touched).
+ * Multi-task fixture files are JSON objects with a `tasks` array.  Every task
+ * entry must validate against the task schema.  This suite is the canonical
+ * home for multi-task fixture scenarios (e.g. overlapping scope.files_touched).
+ *
+ * Standalone single-task fixture files (no `tasks` array) are skipped by this
+ * suite; they are validated by dedicated per-fixture test files.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -42,7 +45,19 @@ describe('conformance/fixtures — scope.files_touched', () => {
       expect(fixtureFiles.length).toBeGreaterThan(0);
     });
 
-    for (const filename of fixtureFiles) {
+    // Only process multi-task fixtures (those with a `tasks` array).
+    // Standalone single-task fixtures are validated by dedicated test files.
+    const multiTaskFixtures = fixtureFiles.filter((filename) => {
+      const filePath = resolve(FIXTURES_DIR, filename);
+      const fixture = JSON.parse(readFileSync(filePath, 'utf-8')) as FixtureFile;
+      return Array.isArray(fixture.tasks);
+    });
+
+    it('at least one multi-task fixture exists', () => {
+      expect(multiTaskFixtures.length).toBeGreaterThan(0);
+    });
+
+    for (const filename of multiTaskFixtures) {
       const filePath = resolve(FIXTURES_DIR, filename);
       const fixture = JSON.parse(readFileSync(filePath, 'utf-8')) as FixtureFile;
 
