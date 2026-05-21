@@ -1634,3 +1634,11 @@ describe('cloverleaf-run — security gate (v0.8.0)', () => {
     expect(body).toMatch(/Security gate/);
   });
 });
+
+describe('cloverleaf-run-plan — security escalation note (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'), 'utf-8');
+  it('Notes mention security-review escalations are expected', () => {
+    const notes = body.slice(body.indexOf('## Notes'));
+    expect(notes.toLowerCase()).toMatch(/security/);
+  });
+});
