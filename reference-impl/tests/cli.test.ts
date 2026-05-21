@@ -1263,3 +1263,40 @@ describe('cli — rfc-tasks (v0.7.5)', () => {
   });
 });
 
+describe('cli — secret-scan (v0.8.0)', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-secret-scan-'));
+    execSync('git init -q -b main', { cwd: tmp });
+    execSync('git config user.email t@t.t', { cwd: tmp });
+    execSync('git config user.name t', { cwd: tmp });
+    writeFileSync(join(tmp, 'a.txt'), 'hello\n');
+    execSync('git add -A && git commit -q -m init', { cwd: tmp });
+    execSync('git checkout -q -b cloverleaf/T1', { cwd: tmp });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('emits a blocker finding for a hardcoded key in the branch diff', () => {
+    writeFileSync(join(tmp, 'cfg.py'), 'KEY = "AKIAIOSFODNN7EXAMPLE2"\n');
+    execSync('git add -A && git commit -q -m add', { cwd: tmp });
+    const r = run(['secret-scan', tmp, '--branch', 'cloverleaf/T1']);
+    expect(r.exitCode).toBe(0);
+    const out = JSON.parse(r.stdout);
+    expect(out.findings.some((f: { rule: string }) => f.rule === 'aws-access-key-id')).toBe(true);
+  });
+
+  it('emits zero findings for a clean diff', () => {
+    writeFileSync(join(tmp, 'b.txt'), 'just text\n');
+    execSync('git add -A && git commit -q -m add', { cwd: tmp });
+    const r = run(['secret-scan', tmp, '--branch', 'cloverleaf/T1']);
+    expect(r.exitCode).toBe(0);
+    expect(JSON.parse(r.stdout).findings).toEqual([]);
+  });
+
+  it('usage error when --branch missing', () => {
+    const r = run(['secret-scan', tmp]);
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr).toMatch(/secret-scan/);
+  });
+});
+

@@ -38,6 +38,7 @@
  *   walker-default-concurrency [--explain]
  *   check-scope <repoRoot> <taskId> --branch <branchName>
  *   extend-scope <repoRoot> <taskId> --add <file>... --reason <text>
+ *   secret-scan <repoRoot> --branch <branch>
  */
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -68,6 +69,7 @@ import { loadWalkerConfig } from './walker-config.js';
 import { classifyFiles } from './scope-check.js';
 import type { SiblingScope } from './scope-check.js';
 import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
+import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -111,7 +113,8 @@ function usage(msg?: string): never {
       '  walk-state-write <repoRoot> <walkStateJsonPath>\n' +
       '  walker-default-concurrency [--explain]\n' +
       '  check-scope <repoRoot> <taskId> --branch <branchName>\n' +
-      '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n'
+      '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n' +
+      '  secret-scan <repoRoot> --branch <branch>\n'
   );
   process.exit(2);
 }
@@ -742,6 +745,27 @@ try {
       appendFileSync(auditPath, JSON.stringify(auditEntry) + '\n');
 
       process.exit(0);
+    }
+
+    case 'secret-scan': {
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const branchIdx = rest.indexOf('--branch');
+      const branch = branchIdx >= 0 ? rest[branchIdx + 1] : undefined;
+      const [repoRoot] = positional;
+      if (!repoRoot || !branch) usage('secret-scan <repoRoot> --branch <branch>');
+      const cfg = loadSecretPatternsConfig(repoRoot);
+      // Scan added/changed lines only (the '+' lines of the diff, minus the +++ header),
+      // so we flag what THIS task introduced, not pre-existing secrets.
+      const diff = execSync(`git -C ${repoRoot} diff --unified=0 main..${branch}`, { encoding: 'utf-8' });
+      const addedByFile: Record<string, string[]> = {};
+      let curFile = '';
+      for (const line of diff.split('\n')) {
+        if (line.startsWith('+++ b/')) { curFile = line.slice(6); addedByFile[curFile] = []; }
+        else if (line.startsWith('+') && !line.startsWith('+++')) { (addedByFile[curFile] ||= []).push(line.slice(1)); }
+      }
+      const findings = Object.entries(addedByFile).flatMap(([f, lines]) => scanSecrets(lines.join('\n'), cfg, f));
+      process.stdout.write(JSON.stringify({ findings }) + '\n');
+      break;
     }
 
     default:
