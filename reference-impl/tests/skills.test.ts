@@ -1599,3 +1599,18 @@ describe('cloverleaf-security-review skill (v0.8.0)', () => {
     expect(body).toMatch(/write-feedback/);
   });
 });
+
+describe('cloverleaf-new-task — security_class inference (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-new-task', 'SKILL.md'), 'utf-8');
+  it('documents the --security=high|low override', () => {
+    expect(body).toMatch(/--security=high/);
+    expect(body).toMatch(/--security=low/);
+  });
+  it('infers security_class from sensitive markers (keyword/path)', () => {
+    expect(body).toMatch(/security_class/);
+    expect(body.toLowerCase()).toMatch(/sensitive|security-paths/);
+  });
+  it('defaults security_class to low', () => {
+    expect(body).toMatch(/security_class.*low|default.*low/i);
+  });
+});

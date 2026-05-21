@@ -35,7 +35,8 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
      "context": <see "context.rfc injection" below>,
      "acceptance_criteria": ["<criterion 1>", "<criterion 2>", "..."],
      "definition_of_done": ["<terminal statement of completion>"],
-     "risk_class": "low"
+     "risk_class": "low",
+     "security_class": "<see security_class inference below>"
    }
    ```
 
@@ -82,6 +83,11 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
      `site/`, `UI`, `page`, `component`, `style`, `visual`, `layout`, `render`, `display`, `accessibility`, `a11y`, `responsive`, `.astro`, `.css`, `.html`
   3. Also set `risk_class: "high"` for breaking APIs or cross-project work (v0.1.1 behavior, retained).
   4. Default: `risk_class: "low"`.
+- **`security_class` inference:** `security_class` (`"low"|"high"`, independent of `risk_class`) gates the Security Reviewer. Rules:
+  1. If the user passed `--security=high` or `--security=low`, honor it.
+  2. Otherwise set `"high"` when the brief, any acceptance criterion, OR any `scope.files_touched` entry matches a sensitive marker from `security-paths.json` (keyword patterns like `secret`, `credential`, `api key`, `token`, `password`, `exchange`, `sql`, `eval`, `subprocess`; or path patterns like `**/*.env*`, `**/secrets*`, `**/deploy*.sh`, `**/*.sql`, `**/auth*`). Consumers override the marker set at `.cloverleaf/config/security-paths.json`.
+  3. Default: `"low"`.
+- After writing the task, report the chosen `security_class` and why, e.g. `Security class: high → security review (matched keyword "credential"). Override with --security=low if desired.` Note: even when `low`, the orchestrator re-checks the actual diff at review time and routes to security-review if it touches sensitive paths (defense in depth).
 - After writing the task, report the chosen risk_class and how it was determined, e.g.:
   > "Risk class: `high` → full pipeline (matched keyword `component` in acceptance criterion). Override with `--risk=low` if desired."
 - Users can manually edit `risk_class` in the task JSON before running `/cloverleaf-run`.
