@@ -39,6 +39,7 @@
  *   check-scope <repoRoot> <taskId> --branch <branchName>
  *   extend-scope <repoRoot> <taskId> --add <file>... --reason <text>
  *   secret-scan <repoRoot> --branch <branch>
+ *   classify-security <repoRoot> <taskId> [--branch <branch>]
  */
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -70,6 +71,7 @@ import { classifyFiles } from './scope-check.js';
 import type { SiblingScope } from './scope-check.js';
 import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
 import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
+import { loadSecurityPathsConfig, computeSecurityClassification } from './security-classify.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -114,7 +116,8 @@ function usage(msg?: string): never {
       '  walker-default-concurrency [--explain]\n' +
       '  check-scope <repoRoot> <taskId> --branch <branchName>\n' +
       '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n' +
-      '  secret-scan <repoRoot> --branch <branch>\n'
+      '  secret-scan <repoRoot> --branch <branch>\n' +
+      '  classify-security <repoRoot> <taskId> [--branch <branch>]\n'
   );
   process.exit(2);
 }
@@ -765,6 +768,31 @@ try {
       }
       const findings = Object.entries(addedByFile).flatMap(([f, lines]) => scanSecrets(lines.join('\n'), cfg, f));
       process.stdout.write(JSON.stringify({ findings }) + '\n');
+      break;
+    }
+
+    case 'classify-security': {
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const branchIdx = rest.indexOf('--branch');
+      const branch = branchIdx >= 0 ? rest[branchIdx + 1] : undefined;
+      const [repoRoot, taskId] = positional;
+      if (!repoRoot || !taskId) usage('classify-security <repoRoot> <taskId> [--branch <branch>]');
+      let task;
+      try {
+        task = loadTask(repoRoot, taskId);
+      } catch (err) {
+        process.stderr.write(`cloverleaf-cli classify-security: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(2);
+      }
+      const declared = (task as Record<string, unknown>).security_class === 'high' ? 'high' : 'low';
+      const cfg = loadSecurityPathsConfig(repoRoot);
+      let changed: string[] = [];
+      if (branch) {
+        const out = execSync(`git -C ${repoRoot} diff --name-only main..${branch}`, { encoding: 'utf-8' });
+        changed = out.split('\n').filter(Boolean);
+      }
+      const result = computeSecurityClassification(declared, changed, cfg);
+      process.stdout.write(JSON.stringify(result) + '\n');
       break;
     }
 
