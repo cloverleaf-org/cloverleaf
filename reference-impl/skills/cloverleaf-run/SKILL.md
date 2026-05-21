@@ -17,9 +17,28 @@ Do NOT `git checkout main` from a walker worktree — main is held by the primar
 MAX_REVIEWER_BOUNCES    = 3
 MAX_UI_REVIEWER_BOUNCES = 3
 MAX_QA_BOUNCES          = 3
+MAX_SECURITY_BOUNCES    = 3
 ```
 
 These counters live in-session (not persisted). Rerunning `/cloverleaf-run` resets.
+
+## Security gate (both lanes)
+
+Run this immediately after the task reaches `automated-gates` (Reviewer passed) and BEFORE the lane's next move (fast lane: merge; full pipeline: detect-ui-paths). Initialize `security_bounces = 0` at orchestrator start (alongside the other bounce counters).
+
+```bash
+cloverleaf-cli classify-security <repo_root> <TASK-ID> --branch cloverleaf/<TASK-ID>
+```
+
+Parse the JSON. If `effective == "low"` → skip the gate, proceed with the lane.
+
+If `effective == "high"`:
+- If `declared == "low"` (under-classification: `diff_detected` true), write back: load the task, set `security_class: "high"`, save it, then commit `cloverleaf: <TASK-ID> security_class → high (diff-detected)`.
+- `cloverleaf-cli advance-status <repo_root> <TASK-ID> security-review agent`; commit.
+- Inline `/cloverleaf-security-review <TASK-ID>` steps. Reload the task:
+  - `status == "automated-gates"` → security review passed; proceed with the lane.
+  - `status == "implementing"` → bounced. `security_bounces += 1`. If `security_bounces >= MAX_SECURITY_BOUNCES`, escalate (section 6). Else re-enter the implement→review loop (fast lane section 4 / full pipeline section 5.1), which re-runs the security gate on its next pass.
+  - `status == "escalated"` → the security reviewer found a blocker; stop and surface to the user (a human must review `.cloverleaf/feedback/`). This is the security reviewer's own escalation, distinct from a bounce-budget exhaustion.
 
 ## Steps
 
@@ -33,7 +52,7 @@ These counters live in-session (not persisted). Rerunning `/cloverleaf-run` rese
 
 ### 4. Fast Lane
 
-Initialize `reviewer_bounces = 0`.
+Initialize `reviewer_bounces = 0`, `security_bounces = 0`.
 
 Loop:
   a. Inline `/cloverleaf-implement <TASK-ID>` steps.
@@ -42,11 +61,11 @@ Loop:
   d. If `status === "implementing"`: Reviewer bounced. `reviewer_bounces += 1`. If `reviewer_bounces >= MAX_REVIEWER_BOUNCES`, escalate (section 6). Else continue loop.
   e. Else: unexpected state. Report and stop.
 
-After loop: inline `/cloverleaf-merge <TASK-ID>`.
+After loop (status `automated-gates`): run the **Security gate (both lanes)** (above). Then inline `/cloverleaf-merge <TASK-ID>`.
 
 ### 5. Full Pipeline
 
-Initialize `reviewer_bounces = 0`, `ui_reviewer_bounces = 0`, `qa_bounces = 0`.
+Initialize `reviewer_bounces = 0`, `ui_reviewer_bounces = 0`, `qa_bounces = 0`, `security_bounces = 0`.
 
 5.1. **Implementer → Documenter → Reviewer loop:**
 
@@ -57,6 +76,8 @@ Loop:
   d. Reload task. If `status === "automated-gates"`: pass! Exit this loop.
   e. If `status === "implementing"`: Reviewer bounced. `reviewer_bounces += 1`. If `reviewer_bounces >= MAX_REVIEWER_BOUNCES`, escalate. Else continue loop.
   f. Else: unexpected. Report and stop.
+
+**Security gate.** Run the **Security gate (both lanes)** (above) now, before UI-path detection. Then continue to 5.2.
 
 5.2. **UI-path detection and conditional UI Review:**
 

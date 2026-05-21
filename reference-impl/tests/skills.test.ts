@@ -1614,3 +1614,23 @@ describe('cloverleaf-new-task — security_class inference (v0.8.0)', () => {
     expect(body).toMatch(/security_class.*low|default.*low/i);
   });
 });
+
+describe('cloverleaf-run — security gate (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'), 'utf-8');
+  it('declares a MAX_SECURITY_BOUNCES budget', () => {
+    expect(body).toMatch(/MAX_SECURITY_BOUNCES\s*=\s*3/);
+  });
+  it('runs classify-security with the task branch', () => {
+    expect(body).toMatch(/cloverleaf-cli classify-security <repo_root> <TASK-ID> --branch/);
+  });
+  it('advances to security-review and invokes the skill on effective high', () => {
+    expect(body).toMatch(/advance-status <repo_root> <TASK-ID> security-review agent/);
+    expect(body).toMatch(/cloverleaf-security-review/);
+  });
+  it('writes back security_class on under-classification', () => {
+    expect(body.toLowerCase()).toMatch(/under-classif|write.?back|diff_detected/);
+  });
+  it('has a Security gate section applied in both lanes', () => {
+    expect(body).toMatch(/Security gate/);
+  });
+});
