@@ -1,0 +1,13 @@
+{
+  "path_patterns": [
+    "**/*.env*", "**/secrets*", "**/*secret*", "**/*credential*",
+    "**/*.pem", "**/*.key", "**/id_rsa*", "**/auth*",
+    "**/deploy*.sh", "**/*.sql", "**/migrations/**",
+    "**/prompts/**", "**/skills/**", "**/*policy*.json"
+  ],
+  "keyword_patterns": [
+    "secret", "credential", "api[ _-]?key", "\\btoken\\b", "password",
+    "private key", "oauth", "exchange", "binance", "\\bsql\\b",
+    "\\beval\\b", "subprocess", "deserialize"
+  ]
+}
