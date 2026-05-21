@@ -1658,3 +1658,16 @@ describe('README — Security review section (v0.8.0)', () => {
     expect(readme).toMatch(/secret-patterns\.json/);
   });
 });
+
+describe('Site guide — security reviewer (v0.8.0)', () => {
+  const g = (f: string) => readFileSync(resolve(__dirname, '..', '..', 'site', 'src', 'content', 'guide', f), 'utf-8');
+  it('chapter 5 (delivery) mentions security-review', () => {
+    expect(g('05-delivery.mdx').toLowerCase()).toMatch(/security[ -]review/);
+  });
+  it('chapter 7 (agents) lists the Security Reviewer', () => {
+    expect(g('07-agents.mdx')).toMatch(/Security Reviewer/);
+  });
+  it('chapter 9 (risk) documents security_class', () => {
+    expect(g('09-risk.mdx')).toMatch(/security_class/);
+  });
+});
