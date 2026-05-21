@@ -5,7 +5,7 @@
   "status": "security-review",
   "owner": { "kind": "agent", "id": "security-reviewer" },
   "title": "Wire exchange credentials",
-  "context": {},
+  "context": { "rfc": { "project": "CLV", "id": "CLV-1" } },
   "acceptance_criteria": ["Engine authenticates against the exchange"],
   "definition_of_done": ["Auth succeeds; no -2015 error"],
   "risk_class": "low",

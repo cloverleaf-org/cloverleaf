@@ -6,7 +6,7 @@
  * home for multi-task fixture scenarios (e.g. overlapping scope.files_touched).
  *
  * Standalone single-task fixture files (no `tasks` array) are skipped by this
- * suite; they are validated by dedicated per-fixture test files.
+ * suite; they are validated by their own dedicated test files, e.g. security-fixture.test.ts.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -46,7 +46,7 @@ describe('conformance/fixtures — scope.files_touched', () => {
     });
 
     // Only process multi-task fixtures (those with a `tasks` array).
-    // Standalone single-task fixtures are validated by dedicated test files.
+    // Standalone single-task fixtures are validated by their own dedicated test files.
     const multiTaskFixtures = fixtureFiles.filter((filename) => {
       const filePath = resolve(FIXTURES_DIR, filename);
       const fixture = JSON.parse(readFileSync(filePath, 'utf-8')) as FixtureFile;
