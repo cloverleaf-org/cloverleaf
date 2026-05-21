@@ -1551,3 +1551,25 @@ describe('Site — FAQ entry for Plan vs RFC-direct (v0.7.5)', () => {
     expect(faq).toMatch(/task_batch_gate/);
   });
 });
+
+describe('security-reviewer prompt (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'prompts', 'security-reviewer.md'), 'utf-8');
+  it('has placeholders for task/diff', () => {
+    expect(body).toMatch(/\{\{task\}\}/);
+    expect(body).toMatch(/\{\{diff\}\}/);
+  });
+  it('instructs the reviewer to emit a feedback envelope with verdict + findings', () => {
+    expect(body).toMatch(/verdict/);
+    expect(body).toMatch(/findings/);
+    expect(body).toMatch(/pass|bounce|escalate/);
+  });
+  it('enumerates the vulnerability classes it judges', () => {
+    expect(body.toLowerCase()).toMatch(/injection/);
+    expect(body.toLowerCase()).toMatch(/deserializ/);
+    expect(body.toLowerCase()).toMatch(/auth/);
+  });
+  it('maps severity to the schema enum (info/warning/error/blocker)', () => {
+    expect(body).toMatch(/blocker/);
+    expect(body).toMatch(/info|warning|error/);
+  });
+});
