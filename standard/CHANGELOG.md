@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## 0.7.0 — 2026-05-13
+
+### Added
+- `task.security_class` enum (`low`/`high`, optional, default `low`) — independent of `risk_class`; gates the Security Reviewer.
+- `security-review` task state + transitions: `automated-gates → security-review`, `security-review → {automated-gates, implementing, escalated}`. Security review is an automated check off the `automated-gates` hub.
+- `conformance/fixtures/task-security-high.json` + `conformance/tests/security-fixture.test.ts`.
+
+### Compatibility
+- Additive only. All 0.6.x task documents validate unchanged (`security_class` optional; new state/transitions are new).
+
 ## 0.6.0 — 2026-05-11
 
 ### Added
