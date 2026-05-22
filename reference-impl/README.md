@@ -43,6 +43,7 @@ v0.2 implements both paths of the Delivery track:
 - `/cloverleaf-ui-review` — run UI Reviewer *(new in v0.2)*
 - `/cloverleaf-approve-baselines` — human baseline-approval gate; clears `baselines_pending` and advances `ui-review → qa` *(new in CLV-19)*
 - `/cloverleaf-qa` — run QA *(new in v0.2)*
+- `/cloverleaf-security-review` — Security Reviewer: deterministic secret scan + LLM vulnerability judgment; runs when `security_class` is `high`
 - `/cloverleaf-merge` — human gate (branches on state)
 - `/cloverleaf-run` — orchestrator (dispatches by `risk_class`)
 - `/cloverleaf-release` — publish a new `@cloverleaf/reference-impl` release; runs pre-flight checks then executes `git tag -a` / `git push origin main` / `git push origin <tag>` / `npm publish` / `gh release create`; accepts `[--dry-run] [--yes]` *(new in CLV-63)*
