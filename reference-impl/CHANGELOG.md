@@ -2,6 +2,18 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.8.0 — 2026-05-13
+
+### Added
+- **Security Reviewer (8th agent).** Hybrid two-pass Delivery step gated by the new `security_class` dimension, running off the `automated-gates` hub in both lanes. Pass A: deterministic `cloverleaf-cli secret-scan` (cloverleaf-authored minimal pattern set, consumer-overridable at `.cloverleaf/config/secret-patterns.json`). Pass B: LLM judgment subagent (`prompts/security-reviewer.md`) for injection/authz/deserialization/SSRF/validation/crypto. Findings merge into one envelope; max severity sets the verdict — `blocker` → escalated, `error`/`warning` → implementing, clean → automated-gates.
+- New skill `/cloverleaf-security-review`.
+- New CLI subcommands `secret-scan` and `classify-security`; new libs `lib/secret-scan.ts`, `lib/security-classify.ts`; new configs `config/secret-patterns.json`, `config/security-paths.json` (both consumer-overridable).
+- `/cloverleaf-new-task` infers `security_class` (keyword/path markers; `--security=high|low` override).
+
+### Changed
+- `/cloverleaf-run` runs a security gate off the `automated-gates` hub in both lanes (`MAX_SECURITY_BOUNCES=3`), with a review-time diff re-check + write-back on under-classification, and fail-toward-review if classify-security errors. The Reviewer skill is unchanged.
+- Bumped `@cloverleaf/standard` to `^0.7.0` (security_class + security-review state).
+
 ## 0.7.5 — 2026-05-12
 
 ### Added

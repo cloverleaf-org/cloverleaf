@@ -1263,3 +1263,100 @@ describe('cli — rfc-tasks (v0.7.5)', () => {
   });
 });
 
+describe('cli — secret-scan (v0.8.0)', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-secret-scan-'));
+    execSync('git init -q -b main', { cwd: tmp });
+    execSync('git config user.email t@t.t', { cwd: tmp });
+    execSync('git config user.name t', { cwd: tmp });
+    writeFileSync(join(tmp, 'a.txt'), 'hello\n');
+    execSync('git add -A && git commit -q -m init', { cwd: tmp });
+    execSync('git checkout -q -b cloverleaf/T1', { cwd: tmp });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('emits a blocker finding for a hardcoded key in the branch diff', () => {
+    writeFileSync(join(tmp, 'cfg.py'), 'KEY = "AKIAIOSFODNN7EXAMPLE2"\n');
+    execSync('git add -A && git commit -q -m add', { cwd: tmp });
+    const r = run(['secret-scan', tmp, '--branch', 'cloverleaf/T1']);
+    expect(r.exitCode).toBe(0);
+    const out = JSON.parse(r.stdout);
+    expect(out.findings.some((f: { rule: string }) => f.rule === 'aws-access-key-id')).toBe(true);
+  });
+
+  it('emits zero findings for a clean diff', () => {
+    writeFileSync(join(tmp, 'b.txt'), 'just text\n');
+    execSync('git add -A && git commit -q -m add', { cwd: tmp });
+    const r = run(['secret-scan', tmp, '--branch', 'cloverleaf/T1']);
+    expect(r.exitCode).toBe(0);
+    expect(JSON.parse(r.stdout).findings).toEqual([]);
+  });
+
+  it('usage error when --branch missing', () => {
+    const r = run(['secret-scan', tmp]);
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr).toMatch(/secret-scan/);
+  });
+});
+
+describe('cli — classify-security (v0.8.0)', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-classify-sec-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+    execSync('git init -q -b main', { cwd: tmp });
+    execSync('git config user.email t@t.t', { cwd: tmp });
+    execSync('git config user.name t', { cwd: tmp });
+    writeFileSync(join(tmp, 'seed.txt'), 'x\n');
+    execSync('git add -A && git commit -q -m init', { cwd: tmp });
+  });
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  function writeTask(id: string, securityClass?: string): void {
+    const doc: Record<string, unknown> = {
+      type: 'task', id, project: 'CC', status: 'automated-gates',
+      owner: { kind: 'agent', id: 'implementer' }, title: 't',
+      context: { rfc: { project: 'CC', id: 'CC-1' } },
+      acceptance_criteria: ['a'], definition_of_done: ['d'], risk_class: 'low',
+    };
+    if (securityClass) doc.security_class = securityClass;
+    writeFileSync(join(tmp, `.cloverleaf/tasks/${id}.json`), JSON.stringify(doc) + '\n');
+  }
+
+  it('declared high → effective high (no branch needed)', () => {
+    writeTask('CC-1', 'high');
+    const r = run(['classify-security', tmp, 'CC-1']);
+    expect(r.exitCode).toBe(0);
+    expect(JSON.parse(r.stdout).effective).toBe('high');
+  });
+
+  it('declared low + sensitive path in diff → effective high (diff_detected)', () => {
+    writeTask('CC-2', 'low');
+    execSync('git checkout -q -b cloverleaf/CC-2', { cwd: tmp });
+    mkdirSync(join(tmp, 'scripts'), { recursive: true });
+    writeFileSync(join(tmp, 'scripts/deploy.sh'), 'echo deploy\n');
+    execSync('git add -A && git commit -q -m add', { cwd: tmp });
+    const r = run(['classify-security', tmp, 'CC-2', '--branch', 'cloverleaf/CC-2']);
+    const out = JSON.parse(r.stdout);
+    expect(out.diff_detected).toBe(true);
+    expect(out.effective).toBe('high');
+    expect(out.matched_paths).toContain('scripts/deploy.sh');
+  });
+
+  it('declared low + benign diff → effective low', () => {
+    writeTask('CC-3', 'low');
+    execSync('git checkout -q -b cloverleaf/CC-3', { cwd: tmp });
+    writeFileSync(join(tmp, 'notes.txt'), 'benign\n');
+    execSync('git add -A && git commit -q -m add', { cwd: tmp });
+    const r = run(['classify-security', tmp, 'CC-3', '--branch', 'cloverleaf/CC-3']);
+    expect(JSON.parse(r.stdout).effective).toBe('low');
+  });
+
+  it('exits 2 when task missing', () => {
+    const r = run(['classify-security', tmp, 'CC-999']);
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr.toLowerCase()).toMatch(/task.*cc-999.*not found/);
+  });
+});
+

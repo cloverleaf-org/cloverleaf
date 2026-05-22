@@ -43,6 +43,7 @@ v0.2 implements both paths of the Delivery track:
 - `/cloverleaf-ui-review` — run UI Reviewer *(new in v0.2)*
 - `/cloverleaf-approve-baselines` — human baseline-approval gate; clears `baselines_pending` and advances `ui-review → qa` *(new in CLV-19)*
 - `/cloverleaf-qa` — run QA *(new in v0.2)*
+- `/cloverleaf-security-review` — Security Reviewer: deterministic secret scan + LLM vulnerability judgment; runs when `security_class` is `high`
 - `/cloverleaf-merge` — human gate (branches on state)
 - `/cloverleaf-run` — orchestrator (dispatches by `risk_class`)
 - `/cloverleaf-release` — publish a new `@cloverleaf/reference-impl` release; runs pre-flight checks then executes `git tag -a` / `git push origin main` / `git push origin <tag>` / `npm publish` / `gh release create`; accepts `[--dry-run] [--yes]` *(new in CLV-63)*
@@ -197,6 +198,18 @@ Returns the RFC's status, all sibling Plans (with their child tasks), all standa
 ### The tradeoff to name
 
 Skipping the Plan = skipping `task_batch_gate`. That's the right tradeoff for hotfixes (one task; no decomposition to review) and for one-task-at-a-time incremental work. It's the wrong tradeoff for a large multi-task scope where the human's review of the decomposition is the load-bearing checkpoint. Plans are a checkpoint, not ceremony.
+
+## Security review
+
+The **Security Reviewer** (8th agent) runs when a task's effective `security_class` is `high`, off the `automated-gates` hub in both lanes — so it covers fast-lane backend work, not just full-pipeline UI work.
+
+**What triggers it.** `security_class` (`low`/`high`, independent of the UI-keyed `risk_class`) is inferred at task creation from sensitive markers (keywords + paths) and re-checked against the actual diff at review time (defense in depth — a task whose brief never says "credential" but whose diff touches `engine/exchange.py` is caught). Override at creation with `--security=high|low`.
+
+**Two passes.** (A) a deterministic secret scan (`cloverleaf-cli secret-scan`) over the diff's added lines — cloud keys, tokens, PEM headers, credentialed connection strings; (B) an LLM judgment pass reasoning about injection, broken authz, unsafe deserialization, SSRF, missing input validation, weak crypto.
+
+**Routing.** Findings merge into one feedback envelope; the max severity sets the verdict — any `blocker` (e.g. a leaked credential) → `escalated` (a human must review); `error`/`warning` → `implementing` (the Implementer fixes); clean → `automated-gates` → onward.
+
+**Customizing.** Both pattern sets are consumer-overridable: `.cloverleaf/config/security-paths.json` (sensitive paths + keywords) and `.cloverleaf/config/secret-patterns.json` (secret regexes + placeholder excludes).
 
 ## License
 

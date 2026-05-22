@@ -1,0 +1,80 @@
+import { readFileSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const DEFAULT_CONFIG = join(here, '..', 'config', 'security-paths.json');
+
+export interface SecurityPathsConfig { path_patterns: string[]; keyword_patterns: string[]; }
+
+function globToRegex(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const regex = escaped
+    .replace(/\*\*/g, '\u0000')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\u0000/g, '.*');
+  return new RegExp(`^${regex}$`);
+}
+
+function normalize(doc: Partial<SecurityPathsConfig>): SecurityPathsConfig {
+  return {
+    path_patterns: Array.isArray(doc.path_patterns) ? doc.path_patterns.filter((p) => typeof p === 'string') : [],
+    keyword_patterns: Array.isArray(doc.keyword_patterns) ? doc.keyword_patterns.filter((k) => typeof k === 'string') : [],
+  };
+}
+
+function loadDefaultConfig(): SecurityPathsConfig {
+  if (!existsSync(DEFAULT_CONFIG)) {
+    throw new Error(`security-paths config not found at ${DEFAULT_CONFIG}`);
+  }
+  return normalize(JSON.parse(readFileSync(DEFAULT_CONFIG, 'utf-8')) as Partial<SecurityPathsConfig>);
+}
+
+export function loadSecurityPathsConfig(repoRoot: string): SecurityPathsConfig {
+  const consumerPath = join(repoRoot, '.cloverleaf', 'config', 'security-paths.json');
+  if (existsSync(consumerPath)) {
+    try {
+      return normalize(JSON.parse(readFileSync(consumerPath, 'utf-8')) as Partial<SecurityPathsConfig>);
+    } catch {
+      // fall through
+    }
+  }
+  return loadDefaultConfig();
+}
+
+export function matchesSensitivePath(file: string, cfg: SecurityPathsConfig): boolean {
+  return cfg.path_patterns.some((p) => globToRegex(p).test(file));
+}
+
+export function matchesSensitiveKeyword(text: string, cfg: SecurityPathsConfig): boolean {
+  return cfg.keyword_patterns.some((k) => {
+    try {
+      return new RegExp(k, 'i').test(text);
+    } catch {
+      return false;
+    }
+  });
+}
+
+export interface SecurityClassification {
+  declared: 'low' | 'high';
+  diff_detected: boolean;
+  effective: 'low' | 'high';
+  matched_paths: string[];
+}
+
+/**
+ * Compute effective security classification. `declared` is the task's
+ * security_class (default low). `changedFiles` (e.g. from `git diff --name-only`)
+ * are matched against path_patterns for diff-detection.
+ */
+export function computeSecurityClassification(
+  declared: 'low' | 'high',
+  changedFiles: string[],
+  cfg: SecurityPathsConfig,
+): SecurityClassification {
+  const matched = changedFiles.filter((f) => matchesSensitivePath(f, cfg));
+  const diff_detected = matched.length > 0;
+  const effective = declared === 'high' || diff_detected ? 'high' : 'low';
+  return { declared, diff_detected, effective, matched_paths: matched };
+}

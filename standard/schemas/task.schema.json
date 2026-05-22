@@ -12,7 +12,7 @@
       "type": "string",
       "enum": [
         "pending", "tactical-plan", "implementing", "documenting",
-        "review", "automated-gates", "ui-review", "qa", "final-gate",
+        "review", "automated-gates", "security-review", "ui-review", "qa", "final-gate",
         "merged", "rejected", "escalated"
       ]
     },
@@ -69,6 +69,11 @@
       "type": "string",
       "enum": ["low", "high"],
       "description": "Computed by the deterministic Risk Classifier. 'low' = Fast Lane eligible; 'high' = Full Pipeline."
+    },
+    "security_class": {
+      "type": "string",
+      "enum": ["low", "high"],
+      "description": "Independent of risk_class. When 'high' (or diff-detected at review time), the task routes through security-review off the automated-gates hub. Absent ⇒ treated as 'low'."
     },
     "scope": {
       "type": "object",

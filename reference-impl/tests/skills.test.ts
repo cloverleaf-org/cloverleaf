@@ -1095,12 +1095,12 @@ describe('CHANGELOG.md (v0.6.1)', () => {
   });
 });
 
-describe('package.json (v0.7.5)', () => {
+describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.7.5', () => {
-    // v0.7.5: RFC-direct tasks formalisation (lib/rfc-tasks.ts + cloverleaf-cli rfc-tasks + walker auto-advance fix).
-    expect(pkg.version).toBe('0.7.5');
+  it('reports version 0.8.0', () => {
+    // v0.8.0: Security Reviewer agent + security_class dimension.
+    expect(pkg.version).toBe('0.8.0');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
@@ -1549,5 +1549,125 @@ describe('Site — FAQ entry for Plan vs RFC-direct (v0.7.5)', () => {
 
   it('mentions task_batch_gate as the tradeoff', () => {
     expect(faq).toMatch(/task_batch_gate/);
+  });
+});
+
+describe('security-reviewer prompt (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'prompts', 'security-reviewer.md'), 'utf-8');
+  it('has placeholders for task/diff', () => {
+    expect(body).toMatch(/\{\{task\}\}/);
+    expect(body).toMatch(/\{\{diff\}\}/);
+  });
+  it('instructs the reviewer to emit a feedback envelope with verdict + findings', () => {
+    expect(body).toMatch(/verdict/);
+    expect(body).toMatch(/findings/);
+    expect(body).toMatch(/pass|bounce|escalate/);
+  });
+  it('enumerates the vulnerability classes it judges', () => {
+    expect(body.toLowerCase()).toMatch(/injection/);
+    expect(body.toLowerCase()).toMatch(/deserializ/);
+    expect(body.toLowerCase()).toMatch(/auth/);
+  });
+  it('maps severity to the schema enum (info/warning/error/blocker)', () => {
+    expect(body).toMatch(/blocker/);
+    expect(body).toMatch(/info|warning|error/);
+  });
+});
+
+describe('cloverleaf-security-review skill (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-security-review', 'SKILL.md'), 'utf-8');
+  it('has frontmatter name cloverleaf-security-review', () => {
+    expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-security-review[\s\S]*?---/);
+  });
+  it('verifies task status is security-review', () => {
+    expect(body).toMatch(/status.*security-review/);
+  });
+  it('runs deterministic secret-scan (Pass A)', () => {
+    expect(body).toMatch(/cloverleaf-cli secret-scan <repo_root> --branch/);
+  });
+  it('dispatches the security-reviewer subagent (Pass B)', () => {
+    expect(body).toMatch(/prompts\/security-reviewer\.md/);
+    expect(body).toMatch(/subagent_type.*general-purpose/);
+  });
+  it('merges both passes and maps to all three transitions', () => {
+    expect(body).toMatch(/blocker.*escalate|escalate.*blocker/);
+    expect(body).toMatch(/automated-gates/);
+    expect(body).toMatch(/implementing/);
+    expect(body).toMatch(/escalated/);
+  });
+  it('writes feedback on non-pass', () => {
+    expect(body).toMatch(/write-feedback/);
+  });
+});
+
+describe('cloverleaf-new-task — security_class inference (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-new-task', 'SKILL.md'), 'utf-8');
+  it('documents the --security=high|low override', () => {
+    expect(body).toMatch(/--security=high/);
+    expect(body).toMatch(/--security=low/);
+  });
+  it('infers security_class from sensitive markers (keyword/path)', () => {
+    expect(body).toMatch(/security_class/);
+    expect(body.toLowerCase()).toMatch(/sensitive|security-paths/);
+  });
+  it('defaults security_class to low', () => {
+    expect(body).toMatch(/security_class.*low|default.*low/i);
+  });
+});
+
+describe('cloverleaf-run — security gate (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'), 'utf-8');
+  it('declares a MAX_SECURITY_BOUNCES budget', () => {
+    expect(body).toMatch(/MAX_SECURITY_BOUNCES\s*=\s*3/);
+  });
+  it('runs classify-security with the task branch', () => {
+    expect(body).toMatch(/cloverleaf-cli classify-security <repo_root> <TASK-ID> --branch/);
+  });
+  it('advances to security-review and invokes the skill on effective high', () => {
+    expect(body).toMatch(/advance-status <repo_root> <TASK-ID> security-review agent/);
+    expect(body).toMatch(/cloverleaf-security-review/);
+  });
+  it('writes back security_class on under-classification', () => {
+    expect(body.toLowerCase()).toMatch(/under-classif|write.?back|diff_detected/);
+  });
+  it('has a Security gate section applied in both lanes', () => {
+    expect(body).toMatch(/Security gate/);
+  });
+});
+
+describe('cloverleaf-run-plan — security escalation note (v0.8.0)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'), 'utf-8');
+  it('Notes mention security-review escalations are expected', () => {
+    const notes = body.slice(body.indexOf('## Notes'));
+    expect(notes.toLowerCase()).toMatch(/security/);
+  });
+});
+
+describe('README — Security review section (v0.8.0)', () => {
+  const readme = readFileSync(resolve(__dirname, '..', 'README.md'), 'utf-8');
+  it('has a Security review section', () => {
+    expect(readme).toMatch(/##\s+Security review/);
+  });
+  it('documents security_class + the two passes', () => {
+    expect(readme).toMatch(/security_class/);
+    expect(readme.toLowerCase()).toMatch(/secret scan|secret-scan/);
+    expect(readme.toLowerCase()).toMatch(/llm|judgment|vulnerab/);
+  });
+  it('names the override config files', () => {
+    expect(readme).toMatch(/security-paths\.json/);
+    expect(readme).toMatch(/secret-patterns\.json/);
+  });
+});
+
+describe('Site guide — security reviewer (v0.8.0)', () => {
+  const g = (f: string) => readFileSync(resolve(__dirname, '..', '..', 'site', 'src', 'content', 'guide', f), 'utf-8');
+  it('chapter 5 (delivery) mentions security-review', () => {
+    expect(g('05-delivery.mdx').toLowerCase()).toMatch(/security[ -]review/);
+  });
+  it('chapter 7 (agents) lists the Security Reviewer', () => {
+    expect(g('07-agents.mdx')).toMatch(/Security Reviewer/);
+  });
+  it('chapter 9 (risk) documents security_class', () => {
+    expect(g('09-risk.mdx')).toMatch(/security_class/);
   });
 });

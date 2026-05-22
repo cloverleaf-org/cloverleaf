@@ -6,8 +6,10 @@ title: 'Agents'
 
 import AgentMatrix from '../../components/AgentMatrix.astro';
 
-Cloverleaf defines 7 default agent roles. They are recommended, not mandated — phases bind, agents are flexible.
+Cloverleaf defines 8 default agent roles. They are recommended, not mandated — phases bind, agents are flexible.
 
 <AgentMatrix />
 
-A solo developer can run all 7 by switching personas in a single session. A 50-person team can map them to specialized teams. The methodology only requires that the *function* of each role is filled at the right phase.
+The 8th role, **Security Reviewer**, is a hybrid two-pass agent: deterministic secret scan (cloud keys, tokens, PEM headers) followed by LLM judgment (injection, authz, deserialization, SSRF, input validation, weak crypto). It routes by severity — blocker findings escalate, error/warning findings bounce back to the Implementer, clean diffs pass. It runs at the `automated-gates` hub when a task's `security_class` is high.
+
+A solo developer can run all 8 by switching personas in a single session. A 50-person team can map them to specialized teams. The methodology only requires that the *function* of each role is filled at the right phase.

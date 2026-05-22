@@ -29,8 +29,9 @@ The Delivery Track executes Tasks through one of two lanes based on deterministi
 1. **Pickup** — The Implementer Agent picks up an approved Task with its Definition of Done, Acceptance Criteria, and risk markers.
 2. **Risk Classifier** — Rules-based, deterministic. Examines the Task's touched paths against project-defined rules (e.g., changes under <Code>auth/</Code> are always Full Pipeline). Conservative by design: only escalates, never downgrades.
 3. **Fast Lane / Full Pipeline** — Fast Lane: Implementer → Reviewer → Final Approval. Full Pipeline adds: UI Reviewer (if frontend touched), QA Agent (if functional tests warranted), Documenter Agent (always).
-4. **Final Approval Gate** *(Human)* — The single human gate in Delivery. Approves merge.
-5. **Merge & Deploy** — The Implementer (or a deploy agent) merges and ships.
+4. **Security Review** — Runs at the `automated-gates` hub in both lanes when a task's `security_class` is high. The Security Reviewer executes after code review and before merge/UI-review: a deterministic secret scan followed by an LLM vulnerability judgment. Blocker findings route to escalation; clean passes continue the lane.
+5. **Final Approval Gate** *(Human)* — The single human gate in Delivery. Approves merge.
+6. **Merge & Deploy** — The Implementer (or a deploy agent) merges and ships.
 
 <Callout title="Why deterministic risk">
   AI is good at reasoning but bad at calibrating its own risk tolerance. Hard rules prevent an agent from talking itself into shipping a Fast Lane change that should have been Full Pipeline.
