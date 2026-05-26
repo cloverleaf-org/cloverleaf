@@ -48,6 +48,7 @@ export const VALIDATOR_LEVEL: Readonly<Record<string, Level>> = {
   'relationship-mirror': 'L2',
   'status-by-type': 'L2',
   'status-transition-legality': 'L2',
+  'security-gate': 'L2',
   // L3
   'gate-decision-validity': 'L3',
 };

@@ -2,6 +2,22 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## 0.7.1 — 2026-05-26
+
+**Stricter conformance.** Tasks valid under 0.7.0 with `security_class=high` advanced past `automated-gates` without a security review are invalid under 0.7.1. This plugs a gap in v0.7.0 where the security-review state was modeled but the prose-driven orchestration didn't always honor the bookkeeping; the rule is now mechanical (see reference-impl 0.8.1's advance-status guard).
+
+### Added
+- `task.security_review_verdict` — optional field, enum `"pass" | "bounce" | "escalate" | null`, default `null`. Records the outcome of the most recent security-review run. Reuses the existing verdict enum. (from CLV-101)
+- `security_gate: true` annotation on three state-machine transitions out of `automated-gates`: → `ui-review` (full_pipeline), → `qa` (full_pipeline), → `merged` (fast_lane). (from CLV-101)
+- `resets_security_verdict: true` annotation on `review → automated-gates`. (from CLV-101)
+- TypeScript `Task` interface extended with optional `security_class` and `security_review_verdict`; `StatusTransitions` transitions item type extended with optional `security_gate` and `resets_security_verdict`. (from CLV-101)
+- `validators/security-gate.ts` — new validator. When a transition with `security_gate: true` is taken and the task's `security_class === "high"`, requires `security_review_verdict === "pass"`. Otherwise illegal.
+- New conformance tests for the validator (2×4 matrix on flagged transitions + control on non-flagged) and a new fixture `task-security-high-verdict-pass.json`.
+- Verdict-reset post-condition test on `review → automated-gates`.
+
+### Migration
+Consumers upgrading from 0.7.0 to 0.7.1 must ensure that any in-flight task with `security_class=high` has been through the `security-review` state with `security_review_verdict='pass'` before attempting to advance past `automated-gates` (to `ui-review`, `qa`, or `merged`). Tasks with `security_class=low` or `security_class` absent are unaffected. The `security_review_verdict` field is optional and defaults to `null`; legacy task documents without it continue to validate but will be refused on guarded transitions when `security_class=high`. To migrate: run the security-review skill on any blocked high-security task and write back `security_review_verdict='pass'` before retrying the advance.
+
 ## 0.7.0 — 2026-05-13
 
 ### Added
