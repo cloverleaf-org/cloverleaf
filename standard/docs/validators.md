@@ -166,3 +166,30 @@ Violation = { rule, message, path?, workItemId?, severity: "error" | "warning" }
 - `any → escalated` transitions are universal (listed per-state in the machine).
 
 **Reference impl:** `validators/status-transition-legality.ts`
+
+---
+
+## #9 — Security gate
+
+**Purpose:** When a state-machine transition is annotated `security_gate: true` and the task has `security_class === "high"`, the transition is only legal if `security_review_verdict === "pass"`.
+**Input:** `StatusTransitionEvent`, `StatusTransitions`, optional `Task`
+**Returns:** `Ok` if the gate does not apply or is satisfied; `Violations` if a high-security task attempts a guarded transition without a passing verdict.
+
+**Algorithm:**
+1. If `workItem` is absent or `workItem.type !== "task"`, return Ok (non-task items are not subject to the security gate).
+2. Locate the transition `t` in `stateMachine.transitions` where `t.from == event.from_status` and `t.to == event.to_status`. If not found or `t.security_gate !== true`, return Ok.
+3. If `workItem.security_class !== "high"`, return Ok (rule only applies to high-security tasks).
+4. If `workItem.security_review_verdict === "pass"`, return Ok.
+5. Otherwise, return Violations with rule `"security-gate"`, severity `"error"`, and a message naming the blocked transition and the current verdict.
+
+**Edge cases:**
+- Tasks with `security_class` absent or `"low"` are always Ok regardless of verdict.
+- A verdict of `null`, `"bounce"`, or `"escalate"` all fail the gate; only `"pass"` satisfies it.
+- The `resets_security_verdict: true` annotation on `review → automated-gates` is a data-model concern; this validator does not enforce the reset — it only checks whether the current verdict is `"pass"` at guard time.
+
+**Guarded transitions (as of 0.7.1):**
+- `automated-gates → ui-review` (full_pipeline)
+- `automated-gates → qa` (full_pipeline)
+- `automated-gates → merged` (fast_lane)
+
+**Reference impl:** `validators/security-gate.ts`

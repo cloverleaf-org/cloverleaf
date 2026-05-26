@@ -26,7 +26,7 @@ An L2 implementer can not only produce documents but also consume and emit statu
 **Scope (adds to L1):**
 
 - Schemas: `feedback`, `problem`, `status-transition-event`, `status-transitions`, `dependency-dag`
-- Validators: `cross-project-ref`, `dag-acyclic`, `plan-tasks-match-dag`, `relationship-mirror`, `status-by-type`, `status-transition-legality`
+- Validators: `cross-project-ref`, `dag-acyclic`, `plan-tasks-match-dag`, `relationship-mirror`, `security-gate`, `status-by-type`, `status-transition-legality`
 - State machines: all four (`rfc`, `spike`, `plan`, `task`)
 
 ### L3 — Host
