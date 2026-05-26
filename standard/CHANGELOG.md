@@ -2,6 +2,14 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## [Unreleased]
+
+### Added
+- `task.security_review_verdict` optional field (`"pass" | "bounce" | "escalate" | null`, default `null`) — records the outcome of a Security Reviewer cycle. Null until a review completes; reset to `null` on any transition that carries `resets_security_verdict: true`.
+- State-machine transition annotations: `security_gate: true` on the three `automated-gates →` outbound transitions (to `ui-review`, `qa`, and `merged`) — signals that an L3 Host must gate on `security_review_verdict` before allowing passage; `resets_security_verdict: true` on the `review → automated-gates` transition — signals that the field is cleared on re-entry.
+- TypeScript type additions: `security_class` and `security_review_verdict` optional properties on the `Task` interface; `security_gate` and `resets_security_verdict` optional boolean properties on `StatusTransitions` transition items.
+- Conformance tests: 4 new `status-transitions.test.ts` cases covering `security_gate` / `resets_security_verdict` annotation identity; 6 new `task.test.ts` cases covering `security_review_verdict` field acceptance and rejection.
+
 ## 0.7.0 — 2026-05-13
 
 ### Added
