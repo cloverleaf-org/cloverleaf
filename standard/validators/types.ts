@@ -49,6 +49,8 @@ export interface Task extends WorkItem {
   definition_of_done: string[];
   acceptance_criteria: string[];
   risk_class: 'low' | 'high';
+  security_class?: 'low' | 'high';
+  security_review_verdict?: 'pass' | 'bounce' | 'escalate' | null;
 }
 
 export interface Project {
@@ -92,6 +94,8 @@ export interface StatusTransitions {
     gate?: string;
     path?: 'fast_lane' | 'full_pipeline';
     description?: string;
+    security_gate?: boolean;
+    resets_security_verdict?: boolean;
   }>;
 }
 
