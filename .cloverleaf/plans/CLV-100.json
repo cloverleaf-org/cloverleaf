@@ -1,0 +1,515 @@
+{
+  "id": "CLV-100",
+  "type": "plan",
+  "status": "gate-pending",
+  "owner": {
+    "kind": "agent",
+    "id": "plan"
+  },
+  "project": "CLV",
+  "parent_rfc": {
+    "project": "CLV",
+    "id": "CLV-99"
+  },
+  "task_dag": {
+    "nodes": [
+      {
+        "project": "CLV",
+        "id": "CLV-101"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-102"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-103"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-104"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-105"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-106"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-107"
+      },
+      {
+        "project": "CLV",
+        "id": "CLV-108"
+      }
+    ],
+    "edges": [
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-101"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-102"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-102"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-103"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-102"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-107"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-104"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-107"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-105"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-107"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-105"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-106"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-106"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-108"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-107"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-108"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-103"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-104"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-103"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-105"
+        }
+      },
+      {
+        "from": {
+          "project": "CLV",
+          "id": "CLV-104"
+        },
+        "to": {
+          "project": "CLV",
+          "id": "CLV-105"
+        }
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "id": "CLV-101",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Standard 0.7.1 contract additions: task.security_review_verdict field + state-machine annotations + TypeScript types",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "standard/schemas/task.schema.json gains an optional `security_review_verdict` property of type [string, null] with enum [\"pass\", \"bounce\", \"escalate\", null] and default null; not added to required[].",
+        "standard/state-machines/task.json carries `security_gate: true` on exactly three transitions out of automated-gates: → ui-review (full_pipeline), → qa (full_pipeline), → merged (fast_lane). No other transitions carry the flag.",
+        "standard/state-machines/task.json carries `resets_security_verdict: true` on the review → automated-gates transition. No other transition carries this flag.",
+        "standard/validators/types.ts: Task interface extended with optional `security_review_verdict?: 'pass' | 'bounce' | 'escalate' | null` and `security_class?: 'low' | 'high'` (if not already present from 0.8.0).",
+        "standard/validators/types.ts: StatusTransitions transitions[] item type extended with optional `security_gate?: boolean` and `resets_security_verdict?: boolean`.",
+        "standard/conformance/tests/task.test.ts extended with coverage of the new field (accepts pass/bounce/escalate/null, accepts absent, rejects invalid values).",
+        "standard/conformance/tests/status-transitions.test.ts extended with a state-machine schema sanity test verifying the four annotations land on exactly the four named transitions (typo detector for `security_gate` / `resets_security_verdict`).",
+        "Full standard conformance suite passes (`cd standard && npm run build && npm test`) with the new tests green and no pre-existing regressions."
+      ],
+      "acceptance_criteria": [
+        "Loading `standard/schemas/task.schema.json` and validating a Task fixture with security_review_verdict=\"pass\" returns true; with security_review_verdict=\"approved\" returns false.",
+        "Reading `standard/state-machines/task.json` and filtering for transitions with security_gate===true yields exactly three entries matching the (from=automated-gates, to∈{ui-review,qa,merged}) triple.",
+        "Reading the same state-machine and filtering for resets_security_verdict===true yields exactly one entry (review → automated-gates).",
+        "`tsc --noEmit` over standard/ succeeds — the new optional Task fields and the extended StatusTransitions transitions[] item type compile without errors.",
+        "Standard conformance suite count after this task: ~124 baseline + ~6 new field-coverage cases + ~4 new state-machine sanity cases ≈ 134+, with zero failures."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "standard/schemas/task.schema.json",
+          "standard/state-machines/task.json",
+          "standard/validators/types.ts",
+          "standard/conformance/tests/task.test.ts",
+          "standard/conformance/tests/status-transitions.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "CLV-102",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Standard 0.7.1: validateSecurityGate validator + conformance tests + fixture + version bump",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "standard/validators/security-gate.ts created, exporting `validateSecurityGate(event, stateMachine, workItem): ValidationResult`. Signature matches the existing `validateStatusTransitionLegality` shape. Behavior per spec §2: early-exits ok for non-task work items, for transitions without security_gate, and for tasks whose security_class !== 'high'; returns ok when security_review_verdict === 'pass'; otherwise returns { ok:false, violations:[{ rule:'security-gate', severity:'error', message:..., workItemId:... }] } with the canonical message naming the transition, current values, and the recovery action 'Advance to security-review first.'",
+        "standard/validators/index.ts exports `validateSecurityGate` alongside the existing validator exports.",
+        "standard/conformance/tests/validator-security-gate.test.ts created and covers the full 2×4 matrix on each of the three flagged transitions (low×{null,pass,bounce,escalate} all legal; high×{null,bounce,escalate} illegal; high×pass legal), the control matrix on non-flagged transitions (high×null legal for automated-gates → implementing, → escalated, → security-review), and edge cases (non-task work item legal; transition not found in state machine legal).",
+        "standard/conformance/fixtures/task-security-high-verdict-pass.json created with security_class='high' and security_review_verdict='pass', a unique id distinct from existing fixtures, and matching the shape of the existing task-security-high.json fixture.",
+        "standard/conformance/tests/security-fixture.test.ts extended to validate the new fixture and to assert the verdict-reset post-condition (a task in automated-gates after a review→automated-gates transition must validate with security_review_verdict=null).",
+        "standard/CHANGELOG.md gets a new top entry `## 0.7.1 — 2026-05-26` with the canonical 'stricter conformance' phrasing per the spec §7, an Added section listing the field, annotations, and validator, and a Migration section.",
+        "standard/VERSION bumped from 0.7.0 to 0.7.1.",
+        "standard/package.json `version` field bumped from 0.7.0 to 0.7.1.",
+        "Full standard conformance suite passes (`cd standard && npm run build && npm test`) — ~124 baseline + ~12 new ≈ 136+ tests, zero failures."
+      ],
+      "acceptance_criteria": [
+        "Invoking validateSecurityGate with a status_transition event for automated-gates → merged on a task with security_class='high' and security_review_verdict=null returns ok:false with violations[0].rule === 'security-gate' and a message matching /security_review_verdict.*pass/ AND /security_class.*high/ AND /Advance to security-review first/.",
+        "Invoking validateSecurityGate with the same event on a task with security_class='high' and security_review_verdict='pass' returns ok:true.",
+        "Invoking validateSecurityGate on automated-gates → implementing with security_class='high' and security_review_verdict=null returns ok:true (control: non-flagged transition).",
+        "Reading standard/conformance/fixtures/task-security-high-verdict-pass.json and validating it against task.schema.json returns true.",
+        "`cat standard/VERSION` outputs 0.7.1; `node -p \"require('./standard/package.json').version\"` outputs 0.7.1; standard/CHANGELOG.md head contains the literal phrase 'Stricter conformance' and references 'security_class=high'.",
+        "Full conformance suite after the bump produces a green run with no skipped tests."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "standard/validators/security-gate.ts",
+          "standard/validators/index.ts",
+          "standard/conformance/tests/validator-security-gate.test.ts",
+          "standard/conformance/tests/security-fixture.test.ts",
+          "standard/conformance/fixtures/task-security-high-verdict-pass.json",
+          "standard/CHANGELOG.md",
+          "standard/VERSION",
+          "standard/package.json"
+        ]
+      }
+    },
+    {
+      "id": "CLV-103",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "reference-impl: TaskDoc.security_review_verdict + classifyTaskSecurity helper refactor + wire validateSecurityGate into advanceWorkItemStatus",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "reference-impl/lib/task.ts: TaskDoc interface extended with optional `security_review_verdict?: 'pass' | 'bounce' | 'escalate' | null` (and `security_class?: 'low' | 'high'` if not already present from 0.8.0). Load/save round-trip preserves the field, including the null value distinct from absent.",
+        "reference-impl/lib/security-classify.ts: new exported helper `classifyTaskSecurity(repoRoot, taskId, opts?: { branch?: string; changedFiles?: string[] }): SecurityClassification`. Composes loadTask + git diff against the task's feature branch (default `cloverleaf/<taskId>`) + computeSecurityClassification + loadSecurityPathsConfig. Supports `changedFiles` injection as a testing seam. Git invocation errors return an empty changed-file list (the caller decides fail-toward-review).",
+        "reference-impl/lib/cli.ts: the existing `classify-security` subcommand handler refactored to call `classifyTaskSecurity` rather than inlining git+computeSecurityClassification. Behavior — argv shape, stdout JSON, exit code, --branch flag — is unchanged from the user's perspective.",
+        "reference-impl/lib/work-item.ts: `advanceWorkItemStatus` imports `validateSecurityGate` from @cloverleaf/standard/validators/index.js and invokes it after the existing `validateStatusTransitionLegality` check, gated on workItemType === 'task'. On security-gate failure, throws an Error whose `.code === 'SECURITY_GATE'` and whose message is the validator's violation message (no 'Illegal transition:' prefix).",
+        "The validator is invoked with the same workItemForValidator shape passed to validateStatusTransitionLegality. The Task fixture passed in carries security_class and security_review_verdict so the validator can read them.",
+        "reference-impl/tests/cli.test.ts gains coverage of the wiring: advance-status refuses automated-gates → ui-review on high+null with a 'security-gate' error; allows it on high+pass and low+null; allows automated-gates → implementing (unconditional escape hatch) even on high+null.",
+        "reference-impl/tests/security-classify.test.ts gains coverage of classifyTaskSecurity: declared=low + injected sensitive file → effective='high', diff_detected=true; declared=low + injected benign file → effective='low'; declared='high' + any file list → effective='high'.",
+        "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~4 new wiring tests + ~3 new helper tests."
+      ],
+      "acceptance_criteria": [
+        "saveTask + loadTask round-trip preserves security_review_verdict='pass' verbatim; preserves security_review_verdict=null distinct from an absent property when applicable.",
+        "Calling classifyTaskSecurity(repoRoot, taskId, { changedFiles: ['engine/exchange.py'] }) on a task with security_class='low' returns { declared:'low', diff_detected:true, effective:'high', ... }.",
+        "Calling advanceStatus on a task with status='automated-gates', security_class='high', security_review_verdict=null with toStatus='ui-review' throws an Error matching /security-gate/ whose .code === 'SECURITY_GATE'.",
+        "Calling the same with security_review_verdict='pass' completes successfully; loadTask shows status='ui-review'.",
+        "Calling advanceStatus with toStatus='implementing' on the same high+null task completes successfully (unconditional escape hatch preserved).",
+        "Existing `cloverleaf-cli classify-security <repoRoot> <taskId>` CLI invocation continues to emit the same JSON envelope it did before the refactor (argv, stdout, exit code unchanged)."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/lib/task.ts",
+          "reference-impl/lib/work-item.ts",
+          "reference-impl/lib/security-classify.ts",
+          "reference-impl/lib/cli.ts",
+          "reference-impl/tests/cli.test.ts",
+          "reference-impl/tests/security-classify.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "CLV-104",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "reference-impl: classify-security writeback + verdict-reset in advanceStatus",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "reference-impl/lib/task.ts: `advanceStatus` inspects the target transition. When `transition.security_gate === true`: (1) calls classifyTaskSecurity; (2) on classify-security exception, surfaces a stderr warning and treats effective='high' (fail-toward-review per spec §5); (3) when declared='low' and effective='high', writes back `security_class='high'`, persists to disk, commits with message `cloverleaf: <ID> security_class → high (diff-detected)`, and mutates the in-memory task so the downstream validator reads the high value.",
+        "reference-impl/lib/task.ts: `advanceStatus` when `transition.resets_security_verdict === true` writes `security_review_verdict: null` into the persisted task atomically with the status change. Commit message form: `cloverleaf: <ID> status review → automated-gates; security_review_verdict → null (rework)`.",
+        "reference-impl/lib/security-classify.ts: testing seam exposed — `__setMockChangedFiles(files: string[] | null)` — used only by tests. classifyTaskSecurity consults the mock first when set, then opts.changedFiles, then git.",
+        "reference-impl/tests/cli.test.ts: new `advance-status: classify-security writeback` block — declared='low' + sensitive mocked diff on a guarded transition → writeback fires (reload shows security_class='high') AND validator subsequently refuses (high+null); declared='low' + benign mocked diff → no writeback, advance succeeds.",
+        "reference-impl/tests/cli.test.ts: new `advance-status: verdict reset on review → automated-gates` block — resets pass to null; idempotent on null; does NOT reset on transitions without the flag (e.g. security-review → automated-gates).",
+        "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~5 new tests across writeback + reset."
+      ],
+      "acceptance_criteria": [
+        "Calling advanceStatus on a task {status:'automated-gates', security_class:'low', security_review_verdict:null} with mock changedFiles=['engine/exchange.py'] and toStatus='ui-review' throws a SECURITY_GATE error AND a fresh loadTask shows security_class='high'.",
+        "Calling advanceStatus on a task {status:'automated-gates', security_class:'low', security_review_verdict:null} with mock changedFiles=['README.md'] and toStatus='ui-review' completes successfully; loadTask shows status='ui-review' and security_class still 'low'.",
+        "Calling advanceStatus from status='review' to toStatus='automated-gates' on a task with security_review_verdict='pass' completes successfully; loadTask shows security_review_verdict===null and status='automated-gates'. Git log shows a single commit whose message contains both 'status review → automated-gates' and 'security_review_verdict → null'.",
+        "Calling advanceStatus from status='security-review' to toStatus='automated-gates' on a task with security_review_verdict='pass' does NOT reset the verdict — loadTask still shows security_review_verdict='pass'.",
+        "When classifyTaskSecurity is forced to throw (e.g. broken git repo), advance-status emits a stderr line containing 'classify-security' AND 'high', and the validator subsequently refuses the guarded transition for a class=null/low task."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/lib/task.ts",
+          "reference-impl/lib/security-classify.ts",
+          "reference-impl/tests/cli.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "CLV-105",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "reference-impl: CLI exit-code 2 routing for SECURITY_GATE + set-task-field subcommand",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "reference-impl/lib/cli.ts: the advance-status (or generic) catch block recognizes errors with `.code === 'SECURITY_GATE'`. For these errors it writes the bare validator message to stderr (no 'Illegal transition:' prefix, no 'Error:' prefix) and exits process with code 2. Generic illegal-transition errors continue to exit with the existing code (typically 1) via the existing path.",
+        "reference-impl/lib/cli.ts: new subcommand `set-task-field <repoRoot> <taskId> <field> <value>`. Loads the task, mutates the named field, saves. Field allowlist is a Set scoped initially to {'security_review_verdict'}; unknown fields exit with a clear error (non-zero exit code per existing die() convention) listing the allowed fields. The literal string 'null' is parsed to JSON null; other values are stored verbatim.",
+        "reference-impl/lib/cli.ts: usage() help string mentions `set-task-field <repoRoot> <taskId> <field> <value>`.",
+        "reference-impl/tests/cli.test.ts: new `CLI advance-status: security-gate refusal exit code` block — invoking the CLI binary (via execSync or matching the file's existing CLI test pattern) on a high+null task attempting a guarded transition exits with code 2 and a stderr matching /security_review_verdict.*pass/ and /Advance to security-review first/.",
+        "reference-impl/tests/cli.test.ts: new `CLI set-task-field` block — writes pass and verifies persistence; writes the literal string 'null' and verifies it persists as JSON null; rejects 'status' (not on the allowlist) with a non-zero exit.",
+        "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~4 new tests."
+      ],
+      "acceptance_criteria": [
+        "`cloverleaf-cli advance-status <repoRoot> <high+null TaskId> ui-review agent` (or the equivalent invocation that hits a guarded transition) exits with status code 2 and a stderr line matching the canonical message form.",
+        "`cloverleaf-cli set-task-field <repoRoot> <TaskId> security_review_verdict pass` exits 0; a subsequent loadTask shows security_review_verdict === 'pass'.",
+        "`cloverleaf-cli set-task-field <repoRoot> <TaskId> security_review_verdict null` exits 0; loadTask shows security_review_verdict === null (distinct from absent or string 'null').",
+        "`cloverleaf-cli set-task-field <repoRoot> <TaskId> status merged` exits with a non-zero code and a stderr line that names the allowed-field list.",
+        "`cloverleaf-cli --help` (or `cloverleaf-cli` with no args triggering usage) emits the set-task-field signature."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/lib/cli.ts",
+          "reference-impl/tests/cli.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "CLV-106",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "reference-impl: SKILL and prompt updates — verdict writes in security-review skill, refusal-and-recover prose in run skill, verdict in security-reviewer return contract",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "reference-impl/skills/cloverleaf-security-review/SKILL.md: each terminal branch (pass / bounce / escalate) emits two commits — first `cloverleaf-cli set-task-field <repo_root> <TASK-ID> security_review_verdict <pass|bounce|escalate>` followed by a focused commit, THEN `cloverleaf-cli advance-status <repo_root> <TASK-ID> <automated-gates|implementing|escalated> agent` followed by a focused commit. Verdict-write commit message form: `cloverleaf: <TASK-ID> security_review_verdict → <verdict>`.",
+        "reference-impl/skills/cloverleaf-run/SKILL.md: 'Security gate (both lanes)' section retains the explicit happy-path prose steering high-security tasks through security-review first (belt-and-suspenders). The under-classification writeback prose is simplified — the orchestrator can proactively run classify-security but the writeback is now mechanical and need not be scripted.",
+        "reference-impl/skills/cloverleaf-run/SKILL.md: gains a new 'Refusal and recover' subsection inside the security-gate section describing the v0.8.1 behavior — exit code 2 with a security-gate refusal means the task is high-security with no pass verdict; recovery is `advance-status security-review`, `/cloverleaf-security-review <TASK-ID>`, then retry the original advance.",
+        "reference-impl/prompts/security-reviewer.md: 'Return contract' / 'Response envelope' section explicitly requires a top-level `verdict` field on the response envelope, enum {'pass','bounce','escalate'}, derived from the maximum severity across findings per the canonical mapping (blocker→escalate, error|warning→bounce, info|none→pass).",
+        "reference-impl/tests/skills.test.ts: new coverage on the security-review SKILL — each branch text contains `set-task-field … security_review_verdict <verdict>` followed (in the same code block ordering) by `advance-status … <target-state>`; and new coverage on the cloverleaf-run SKILL — content matches /exit(s)? code 2/i, /security-gate refusal/i, /advance to.*security-review.*first/i, and retains the 'Security gate (both lanes)' header and the `cloverleaf-security-review` reference.",
+        "reference-impl/tests/prompts.test.ts: new coverage on security-reviewer.md — content matches /verdict[\\s\\S]*pass[\\s\\S]*bounce[\\s\\S]*escalate/i.",
+        "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~6 new SKILL/prompt tests."
+      ],
+      "acceptance_criteria": [
+        "grep `set-task-field` reference-impl/skills/cloverleaf-security-review/SKILL.md returns at least three matches (one per terminal branch).",
+        "Each terminal-branch code block in cloverleaf-security-review/SKILL.md shows the set-task-field invocation BEFORE the advance-status invocation; the commit message between them references `security_review_verdict → <verdict>`.",
+        "grep `Refusal and recover` reference-impl/skills/cloverleaf-run/SKILL.md returns at least one match; the surrounding paragraph references exit code 2 and the recovery sequence (advance to security-review → /cloverleaf-security-review → retry).",
+        "reference-impl/prompts/security-reviewer.md contains a section header or top-level paragraph that names `verdict` as a required envelope field and enumerates 'pass', 'bounce', and 'escalate'.",
+        "reference-impl/skills/cloverleaf-run/SKILL.md still contains a 'Security gate (both lanes)' header (belt-and-suspenders prose is preserved, not removed)."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/skills/cloverleaf-security-review/SKILL.md",
+          "reference-impl/skills/cloverleaf-run/SKILL.md",
+          "reference-impl/prompts/security-reviewer.md",
+          "reference-impl/tests/skills.test.ts",
+          "reference-impl/tests/prompts.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "CLV-107",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "reference-impl: integration tests for Flows 1–4 + backward-compat (includes the load-bearing Flow 2 dogfood reproduction)",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "reference-impl/tests/integration.security-gate.test.ts created. Each describe block drives the full CLI surface (advance-status, set-task-field) end-to-end against a temp repo; no LLM subagent involvement; uses the __setMockChangedFiles seam from CLV-104 to inject diffs deterministically.",
+        "Flow 1 — clean two-pass — covered: high task, null verdict, advance to security-review, set verdict pass, advance back to automated-gates, advance forward (ui-review) succeeds.",
+        "Flow 2 — under-classification at the door (THE LOAD-BEARING DOGFOOD REPRODUCTION) — covered: low-declared task with mocked sensitive diff attempts fast-lane merge directly; CLI exits 2 with security-gate refusal; the writeback fired (security_class is now 'high' on reload); the recover sequence (advance to security-review → set verdict pass → advance to automated-gates → retry merge) succeeds and the task ends at status='merged'.",
+        "Flow 3 — rework reset — covered: high task with verdict='pass' at status='review' advances to automated-gates and the verdict resets to null; the subsequent guarded advance refuses with exit 2.",
+        "Flow 4 — blocker → escalated — covered: set verdict='escalate' from status='security-review', advance to escalated; final state is terminal and the guard is never invoked.",
+        "Backward-compat — covered: a task whose security_review_verdict property is fully absent (simulating a 0.8.0-era task) is treated as null on read; review → automated-gates writes null explicitly via the reset; the subsequent guarded advance for a high-class task refuses.",
+        "Both build chains pass before the test run: `cd standard && npm run build` (provides validateSecurityGate + types to reference-impl via the workspace link) AND `cd reference-impl && npm run build`.",
+        "`cd reference-impl && npm test` reports zero failures with the five new integration tests green; full suite count ≈ baseline + total unit/integration adds from CLV-103…CLV-107."
+      ],
+      "acceptance_criteria": [
+        "Flow 1 test passes: a high-class task with verdict null traverses security-review → automated-gates → ui-review and the final loadTask shows status='ui-review' and security_review_verdict='pass'.",
+        "Flow 2 test passes (LOAD-BEARING): the initial advance from automated-gates → merged on a low-declared task with mocked sensitive diff exits with code 2 AND the post-refusal loadTask shows security_class='high' (writeback fired despite refusal). The recovery sequence completes; final loadTask shows status='merged' and security_review_verdict='pass'. The reproduced audit trail (state events, focused commits, feedback envelope written via the skill) matches the shape of the Flow 1 trail per spec §4.",
+        "Flow 3 test passes: after review → automated-gates on a verdict='pass' task, loadTask shows security_review_verdict===null; the immediately-following advance to ui-review exits 2.",
+        "Flow 4 test passes: after the advance to escalated, loadTask shows status='escalated' and security_review_verdict='escalate'; no subsequent guard-firing.",
+        "Backward-compat test passes: a task created without security_review_verdict in its JSON file has the field set to null by the first review → automated-gates reset; the subsequent guarded advance refuses with exit 2."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/tests/integration.security-gate.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "CLV-108",
+      "type": "task",
+      "status": "pending",
+      "owner": {
+        "kind": "agent",
+        "id": "implementer"
+      },
+      "project": "CLV",
+      "title": "Documentation + reference-impl 0.8.1 version bump + acceptance-walker scenario",
+      "context": {
+        "rfc": {
+          "project": "CLV",
+          "id": "CLV-99"
+        }
+      },
+      "definition_of_done": [
+        "reference-impl/README.md: the 'Security review' section gains a sentence noting that as of v0.8.1 the security-review step is mechanically enforced via the `security_gate` annotation; references exit code 2 and the belt-and-suspenders prose.",
+        "standard/README.md: the state-machine summary section gains a sentence noting that as of 0.7.1 the three transitions out of automated-gates are annotated `security_gate: true` and require `security_review_verdict === 'pass'` when `security_class === 'high'`; references validators/security-gate.ts.",
+        "site/src/content/guide/05-delivery.mdx: a short subsection added describing the security_gate / resets_security_verdict annotations and how they constrain the existing topology (no new states, only preconditions on three edges). Cross-reference 07-agents.mdx and 08-gates.mdx where appropriate.",
+        "site/src/content/guide/07-agents.mdx: the Security Reviewer section gains a short subsection 'Mechanical enforcement (reference-impl 0.8.1+)' describing advance-status's classify-security writeback and exit-code-2 refusal path, and the belt-and-suspenders relationship with orchestrator prose. Reference the v0.8.0 dogfood lesson as motivation.",
+        "reference-impl/VERSION bumped from 0.8.0 to 0.8.1.",
+        "reference-impl/package.json `version` bumped from 0.8.0 to 0.8.1; `peerDependencies['@cloverleaf/standard']` bumped from ^0.7.0 to ^0.7.1.",
+        "reference-impl/CHANGELOG.md gets a new top entry `## 0.8.1 — 2026-05-26` with Changed/Added/Dependencies sections per the spec §7 narrative, naming each load-bearing surface (advance-status guard, classify-security writeback, verdict reset, set-task-field subcommand, security-review SKILL verdict writes, run SKILL refusal-and-recover prose, security-reviewer prompt verdict requirement, ^0.7.1 standard peer bump).",
+        "reference-impl/scripts/acceptance-walker.sh gains (or already contains) a tagged scenario `flow2-dogfood-repro` whose script body reproduces the Flow 2 sequence end-to-end against a freshly-created temp repo and asserts the same recovery-path outcome captured in the CLV-107 Flow 2 integration test. Documented in a comment block at the top of the new scenario.",
+        "Final dual-suite green: `cd standard && npm run build && npm test` AND `cd reference-impl && npm run build && npm test` — both report zero failures.",
+        "Running `reference-impl/scripts/acceptance-walker.sh flow2-dogfood-repro` exits 0 with a stdout line indicating the refusal observed AND the recovery sequence succeeded AND the task reached status='merged'."
+      ],
+      "acceptance_criteria": [
+        "`cat reference-impl/VERSION` outputs 0.8.1; `node -p \"require('./reference-impl/package.json').version\"` outputs 0.8.1; `node -p \"require('./reference-impl/package.json').peerDependencies['@cloverleaf/standard']\"` outputs ^0.7.1.",
+        "reference-impl/CHANGELOG.md head contains '## 0.8.1' AND the literal phrases 'classify-security writeback', 'set-task-field', 'exit code 2', and '@cloverleaf/standard.*\\^0.7.1' (or a near-equivalent).",
+        "grep 'security_gate' standard/README.md returns at least one match; grep 'mechanically enforced' reference-impl/README.md returns at least one match.",
+        "site/src/content/guide/05-delivery.mdx contains a subsection mentioning `security_gate` and `resets_security_verdict`; site/src/content/guide/07-agents.mdx contains a subsection titled (or substantively named) 'Mechanical enforcement' mentioning advance-status exit code 2.",
+        "Running `bash reference-impl/scripts/acceptance-walker.sh flow2-dogfood-repro` end-to-end exits 0; stdout/stderr together contain evidence of the refusal (exit 2) AND the eventual merge, matching the Flow 2 trail asserted by CLV-107.",
+        "Final dual-suite run from cold (`cd standard && npm run build && npm test && cd ../reference-impl && npm run build && npm test`) reports zero failures across both packages."
+      ],
+      "risk_class": "high",
+      "scope": {
+        "files_touched": [
+          "reference-impl/README.md",
+          "standard/README.md",
+          "site/src/content/guide/05-delivery.mdx",
+          "site/src/content/guide/07-agents.mdx",
+          "reference-impl/VERSION",
+          "reference-impl/package.json",
+          "reference-impl/CHANGELOG.md",
+          "reference-impl/scripts/acceptance-walker.sh"
+        ]
+      }
+    }
+  ]
+}
