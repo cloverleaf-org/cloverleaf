@@ -1,0 +1,43 @@
+{
+  "id": "CLV-106",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "reference-impl: SKILL and prompt updates — verdict writes in security-review skill, refusal-and-recover prose in run skill, verdict in security-reviewer return contract",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/skills/cloverleaf-security-review/SKILL.md: each terminal branch (pass / bounce / escalate) emits two commits — first `cloverleaf-cli set-task-field <repo_root> <TASK-ID> security_review_verdict <pass|bounce|escalate>` followed by a focused commit, THEN `cloverleaf-cli advance-status <repo_root> <TASK-ID> <automated-gates|implementing|escalated> agent` followed by a focused commit. Verdict-write commit message form: `cloverleaf: <TASK-ID> security_review_verdict → <verdict>`.",
+    "reference-impl/skills/cloverleaf-run/SKILL.md: 'Security gate (both lanes)' section retains the explicit happy-path prose steering high-security tasks through security-review first (belt-and-suspenders). The under-classification writeback prose is simplified — the orchestrator can proactively run classify-security but the writeback is now mechanical and need not be scripted.",
+    "reference-impl/skills/cloverleaf-run/SKILL.md: gains a new 'Refusal and recover' subsection inside the security-gate section describing the v0.8.1 behavior — exit code 2 with a security-gate refusal means the task is high-security with no pass verdict; recovery is `advance-status security-review`, `/cloverleaf-security-review <TASK-ID>`, then retry the original advance.",
+    "reference-impl/prompts/security-reviewer.md: 'Return contract' / 'Response envelope' section explicitly requires a top-level `verdict` field on the response envelope, enum {'pass','bounce','escalate'}, derived from the maximum severity across findings per the canonical mapping (blocker→escalate, error|warning→bounce, info|none→pass).",
+    "reference-impl/tests/skills.test.ts: new coverage on the security-review SKILL — each branch text contains `set-task-field … security_review_verdict <verdict>` followed (in the same code block ordering) by `advance-status … <target-state>`; and new coverage on the cloverleaf-run SKILL — content matches /exit(s)? code 2/i, /security-gate refusal/i, /advance to.*security-review.*first/i, and retains the 'Security gate (both lanes)' header and the `cloverleaf-security-review` reference.",
+    "reference-impl/tests/prompts.test.ts: new coverage on security-reviewer.md — content matches /verdict[\\s\\S]*pass[\\s\\S]*bounce[\\s\\S]*escalate/i.",
+    "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~6 new SKILL/prompt tests."
+  ],
+  "acceptance_criteria": [
+    "grep `set-task-field` reference-impl/skills/cloverleaf-security-review/SKILL.md returns at least three matches (one per terminal branch).",
+    "Each terminal-branch code block in cloverleaf-security-review/SKILL.md shows the set-task-field invocation BEFORE the advance-status invocation; the commit message between them references `security_review_verdict → <verdict>`.",
+    "grep `Refusal and recover` reference-impl/skills/cloverleaf-run/SKILL.md returns at least one match; the surrounding paragraph references exit code 2 and the recovery sequence (advance to security-review → /cloverleaf-security-review → retry).",
+    "reference-impl/prompts/security-reviewer.md contains a section header or top-level paragraph that names `verdict` as a required envelope field and enumerates 'pass', 'bounce', and 'escalate'.",
+    "reference-impl/skills/cloverleaf-run/SKILL.md still contains a 'Security gate (both lanes)' header (belt-and-suspenders prose is preserved, not removed)."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/skills/cloverleaf-security-review/SKILL.md",
+      "reference-impl/skills/cloverleaf-run/SKILL.md",
+      "reference-impl/prompts/security-reviewer.md",
+      "reference-impl/tests/skills.test.ts",
+      "reference-impl/tests/prompts.test.ts"
+    ]
+  }
+}

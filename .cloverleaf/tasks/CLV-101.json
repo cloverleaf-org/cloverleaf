@@ -1,0 +1,44 @@
+{
+  "id": "CLV-101",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Standard 0.7.1 contract additions: task.security_review_verdict field + state-machine annotations + TypeScript types",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "standard/schemas/task.schema.json gains an optional `security_review_verdict` property of type [string, null] with enum [\"pass\", \"bounce\", \"escalate\", null] and default null; not added to required[].",
+    "standard/state-machines/task.json carries `security_gate: true` on exactly three transitions out of automated-gates: → ui-review (full_pipeline), → qa (full_pipeline), → merged (fast_lane). No other transitions carry the flag.",
+    "standard/state-machines/task.json carries `resets_security_verdict: true` on the review → automated-gates transition. No other transition carries this flag.",
+    "standard/validators/types.ts: Task interface extended with optional `security_review_verdict?: 'pass' | 'bounce' | 'escalate' | null` and `security_class?: 'low' | 'high'` (if not already present from 0.8.0).",
+    "standard/validators/types.ts: StatusTransitions transitions[] item type extended with optional `security_gate?: boolean` and `resets_security_verdict?: boolean`.",
+    "standard/conformance/tests/task.test.ts extended with coverage of the new field (accepts pass/bounce/escalate/null, accepts absent, rejects invalid values).",
+    "standard/conformance/tests/status-transitions.test.ts extended with a state-machine schema sanity test verifying the four annotations land on exactly the four named transitions (typo detector for `security_gate` / `resets_security_verdict`).",
+    "Full standard conformance suite passes (`cd standard && npm run build && npm test`) with the new tests green and no pre-existing regressions."
+  ],
+  "acceptance_criteria": [
+    "Loading `standard/schemas/task.schema.json` and validating a Task fixture with security_review_verdict=\"pass\" returns true; with security_review_verdict=\"approved\" returns false.",
+    "Reading `standard/state-machines/task.json` and filtering for transitions with security_gate===true yields exactly three entries matching the (from=automated-gates, to∈{ui-review,qa,merged}) triple.",
+    "Reading the same state-machine and filtering for resets_security_verdict===true yields exactly one entry (review → automated-gates).",
+    "`tsc --noEmit` over standard/ succeeds — the new optional Task fields and the extended StatusTransitions transitions[] item type compile without errors.",
+    "Standard conformance suite count after this task: ~124 baseline + ~6 new field-coverage cases + ~4 new state-machine sanity cases ≈ 134+, with zero failures."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "standard/schemas/task.schema.json",
+      "standard/state-machines/task.json",
+      "standard/validators/types.ts",
+      "standard/conformance/tests/task.test.ts",
+      "standard/conformance/tests/status-transitions.test.ts"
+    ]
+  }
+}

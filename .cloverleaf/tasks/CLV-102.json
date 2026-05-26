@@ -1,0 +1,49 @@
+{
+  "id": "CLV-102",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Standard 0.7.1: validateSecurityGate validator + conformance tests + fixture + version bump",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "standard/validators/security-gate.ts created, exporting `validateSecurityGate(event, stateMachine, workItem): ValidationResult`. Signature matches the existing `validateStatusTransitionLegality` shape. Behavior per spec §2: early-exits ok for non-task work items, for transitions without security_gate, and for tasks whose security_class !== 'high'; returns ok when security_review_verdict === 'pass'; otherwise returns { ok:false, violations:[{ rule:'security-gate', severity:'error', message:..., workItemId:... }] } with the canonical message naming the transition, current values, and the recovery action 'Advance to security-review first.'",
+    "standard/validators/index.ts exports `validateSecurityGate` alongside the existing validator exports.",
+    "standard/conformance/tests/validator-security-gate.test.ts created and covers the full 2×4 matrix on each of the three flagged transitions (low×{null,pass,bounce,escalate} all legal; high×{null,bounce,escalate} illegal; high×pass legal), the control matrix on non-flagged transitions (high×null legal for automated-gates → implementing, → escalated, → security-review), and edge cases (non-task work item legal; transition not found in state machine legal).",
+    "standard/conformance/fixtures/task-security-high-verdict-pass.json created with security_class='high' and security_review_verdict='pass', a unique id distinct from existing fixtures, and matching the shape of the existing task-security-high.json fixture.",
+    "standard/conformance/tests/security-fixture.test.ts extended to validate the new fixture and to assert the verdict-reset post-condition (a task in automated-gates after a review→automated-gates transition must validate with security_review_verdict=null).",
+    "standard/CHANGELOG.md gets a new top entry `## 0.7.1 — 2026-05-26` with the canonical 'stricter conformance' phrasing per the spec §7, an Added section listing the field, annotations, and validator, and a Migration section.",
+    "standard/VERSION bumped from 0.7.0 to 0.7.1.",
+    "standard/package.json `version` field bumped from 0.7.0 to 0.7.1.",
+    "Full standard conformance suite passes (`cd standard && npm run build && npm test`) — ~124 baseline + ~12 new ≈ 136+ tests, zero failures."
+  ],
+  "acceptance_criteria": [
+    "Invoking validateSecurityGate with a status_transition event for automated-gates → merged on a task with security_class='high' and security_review_verdict=null returns ok:false with violations[0].rule === 'security-gate' and a message matching /security_review_verdict.*pass/ AND /security_class.*high/ AND /Advance to security-review first/.",
+    "Invoking validateSecurityGate with the same event on a task with security_class='high' and security_review_verdict='pass' returns ok:true.",
+    "Invoking validateSecurityGate on automated-gates → implementing with security_class='high' and security_review_verdict=null returns ok:true (control: non-flagged transition).",
+    "Reading standard/conformance/fixtures/task-security-high-verdict-pass.json and validating it against task.schema.json returns true.",
+    "`cat standard/VERSION` outputs 0.7.1; `node -p \"require('./standard/package.json').version\"` outputs 0.7.1; standard/CHANGELOG.md head contains the literal phrase 'Stricter conformance' and references 'security_class=high'.",
+    "Full conformance suite after the bump produces a green run with no skipped tests."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "standard/validators/security-gate.ts",
+      "standard/validators/index.ts",
+      "standard/conformance/tests/validator-security-gate.test.ts",
+      "standard/conformance/tests/security-fixture.test.ts",
+      "standard/conformance/fixtures/task-security-high-verdict-pass.json",
+      "standard/CHANGELOG.md",
+      "standard/VERSION",
+      "standard/package.json"
+    ]
+  }
+}

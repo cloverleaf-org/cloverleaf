@@ -1,0 +1,39 @@
+{
+  "id": "CLV-105",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "reference-impl: CLI exit-code 2 routing for SECURITY_GATE + set-task-field subcommand",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/lib/cli.ts: the advance-status (or generic) catch block recognizes errors with `.code === 'SECURITY_GATE'`. For these errors it writes the bare validator message to stderr (no 'Illegal transition:' prefix, no 'Error:' prefix) and exits process with code 2. Generic illegal-transition errors continue to exit with the existing code (typically 1) via the existing path.",
+    "reference-impl/lib/cli.ts: new subcommand `set-task-field <repoRoot> <taskId> <field> <value>`. Loads the task, mutates the named field, saves. Field allowlist is a Set scoped initially to {'security_review_verdict'}; unknown fields exit with a clear error (non-zero exit code per existing die() convention) listing the allowed fields. The literal string 'null' is parsed to JSON null; other values are stored verbatim.",
+    "reference-impl/lib/cli.ts: usage() help string mentions `set-task-field <repoRoot> <taskId> <field> <value>`.",
+    "reference-impl/tests/cli.test.ts: new `CLI advance-status: security-gate refusal exit code` block — invoking the CLI binary (via execSync or matching the file's existing CLI test pattern) on a high+null task attempting a guarded transition exits with code 2 and a stderr matching /security_review_verdict.*pass/ and /Advance to security-review first/.",
+    "reference-impl/tests/cli.test.ts: new `CLI set-task-field` block — writes pass and verifies persistence; writes the literal string 'null' and verifies it persists as JSON null; rejects 'status' (not on the allowlist) with a non-zero exit.",
+    "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~4 new tests."
+  ],
+  "acceptance_criteria": [
+    "`cloverleaf-cli advance-status <repoRoot> <high+null TaskId> ui-review agent` (or the equivalent invocation that hits a guarded transition) exits with status code 2 and a stderr line matching the canonical message form.",
+    "`cloverleaf-cli set-task-field <repoRoot> <TaskId> security_review_verdict pass` exits 0; a subsequent loadTask shows security_review_verdict === 'pass'.",
+    "`cloverleaf-cli set-task-field <repoRoot> <TaskId> security_review_verdict null` exits 0; loadTask shows security_review_verdict === null (distinct from absent or string 'null').",
+    "`cloverleaf-cli set-task-field <repoRoot> <TaskId> status merged` exits with a non-zero code and a stderr line that names the allowed-field list.",
+    "`cloverleaf-cli --help` (or `cloverleaf-cli` with no args triggering usage) emits the set-task-field signature."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/lib/cli.ts",
+      "reference-impl/tests/cli.test.ts"
+    ]
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "id": "CLV-104",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "reference-impl: classify-security writeback + verdict-reset in advanceStatus",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/lib/task.ts: `advanceStatus` inspects the target transition. When `transition.security_gate === true`: (1) calls classifyTaskSecurity; (2) on classify-security exception, surfaces a stderr warning and treats effective='high' (fail-toward-review per spec §5); (3) when declared='low' and effective='high', writes back `security_class='high'`, persists to disk, commits with message `cloverleaf: <ID> security_class → high (diff-detected)`, and mutates the in-memory task so the downstream validator reads the high value.",
+    "reference-impl/lib/task.ts: `advanceStatus` when `transition.resets_security_verdict === true` writes `security_review_verdict: null` into the persisted task atomically with the status change. Commit message form: `cloverleaf: <ID> status review → automated-gates; security_review_verdict → null (rework)`.",
+    "reference-impl/lib/security-classify.ts: testing seam exposed — `__setMockChangedFiles(files: string[] | null)` — used only by tests. classifyTaskSecurity consults the mock first when set, then opts.changedFiles, then git.",
+    "reference-impl/tests/cli.test.ts: new `advance-status: classify-security writeback` block — declared='low' + sensitive mocked diff on a guarded transition → writeback fires (reload shows security_class='high') AND validator subsequently refuses (high+null); declared='low' + benign mocked diff → no writeback, advance succeeds.",
+    "reference-impl/tests/cli.test.ts: new `advance-status: verdict reset on review → automated-gates` block — resets pass to null; idempotent on null; does NOT reset on transitions without the flag (e.g. security-review → automated-gates).",
+    "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~5 new tests across writeback + reset."
+  ],
+  "acceptance_criteria": [
+    "Calling advanceStatus on a task {status:'automated-gates', security_class:'low', security_review_verdict:null} with mock changedFiles=['engine/exchange.py'] and toStatus='ui-review' throws a SECURITY_GATE error AND a fresh loadTask shows security_class='high'.",
+    "Calling advanceStatus on a task {status:'automated-gates', security_class:'low', security_review_verdict:null} with mock changedFiles=['README.md'] and toStatus='ui-review' completes successfully; loadTask shows status='ui-review' and security_class still 'low'.",
+    "Calling advanceStatus from status='review' to toStatus='automated-gates' on a task with security_review_verdict='pass' completes successfully; loadTask shows security_review_verdict===null and status='automated-gates'. Git log shows a single commit whose message contains both 'status review → automated-gates' and 'security_review_verdict → null'.",
+    "Calling advanceStatus from status='security-review' to toStatus='automated-gates' on a task with security_review_verdict='pass' does NOT reset the verdict — loadTask still shows security_review_verdict='pass'.",
+    "When classifyTaskSecurity is forced to throw (e.g. broken git repo), advance-status emits a stderr line containing 'classify-security' AND 'high', and the validator subsequently refuses the guarded transition for a class=null/low task."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/lib/task.ts",
+      "reference-impl/lib/security-classify.ts",
+      "reference-impl/tests/cli.test.ts"
+    ]
+  }
+}

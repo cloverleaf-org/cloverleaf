@@ -1,0 +1,50 @@
+{
+  "id": "CLV-108",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "Documentation + reference-impl 0.8.1 version bump + acceptance-walker scenario",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/README.md: the 'Security review' section gains a sentence noting that as of v0.8.1 the security-review step is mechanically enforced via the `security_gate` annotation; references exit code 2 and the belt-and-suspenders prose.",
+    "standard/README.md: the state-machine summary section gains a sentence noting that as of 0.7.1 the three transitions out of automated-gates are annotated `security_gate: true` and require `security_review_verdict === 'pass'` when `security_class === 'high'`; references validators/security-gate.ts.",
+    "site/src/content/guide/05-delivery.mdx: a short subsection added describing the security_gate / resets_security_verdict annotations and how they constrain the existing topology (no new states, only preconditions on three edges). Cross-reference 07-agents.mdx and 08-gates.mdx where appropriate.",
+    "site/src/content/guide/07-agents.mdx: the Security Reviewer section gains a short subsection 'Mechanical enforcement (reference-impl 0.8.1+)' describing advance-status's classify-security writeback and exit-code-2 refusal path, and the belt-and-suspenders relationship with orchestrator prose. Reference the v0.8.0 dogfood lesson as motivation.",
+    "reference-impl/VERSION bumped from 0.8.0 to 0.8.1.",
+    "reference-impl/package.json `version` bumped from 0.8.0 to 0.8.1; `peerDependencies['@cloverleaf/standard']` bumped from ^0.7.0 to ^0.7.1.",
+    "reference-impl/CHANGELOG.md gets a new top entry `## 0.8.1 — 2026-05-26` with Changed/Added/Dependencies sections per the spec §7 narrative, naming each load-bearing surface (advance-status guard, classify-security writeback, verdict reset, set-task-field subcommand, security-review SKILL verdict writes, run SKILL refusal-and-recover prose, security-reviewer prompt verdict requirement, ^0.7.1 standard peer bump).",
+    "reference-impl/scripts/acceptance-walker.sh gains (or already contains) a tagged scenario `flow2-dogfood-repro` whose script body reproduces the Flow 2 sequence end-to-end against a freshly-created temp repo and asserts the same recovery-path outcome captured in the CLV-107 Flow 2 integration test. Documented in a comment block at the top of the new scenario.",
+    "Final dual-suite green: `cd standard && npm run build && npm test` AND `cd reference-impl && npm run build && npm test` — both report zero failures.",
+    "Running `reference-impl/scripts/acceptance-walker.sh flow2-dogfood-repro` exits 0 with a stdout line indicating the refusal observed AND the recovery sequence succeeded AND the task reached status='merged'."
+  ],
+  "acceptance_criteria": [
+    "`cat reference-impl/VERSION` outputs 0.8.1; `node -p \"require('./reference-impl/package.json').version\"` outputs 0.8.1; `node -p \"require('./reference-impl/package.json').peerDependencies['@cloverleaf/standard']\"` outputs ^0.7.1.",
+    "reference-impl/CHANGELOG.md head contains '## 0.8.1' AND the literal phrases 'classify-security writeback', 'set-task-field', 'exit code 2', and '@cloverleaf/standard.*\\^0.7.1' (or a near-equivalent).",
+    "grep 'security_gate' standard/README.md returns at least one match; grep 'mechanically enforced' reference-impl/README.md returns at least one match.",
+    "site/src/content/guide/05-delivery.mdx contains a subsection mentioning `security_gate` and `resets_security_verdict`; site/src/content/guide/07-agents.mdx contains a subsection titled (or substantively named) 'Mechanical enforcement' mentioning advance-status exit code 2.",
+    "Running `bash reference-impl/scripts/acceptance-walker.sh flow2-dogfood-repro` end-to-end exits 0; stdout/stderr together contain evidence of the refusal (exit 2) AND the eventual merge, matching the Flow 2 trail asserted by CLV-107.",
+    "Final dual-suite run from cold (`cd standard && npm run build && npm test && cd ../reference-impl && npm run build && npm test`) reports zero failures across both packages."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/README.md",
+      "standard/README.md",
+      "site/src/content/guide/05-delivery.mdx",
+      "site/src/content/guide/07-agents.mdx",
+      "reference-impl/VERSION",
+      "reference-impl/package.json",
+      "reference-impl/CHANGELOG.md",
+      "reference-impl/scripts/acceptance-walker.sh"
+    ]
+  }
+}

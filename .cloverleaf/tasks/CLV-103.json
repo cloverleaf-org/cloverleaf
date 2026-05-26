@@ -1,0 +1,46 @@
+{
+  "id": "CLV-103",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "reference-impl: TaskDoc.security_review_verdict + classifyTaskSecurity helper refactor + wire validateSecurityGate into advanceWorkItemStatus",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/lib/task.ts: TaskDoc interface extended with optional `security_review_verdict?: 'pass' | 'bounce' | 'escalate' | null` (and `security_class?: 'low' | 'high'` if not already present from 0.8.0). Load/save round-trip preserves the field, including the null value distinct from absent.",
+    "reference-impl/lib/security-classify.ts: new exported helper `classifyTaskSecurity(repoRoot, taskId, opts?: { branch?: string; changedFiles?: string[] }): SecurityClassification`. Composes loadTask + git diff against the task's feature branch (default `cloverleaf/<taskId>`) + computeSecurityClassification + loadSecurityPathsConfig. Supports `changedFiles` injection as a testing seam. Git invocation errors return an empty changed-file list (the caller decides fail-toward-review).",
+    "reference-impl/lib/cli.ts: the existing `classify-security` subcommand handler refactored to call `classifyTaskSecurity` rather than inlining git+computeSecurityClassification. Behavior — argv shape, stdout JSON, exit code, --branch flag — is unchanged from the user's perspective.",
+    "reference-impl/lib/work-item.ts: `advanceWorkItemStatus` imports `validateSecurityGate` from @cloverleaf/standard/validators/index.js and invokes it after the existing `validateStatusTransitionLegality` check, gated on workItemType === 'task'. On security-gate failure, throws an Error whose `.code === 'SECURITY_GATE'` and whose message is the validator's violation message (no 'Illegal transition:' prefix).",
+    "The validator is invoked with the same workItemForValidator shape passed to validateStatusTransitionLegality. The Task fixture passed in carries security_class and security_review_verdict so the validator can read them.",
+    "reference-impl/tests/cli.test.ts gains coverage of the wiring: advance-status refuses automated-gates → ui-review on high+null with a 'security-gate' error; allows it on high+pass and low+null; allows automated-gates → implementing (unconditional escape hatch) even on high+null.",
+    "reference-impl/tests/security-classify.test.ts gains coverage of classifyTaskSecurity: declared=low + injected sensitive file → effective='high', diff_detected=true; declared=low + injected benign file → effective='low'; declared='high' + any file list → effective='high'.",
+    "Full reference-impl unit suite passes (`cd reference-impl && npm test`) — no regressions; ~4 new wiring tests + ~3 new helper tests."
+  ],
+  "acceptance_criteria": [
+    "saveTask + loadTask round-trip preserves security_review_verdict='pass' verbatim; preserves security_review_verdict=null distinct from an absent property when applicable.",
+    "Calling classifyTaskSecurity(repoRoot, taskId, { changedFiles: ['engine/exchange.py'] }) on a task with security_class='low' returns { declared:'low', diff_detected:true, effective:'high', ... }.",
+    "Calling advanceStatus on a task with status='automated-gates', security_class='high', security_review_verdict=null with toStatus='ui-review' throws an Error matching /security-gate/ whose .code === 'SECURITY_GATE'.",
+    "Calling the same with security_review_verdict='pass' completes successfully; loadTask shows status='ui-review'.",
+    "Calling advanceStatus with toStatus='implementing' on the same high+null task completes successfully (unconditional escape hatch preserved).",
+    "Existing `cloverleaf-cli classify-security <repoRoot> <taskId>` CLI invocation continues to emit the same JSON envelope it did before the refactor (argv, stdout, exit code unchanged)."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/lib/task.ts",
+      "reference-impl/lib/work-item.ts",
+      "reference-impl/lib/security-classify.ts",
+      "reference-impl/lib/cli.ts",
+      "reference-impl/tests/cli.test.ts",
+      "reference-impl/tests/security-classify.test.ts"
+    ]
+  }
+}

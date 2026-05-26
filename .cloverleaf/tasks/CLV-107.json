@@ -1,0 +1,40 @@
+{
+  "id": "CLV-107",
+  "type": "task",
+  "status": "pending",
+  "owner": {
+    "kind": "agent",
+    "id": "implementer"
+  },
+  "project": "CLV",
+  "title": "reference-impl: integration tests for Flows 1–4 + backward-compat (includes the load-bearing Flow 2 dogfood reproduction)",
+  "context": {
+    "rfc": {
+      "project": "CLV",
+      "id": "CLV-99"
+    }
+  },
+  "definition_of_done": [
+    "reference-impl/tests/integration.security-gate.test.ts created. Each describe block drives the full CLI surface (advance-status, set-task-field) end-to-end against a temp repo; no LLM subagent involvement; uses the __setMockChangedFiles seam from CLV-104 to inject diffs deterministically.",
+    "Flow 1 — clean two-pass — covered: high task, null verdict, advance to security-review, set verdict pass, advance back to automated-gates, advance forward (ui-review) succeeds.",
+    "Flow 2 — under-classification at the door (THE LOAD-BEARING DOGFOOD REPRODUCTION) — covered: low-declared task with mocked sensitive diff attempts fast-lane merge directly; CLI exits 2 with security-gate refusal; the writeback fired (security_class is now 'high' on reload); the recover sequence (advance to security-review → set verdict pass → advance to automated-gates → retry merge) succeeds and the task ends at status='merged'.",
+    "Flow 3 — rework reset — covered: high task with verdict='pass' at status='review' advances to automated-gates and the verdict resets to null; the subsequent guarded advance refuses with exit 2.",
+    "Flow 4 — blocker → escalated — covered: set verdict='escalate' from status='security-review', advance to escalated; final state is terminal and the guard is never invoked.",
+    "Backward-compat — covered: a task whose security_review_verdict property is fully absent (simulating a 0.8.0-era task) is treated as null on read; review → automated-gates writes null explicitly via the reset; the subsequent guarded advance for a high-class task refuses.",
+    "Both build chains pass before the test run: `cd standard && npm run build` (provides validateSecurityGate + types to reference-impl via the workspace link) AND `cd reference-impl && npm run build`.",
+    "`cd reference-impl && npm test` reports zero failures with the five new integration tests green; full suite count ≈ baseline + total unit/integration adds from CLV-103…CLV-107."
+  ],
+  "acceptance_criteria": [
+    "Flow 1 test passes: a high-class task with verdict null traverses security-review → automated-gates → ui-review and the final loadTask shows status='ui-review' and security_review_verdict='pass'.",
+    "Flow 2 test passes (LOAD-BEARING): the initial advance from automated-gates → merged on a low-declared task with mocked sensitive diff exits with code 2 AND the post-refusal loadTask shows security_class='high' (writeback fired despite refusal). The recovery sequence completes; final loadTask shows status='merged' and security_review_verdict='pass'. The reproduced audit trail (state events, focused commits, feedback envelope written via the skill) matches the shape of the Flow 1 trail per spec §4.",
+    "Flow 3 test passes: after review → automated-gates on a verdict='pass' task, loadTask shows security_review_verdict===null; the immediately-following advance to ui-review exits 2.",
+    "Flow 4 test passes: after the advance to escalated, loadTask shows status='escalated' and security_review_verdict='escalate'; no subsequent guard-firing.",
+    "Backward-compat test passes: a task created without security_review_verdict in its JSON file has the field set to null by the first review → automated-gates reset; the subsequent guarded advance refuses with exit 2."
+  ],
+  "risk_class": "high",
+  "scope": {
+    "files_touched": [
+      "reference-impl/tests/integration.security-gate.test.ts"
+    ]
+  }
+}
