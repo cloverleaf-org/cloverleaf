@@ -88,6 +88,12 @@
       },
       "additionalProperties": false
     },
+    "security_review_verdict": {
+      "type": ["string", "null"],
+      "enum": ["pass", "bounce", "escalate", null],
+      "default": null,
+      "description": "Result recorded by the Security Reviewer agent. Null until a security-review cycle completes."
+    },
     "extensions": { "$ref": "https://cloverleaf.example/schemas/extensions.schema.json" }
   },
   "additionalProperties": false
