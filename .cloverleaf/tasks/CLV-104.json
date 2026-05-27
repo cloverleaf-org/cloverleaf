@@ -1,7 +1,7 @@
 {
   "id": "CLV-104",
   "type": "task",
-  "status": "implementing",
+  "status": "review",
   "owner": {
     "kind": "agent",
     "id": "implementer"
