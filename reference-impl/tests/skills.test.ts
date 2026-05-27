@@ -1671,3 +1671,110 @@ describe('Site guide — security reviewer (v0.8.0)', () => {
     expect(g('09-risk.mdx')).toMatch(/security_class/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-106: security-review verdict writes + cloverleaf-run refusal-and-recover
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-security-review skill (CLV-106 — verdict writes in terminal branches)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-security-review', 'SKILL.md'),
+    'utf-8',
+  );
+
+  /**
+   * Extract fenced ```bash ... ``` code blocks from the skill body.
+   * Returns array of block text strings.
+   */
+  function extractBashBlocks(text: string): string[] {
+    const blocks: string[] = [];
+    const fenceRe = /[ \t]*```bash[ \t]*\n([\s\S]*?)[ \t]*```/g;
+    let m: RegExpExecArray | null;
+    while ((m = fenceRe.exec(text)) !== null) {
+      blocks.push(m[1]);
+    }
+    return blocks;
+  }
+
+  it('contains at least three set-task-field invocations (one per terminal branch)', () => {
+    const matches = body.match(/set-task-field/g);
+    expect(matches, 'expected at least 3 set-task-field occurrences').not.toBeNull();
+    expect(matches!.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('pass branch: set-task-field security_review_verdict pass appears before advance-status automated-gates in the same code block', () => {
+    const blocks = extractBashBlocks(body);
+    const passBlock = blocks.find(
+      (b) => b.includes('security_review_verdict pass') && b.includes('automated-gates'),
+    );
+    expect(passBlock, 'expected a bash block containing both set-task-field pass and advance-status automated-gates').toBeDefined();
+    const setIdx = passBlock!.indexOf('set-task-field');
+    const advIdx = passBlock!.indexOf('advance-status');
+    expect(setIdx).toBeLessThan(advIdx);
+  });
+
+  it('pass branch: commit message between set-task-field and advance-status references security_review_verdict → pass', () => {
+    expect(body).toMatch(/security_review_verdict → pass/);
+  });
+
+  it('bounce branch: set-task-field security_review_verdict bounce appears before advance-status implementing in the same code block', () => {
+    const blocks = extractBashBlocks(body);
+    const bounceBlock = blocks.find(
+      (b) => b.includes('security_review_verdict bounce') && b.includes('implementing'),
+    );
+    expect(bounceBlock, 'expected a bash block containing both set-task-field bounce and advance-status implementing').toBeDefined();
+    const setIdx = bounceBlock!.indexOf('set-task-field');
+    const advIdx = bounceBlock!.indexOf('advance-status');
+    expect(setIdx).toBeLessThan(advIdx);
+  });
+
+  it('bounce branch: commit message between set-task-field and advance-status references security_review_verdict → bounce', () => {
+    expect(body).toMatch(/security_review_verdict → bounce/);
+  });
+
+  it('escalate branch: set-task-field security_review_verdict escalate appears before advance-status escalated in the same code block', () => {
+    const blocks = extractBashBlocks(body);
+    const escalateBlock = blocks.find(
+      (b) => b.includes('security_review_verdict escalate') && b.includes('advance-status') && b.includes('escalated'),
+    );
+    expect(escalateBlock, 'expected a bash block containing both set-task-field escalate and advance-status escalated').toBeDefined();
+    const setIdx = escalateBlock!.indexOf('set-task-field');
+    const advIdx = escalateBlock!.indexOf('advance-status');
+    expect(setIdx).toBeLessThan(advIdx);
+  });
+
+  it('escalate branch: commit message between set-task-field and advance-status references security_review_verdict → escalate', () => {
+    expect(body).toMatch(/security_review_verdict → escalate/);
+  });
+});
+
+describe('cloverleaf-run skill (CLV-106 — refusal-and-recover prose)', () => {
+  const body = readFileSync(
+    resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'),
+    'utf-8',
+  );
+
+  it('retains the "Security gate (both lanes)" section header', () => {
+    expect(body).toContain('Security gate (both lanes)');
+  });
+
+  it('retains the cloverleaf-security-review reference (belt-and-suspenders happy path)', () => {
+    expect(body).toContain('cloverleaf-security-review');
+  });
+
+  it('contains "Refusal and recover" subsection', () => {
+    expect(body).toMatch(/Refusal and recover/);
+  });
+
+  it('describes exit code 2 as the security-gate refusal signal', () => {
+    expect(body).toMatch(/exit(s)? code 2/i);
+  });
+
+  it('names the behavior a "security-gate refusal"', () => {
+    expect(body).toMatch(/security-gate refusal/i);
+  });
+
+  it('recovery sequence directs to advance to security-review first', () => {
+    expect(body).toMatch(/advance to.*security-review.*first|advance-status.*security-review/i);
+  });
+});

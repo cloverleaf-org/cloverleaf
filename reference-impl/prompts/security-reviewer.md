@@ -24,6 +24,18 @@ Examine the changed code for:
 
 A deterministic secret scan runs separately; you do NOT need to hunt for hardcoded keys (but flag one if you see it).
 
+## Return contract
+
+The response envelope **must** include a top-level `verdict` field (enum: `"pass"`, `"bounce"`, or `"escalate"`). The verdict is derived from the maximum severity across all findings:
+
+| Max severity across findings | verdict |
+|------------------------------|---------|
+| any `blocker`                | `"escalate"` |
+| any `error` or `warning`     | `"bounce"` |
+| `info` only, or no findings  | `"pass"` |
+
+The host skill (`cloverleaf-security-review`) persists the verdict on the task via `cloverleaf-cli set-task-field <repo_root> <TASK-ID> security_review_verdict <verdict>`. You (the security reviewer agent) do not write to the task file — you only emit the envelope. The skill reads your `verdict` field and records it.
+
 ## Output
 
 Return ONLY a feedback envelope JSON:

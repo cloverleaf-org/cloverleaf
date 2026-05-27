@@ -636,3 +636,26 @@ describe('CLV-48 — CWD drift fix: SKILL.md Session B scenario brief uses $WORK
     expect(fenceContent).toContain('cd "$WORKTREE_ROOT"');
   });
 });
+
+// ---------------------------------------------------------------------------
+// CLV-106: security-reviewer prompt — Return contract with verdict enum
+// ---------------------------------------------------------------------------
+
+describe('security-reviewer prompt (CLV-106 — Return contract verdict enum)', () => {
+  const body = readPrompt('security-reviewer');
+
+  it('names verdict as a required envelope field and enumerates pass, bounce, and escalate in order', () => {
+    expect(body).toMatch(/verdict[\s\S]*pass[\s\S]*bounce[\s\S]*escalate/i);
+  });
+
+  it('documents the severity → verdict mapping (blocker → escalate, error|warning → bounce, info|none → pass)', () => {
+    expect(body).toMatch(/blocker[\s\S]*escalate/i);
+    expect(body).toMatch(/error[\s\S]*warning[\s\S]*bounce/i);
+    expect(body).toMatch(/info[\s\S]*pass/i);
+  });
+
+  it('notes that the host skill (not the agent) persists the verdict via set-task-field', () => {
+    expect(body).toMatch(/set-task-field/);
+    expect(body).toMatch(/host skill|cloverleaf-security-review/i);
+  });
+});
