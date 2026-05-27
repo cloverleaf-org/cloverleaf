@@ -56,7 +56,7 @@ export interface SiblingScope {
  *  - Strip trailing `/` (preserving a non-empty result)
  *  - Return the resulting string (may be empty for degenerate inputs; caller filters)
  */
-function normalizePath(p: string): string {
+export function normalizePath(p: string): string {
   let s = p.trim().replace(/\\/g, '/');
   // Strip leading `./` repeatedly
   while (s.startsWith('./')) {
@@ -93,7 +93,8 @@ function normalizePaths(paths: string[]): string[] {
 export function classifyFiles(
   taskDoc: TaskDoc,
   modifiedFiles: string[],
-  siblingScopes: SiblingScope[]
+  siblingScopes: SiblingScope[],
+  sharedFiles?: Set<string>
 ): ClassifyResult {
   // 1. Normalize own files from taskDoc.scope.files_touched
   const scope = taskDoc['scope'] as Record<string, unknown> | undefined;
@@ -138,6 +139,10 @@ export function classifyFiles(
   for (const f of filteredModified) {
     if (ownSet.has(f)) {
       own.push(f);
+    } else if (sharedFiles?.has(f)) {
+      // merge=union (or other shared-intent annotation): never contested.
+      // Falls into extension so post-merge auto-extend picks it up.
+      extension.push(f);
     } else if (siblingMap.has(f)) {
       const owners = siblingMap.get(f)!;
       contested.push({ file: f, owner: owners[0] }); // lex-smallest wins
