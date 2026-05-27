@@ -2,6 +2,18 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `TaskDoc` interface gains two optional fields: `security_class?: 'low' | 'high'` and `security_review_verdict?: 'pass' | 'bounce' | 'escalate' | null`. Both are backward-compatible (absent = prior behavior). [CLV-103]
+- `lib/security-classify.ts` exports `classifyTaskSecurity(repoRoot, taskId, opts?: { branch?: string; changedFiles?: string[] })` — extracted helper that consolidates task-load + git-diff + config-load + `computeSecurityClassification` into one callable. `__setMockChangedFiles(files: string[] | null)` test seam also exported. [CLV-103]
+
+### Changed
+
+- `lib/cli.ts` `classify-security` subcommand handler refactored to delegate to the new `classifyTaskSecurity` helper (same observable behavior; internal code reduced). [CLV-103]
+- `lib/work-item.ts` `advanceWorkItemStatus` now invokes `validateSecurityGate` immediately after `validateStatusTransitionLegality` for `workItemType === 'task'` transitions; throws with `code: 'SECURITY_GATE'` when the gate rejects the advance. [CLV-103]
+
 ## 0.8.0 — 2026-05-13
 
 ### Added
