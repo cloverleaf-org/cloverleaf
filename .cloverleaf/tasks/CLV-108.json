@@ -37,14 +37,15 @@
   "risk_class": "high",
   "scope": {
     "files_touched": [
+      "reference-impl/CHANGELOG.md",
       "reference-impl/README.md",
-      "standard/README.md",
-      "site/src/content/guide/05-delivery.mdx",
-      "site/src/content/guide/07-agents.mdx",
       "reference-impl/VERSION",
       "reference-impl/package.json",
-      "reference-impl/CHANGELOG.md",
-      "reference-impl/scripts/acceptance-walker.sh"
+      "reference-impl/scripts/acceptance-walker.sh",
+      "reference-impl/tests/skills.test.ts",
+      "site/src/content/guide/05-delivery.mdx",
+      "site/src/content/guide/07-agents.mdx",
+      "standard/README.md"
     ]
   },
   "security_review_verdict": null
