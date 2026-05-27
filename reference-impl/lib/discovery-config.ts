@@ -9,11 +9,20 @@ export interface DiscoveryConfig {
   docContextUri: string;
   projectId: string;
   idStart: number;
+  prep_copy_dirs: string[];
 }
 
 export function loadDiscoveryConfig(repoRoot: string): DiscoveryConfig {
   const override = join(repoRoot, '.cloverleaf', 'config', 'discovery.json');
-  const fallback = JSON.parse(readFileSync(PACKAGE_DEFAULT, 'utf-8')) as DiscoveryConfig;
+  const rawFallback = JSON.parse(readFileSync(PACKAGE_DEFAULT, 'utf-8')) as Partial<DiscoveryConfig>;
+  const fallback: DiscoveryConfig = {
+    docContextUri: typeof rawFallback.docContextUri === 'string' ? rawFallback.docContextUri : '',
+    projectId: typeof rawFallback.projectId === 'string' ? rawFallback.projectId : '',
+    idStart: typeof rawFallback.idStart === 'number' ? rawFallback.idStart : 1,
+    prep_copy_dirs: Array.isArray(rawFallback.prep_copy_dirs)
+      ? (rawFallback.prep_copy_dirs as unknown[]).filter((p): p is string => typeof p === 'string')
+      : [],
+  };
 
   if (existsSync(override)) {
     try {
@@ -31,5 +40,8 @@ function normalise(doc: Partial<DiscoveryConfig>, fallback: DiscoveryConfig): Di
     docContextUri: typeof doc.docContextUri === 'string' ? doc.docContextUri : fallback.docContextUri,
     projectId:     typeof doc.projectId     === 'string' ? doc.projectId     : fallback.projectId,
     idStart:       typeof doc.idStart       === 'number' ? doc.idStart       : fallback.idStart,
+    prep_copy_dirs: Array.isArray(doc.prep_copy_dirs)
+      ? (doc.prep_copy_dirs as unknown[]).filter((p): p is string => typeof p === 'string')
+      : fallback.prep_copy_dirs,
   };
 }
