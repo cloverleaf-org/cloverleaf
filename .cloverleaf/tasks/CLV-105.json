@@ -1,7 +1,7 @@
 {
   "id": "CLV-105",
   "type": "task",
-  "status": "review",
+  "status": "automated-gates",
   "owner": {
     "kind": "agent",
     "id": "implementer"
@@ -35,5 +35,6 @@
       "reference-impl/lib/cli.ts",
       "reference-impl/tests/cli.test.ts"
     ]
-  }
+  },
+  "security_review_verdict": null
 }
