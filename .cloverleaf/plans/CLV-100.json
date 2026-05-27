@@ -1,7 +1,7 @@
 {
   "id": "CLV-100",
   "type": "plan",
-  "status": "approved",
+  "status": "completed",
   "owner": {
     "kind": "agent",
     "id": "plan"
