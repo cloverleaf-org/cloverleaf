@@ -35,12 +35,13 @@
   "risk_class": "high",
   "scope": {
     "files_touched": [
+      "reference-impl/lib/cli.ts",
+      "reference-impl/lib/security-classify.ts",
       "reference-impl/lib/task.ts",
       "reference-impl/lib/work-item.ts",
-      "reference-impl/lib/security-classify.ts",
-      "reference-impl/lib/cli.ts",
       "reference-impl/tests/cli.test.ts",
-      "reference-impl/tests/security-classify.test.ts"
+      "reference-impl/tests/security-classify.test.ts",
+      "reference-impl/tests/task.test.ts"
     ]
   }
 }
