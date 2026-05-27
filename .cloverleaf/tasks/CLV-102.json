@@ -36,14 +36,15 @@
   "risk_class": "high",
   "scope": {
     "files_touched": [
-      "standard/validators/security-gate.ts",
-      "standard/validators/index.ts",
-      "standard/conformance/tests/validator-security-gate.test.ts",
-      "standard/conformance/tests/security-fixture.test.ts",
-      "standard/conformance/fixtures/task-security-high-verdict-pass.json",
       "standard/CHANGELOG.md",
       "standard/VERSION",
-      "standard/package.json"
+      "standard/conformance/fixtures/task-security-high-verdict-pass.json",
+      "standard/conformance/level-map.ts",
+      "standard/conformance/tests/security-fixture.test.ts",
+      "standard/conformance/tests/validator-security-gate.test.ts",
+      "standard/package.json",
+      "standard/validators/index.ts",
+      "standard/validators/security-gate.ts"
     ]
   }
 }
