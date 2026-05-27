@@ -35,12 +35,21 @@ Parse the JSON. If `classify-security` exits non-zero or emits unparseable outpu
 If `effective == "low"` → skip the gate, proceed with the lane.
 
 If `effective == "high"`:
-- If `declared == "low"` (under-classification: `diff_detected` true), write back: load the task, set `security_class: "high"`, save it, then commit `cloverleaf: <TASK-ID> security_class → high (diff-detected)`.
+- If `declared == "low"` (under-classification: `diff_detected` true), you may proactively run `classify-security` to confirm, but the writeback to `security_class: "high"` is now mechanical — the CLI handles it automatically when `advance-status` moves the task to `security-review`. No manual scripting of the writeback is required.
 - `cloverleaf-cli advance-status <repo_root> <TASK-ID> security-review agent`; commit.
 - Inline `/cloverleaf-security-review <TASK-ID>` steps. Reload the task:
   - `status == "automated-gates"` → security review passed; proceed with the lane.
   - `status == "implementing"` → bounced. `security_bounces += 1`. If `security_bounces >= MAX_SECURITY_BOUNCES`, escalate (section 6). Else re-enter the implement→review loop (fast lane section 4 / full pipeline section 5.1), which re-runs the security gate on its next pass.
   - `status == "escalated"` → the security reviewer found a blocker; stop and surface to the user (a human must review `.cloverleaf/feedback/`). This is the security reviewer's own escalation, distinct from a bounce-budget exhaustion.
+
+### Refusal and recover
+
+In v0.8.1, `advance-status` from `automated-gates` to any post-gate state (`ui-review`, `qa`, `merged`) may exit with **exit code 2** when the task is high-security and has no pass verdict recorded (`security_review_verdict` is absent or not `"pass"`). This is a **security-gate refusal** — the CLI is enforcing that high-security tasks must pass security review before proceeding.
+
+Recovery sequence:
+1. Advance the task to `security-review` first: `cloverleaf-cli advance-status <repo_root> <TASK-ID> security-review agent`; commit.
+2. Run `/cloverleaf-security-review <TASK-ID>` to execute the security review.
+3. Retry the original `advance-status` call. If the review passed, the CLI will now allow the transition.
 
 ## Steps
 

@@ -39,6 +39,8 @@ description: Run the Security Reviewer agent on a task in the `security-review` 
 
    **Pass:**
    ```bash
+   cloverleaf-cli set-task-field <repo_root> <TASK-ID> security_review_verdict pass
+   git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security_review_verdict → pass"
    cloverleaf-cli advance-status <repo_root> <TASK-ID> automated-gates agent
    git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security review passed → automated-gates"
    ```
@@ -49,6 +51,8 @@ description: Run the Security Reviewer agent on a task in the `security-review` 
    echo '<merged-envelope-json>' > /tmp/cloverleaf-fb-s.json
    cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-s.json
    git -C <repo_root> add .cloverleaf/feedback/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security review feedback"
+   cloverleaf-cli set-task-field <repo_root> <TASK-ID> security_review_verdict bounce
+   git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security_review_verdict → bounce"
    cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent
    git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security review bounced → implementing"
    ```
@@ -59,6 +63,8 @@ description: Run the Security Reviewer agent on a task in the `security-review` 
    echo '<merged-envelope-json>' > /tmp/cloverleaf-fb-s.json
    cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-s.json
    git -C <repo_root> add .cloverleaf/feedback/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security review feedback"
+   cloverleaf-cli set-task-field <repo_root> <TASK-ID> security_review_verdict escalate
+   git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security_review_verdict → escalate"
    cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent
    git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> security review escalated (blocker finding)"
    ```

@@ -1,7 +1,7 @@
 {
   "id": "CLV-106",
   "type": "task",
-  "status": "pending",
+  "status": "final-gate",
   "owner": {
     "kind": "agent",
     "id": "implementer"
@@ -39,5 +39,7 @@
       "reference-impl/tests/skills.test.ts",
       "reference-impl/tests/prompts.test.ts"
     ]
-  }
+  },
+  "security_review_verdict": "pass",
+  "security_class": "high"
 }
