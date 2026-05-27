@@ -40,6 +40,7 @@
  *   extend-scope <repoRoot> <taskId> --add <file>... --reason <text>
  *   secret-scan <repoRoot> --branch <branch>
  *   classify-security <repoRoot> <taskId> [--branch <branch>]
+ *   set-task-field <repoRoot> <taskId> <field> <value>
  */
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -117,7 +118,8 @@ function usage(msg?: string): never {
       '  check-scope <repoRoot> <taskId> --branch <branchName>\n' +
       '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n' +
       '  secret-scan <repoRoot> --branch <branch>\n' +
-      '  classify-security <repoRoot> <taskId> [--branch <branch>]\n'
+      '  classify-security <repoRoot> <taskId> [--branch <branch>]\n' +
+      '  set-task-field <repoRoot> <taskId> <field> <value>\n'
   );
   process.exit(2);
 }
@@ -788,11 +790,33 @@ try {
       break;
     }
 
+    case 'set-task-field': {
+      const [repoRoot, taskId, field, value] = rest;
+      if (!repoRoot || !taskId || !field || value === undefined)
+        usage('set-task-field requires <repoRoot> <taskId> <field> <value>');
+      const ALLOWED_FIELDS = new Set(['security_review_verdict']);
+      if (!ALLOWED_FIELDS.has(field)) {
+        die(
+          `set-task-field: unknown field '${field}'. Allowed fields: ${Array.from(ALLOWED_FIELDS).join(', ')}`
+        );
+      }
+      const task = loadTask(repoRoot, taskId);
+      const parsed: unknown = value === 'null' ? null : value;
+      (task as Record<string, unknown>)[field] = parsed;
+      saveTask(repoRoot, task);
+      break;
+    }
+
     default:
       usage(`Unknown command: ${command}`);
   }
 } catch (err: unknown) {
   const msg = err instanceof Error ? err.message : String(err);
+  // SECURITY_GATE errors: write the bare validator message to stderr and exit 2
+  if ((err as { code?: string }).code === 'SECURITY_GATE') {
+    process.stderr.write(msg + '\n');
+    process.exit(2);
+  }
   // Surface "illegal transition" errors with the right language
   const lower = msg.toLowerCase();
   if (lower.includes('illegal') || lower.includes('not allowed')) {

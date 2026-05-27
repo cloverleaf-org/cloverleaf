@@ -1679,3 +1679,111 @@ describe('advance-status: verdict reset on review → automated-gates', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// CLV-105: advance-status: security-gate refusal exit code
+// ---------------------------------------------------------------------------
+
+describe('CLI advance-status: security-gate refusal exit code', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-sgec-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'projects', 'SGE.json'),
+      JSON.stringify({ key: 'SGE', name: 'SecurityGateExit' })
+    );
+  });
+
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('high+null task attempting a guarded transition exits with code 2 and canonical stderr', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'tasks', 'SGE-1.json'),
+      JSON.stringify({
+        type: 'task',
+        id: 'SGE-1',
+        project: 'SGE',
+        status: 'automated-gates',
+        owner: { kind: 'agent', id: 'implementer' },
+        title: 'sg exit test',
+        context: { rfc: { project: 'SGE', id: 'SGE-RFC-1' } },
+        acceptance_criteria: ['ac'],
+        definition_of_done: ['dod'],
+        risk_class: 'high',
+        security_class: 'high',
+        security_review_verdict: null,
+      }) + '\n'
+    );
+
+    const r = run(['advance-status', tmp, 'SGE-1', 'ui-review', 'agent', '', 'full_pipeline']);
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr).toMatch(/security_review_verdict/);
+    expect(r.stderr).toMatch(/pass/);
+    expect(r.stderr).toMatch(/Advance to security-review first/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-105: set-task-field subcommand
+// ---------------------------------------------------------------------------
+
+describe('CLI set-task-field', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-stf-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'projects', 'STF.json'),
+      JSON.stringify({ key: 'STF', name: 'SetTaskField' })
+    );
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'tasks', 'STF-1.json'),
+      JSON.stringify({
+        type: 'task',
+        id: 'STF-1',
+        project: 'STF',
+        status: 'security-review',
+        owner: { kind: 'agent', id: 'implementer' },
+        title: 'set field test',
+        context: { rfc: { project: 'STF', id: 'STF-RFC-1' } },
+        acceptance_criteria: ['ac'],
+        definition_of_done: ['dod'],
+        risk_class: 'high',
+        security_class: 'high',
+        security_review_verdict: null,
+      }) + '\n'
+    );
+  });
+
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  it('writes security_review_verdict=pass and persists it as string "pass"', () => {
+    const r = run(['set-task-field', tmp, 'STF-1', 'security_review_verdict', 'pass']);
+    expect(r.exitCode).toBe(0);
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'STF-1.json'), 'utf-8'));
+    expect(task.security_review_verdict).toBe('pass');
+  });
+
+  it('writes the literal string "null" and persists it as JSON null (not string)', () => {
+    // First set a non-null value
+    run(['set-task-field', tmp, 'STF-1', 'security_review_verdict', 'pass']);
+    // Then set to null
+    const r = run(['set-task-field', tmp, 'STF-1', 'security_review_verdict', 'null']);
+    expect(r.exitCode).toBe(0);
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'STF-1.json'), 'utf-8'));
+    expect(task.security_review_verdict).toBeNull();
+    expect(typeof task.security_review_verdict).not.toBe('string');
+  });
+
+  it('rejects "status" (not on the allowlist) with a non-zero exit and stderr naming allowed fields', () => {
+    const r = run(['set-task-field', tmp, 'STF-1', 'status', 'merged']);
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr).toMatch(/security_review_verdict/);
+  });
+});
+
