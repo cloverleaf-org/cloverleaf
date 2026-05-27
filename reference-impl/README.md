@@ -211,6 +211,8 @@ The **Security Reviewer** (8th agent) runs when a task's effective `security_cla
 
 **Customizing.** Both pattern sets are consumer-overridable: `.cloverleaf/config/security-paths.json` (sensitive paths + keywords) and `.cloverleaf/config/secret-patterns.json` (secret regexes + placeholder excludes).
 
+**Mechanical enforcement (v0.8.1+).** As of v0.8.1, the security-review state is mechanically enforced via the `security_gate` annotation on the Standard 0.7.1 state machine. `advance-status` re-runs `classify-security` on every guarded transition and refuses bypass attempts with exit code 2, naming the required recovery action (advance to `security-review`, run the Security Reviewer, write a `pass` verdict, then retry). This is a belt-and-suspenders complement to the orchestrator prose — the CLI enforces the invariant even if the driving LLM omits the bookkeeping step.
+
 ## License
 
 MIT — see [../LICENSE](../LICENSE).

@@ -1,6 +1,6 @@
 {
   "name": "@cloverleaf/reference-impl",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Reference implementation of the Cloverleaf methodology as Claude Code skills. Implements the Tight Loop (Implementer + Reviewer).",
   "type": "module",
   "license": "MIT",
@@ -47,6 +47,9 @@
     "build": "tsc -p tsconfig.build.json && node scripts/rename-to-mjs.mjs",
     "acceptance:walker": "bash scripts/acceptance-walker.sh",
     "prepublishOnly": "node scripts/check-standard-prepped.mjs && npm test && npm run build"
+  },
+  "peerDependencies": {
+    "@cloverleaf/standard": "^0.7.1"
   },
   "dependencies": {
     "@cloverleaf/standard": "^0.7.0",

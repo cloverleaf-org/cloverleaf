@@ -1098,9 +1098,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.8.0', () => {
-    // v0.8.0: Security Reviewer agent + security_class dimension.
-    expect(pkg.version).toBe('0.8.0');
+  it('reports version 0.8.1', () => {
+    // v0.8.1: Mechanical enforcement of the security-review state.
+    expect(pkg.version).toBe('0.8.1');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {

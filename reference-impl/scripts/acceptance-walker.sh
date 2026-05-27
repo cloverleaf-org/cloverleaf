@@ -9,7 +9,7 @@
 # loop is exercised separately by the manual dogfood (see the spec at
 # docs/superpowers/specs/2026-04-24-autonomous-dag-walk-design.md).
 #
-# This script validates:
+# Default scenario validates:
 #
 #   1. Cycle detection on a clean Plan exits 0 silently.
 #   2. dag-ready-tasks returns all peers when nothing has run yet.
@@ -19,9 +19,265 @@
 #   6. dag-ready-tasks returns nothing when every task is merged.
 #   7. Cycle detection catches a hand-crafted 2-cycle.
 #
+# Named scenarios (pass as first argument):
+#
+#   flow2-dogfood-repro  — Reproduces the Flow 2 (Under-classification at the door)
+#                          sequence from the CLV-107 integration test. Exercises the
+#                          advance-status security-gate refusal (exit code 2), writeback,
+#                          and recovery sequence against a real git repo + CLI. Matches
+#                          the load-bearing dogfood trail captured in
+#                          tests/integration.security-gate.test.ts (Flow 2 describe block).
+#
 # Run via `npm run acceptance:walker` from the reference-impl/ directory or
-# directly: `bash scripts/acceptance-walker.sh`.
+# directly: `bash scripts/acceptance-walker.sh [scenario]`.
 set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# scenario: flow2-dogfood-repro
+#
+# Description
+# -----------
+# Reproduces the "Under-classification at the door" scenario that surfaced
+# during the 2026-05-25 claw-crypto dogfood and is captured as the load-bearing
+# Flow 2 integration test in reference-impl/tests/integration.security-gate.test.ts.
+#
+# What it demonstrates
+# --------------------
+# A task that was created with security_class="low" has a diff that touches a
+# sensitive path (scripts/deploy.sh). The orchestrator attempts to advance the
+# task directly to `merged` (fast-lane), bypassing the security-review state.
+# The `advance-status` CLI:
+#   1. Re-runs classify-security against the real git diff.
+#   2. Detects the sensitive path → writes back security_class="high" (writeback).
+#   3. Validates: security_class=high but security_review_verdict=null → refuses.
+#   4. Exits with code 2 and a canonical error message naming the recovery action.
+#
+# Recovery sequence:
+#   1. Orchestrator reads exit-2 → advances to security-review.
+#   2. Security Reviewer runs, sets verdict=pass via set-task-field.
+#   3. Advance security-review → automated-gates.
+#   4. Retry: advance automated-gates → merged. Verdict=pass → guard allows.
+#   5. Task reaches status=merged.
+#
+# Mirrors CLV-107 Flow 2 integration test
+# ----------------------------------------
+# This scenario exercises the exact same sequence as the "dogfood: low-declared
+# task with sensitive diff is refused, upgraded, then recovers to merged" test
+# case in tests/integration.security-gate.test.ts. The key difference: the
+# integration test uses __setMockChangedFiles (an in-process testing seam),
+# while this scenario uses a real git repo and a real committed sensitive file.
+#
+# Assertions (all must pass for exit 0)
+# --------------------------------------
+#   A1. advance-status automated-gates→merged exits non-zero (refusal).
+#   A2. Exit code of the refused advance is 2.
+#   A3. Refusal stderr contains "SECURITY_GATE" or "security_review_verdict".
+#   A4. Task security_class was written back to "high" after refusal.
+#   A5. Recovery set-task-field exits 0.
+#   A6. Final advance-status automated-gates→merged exits 0 (pass).
+#   A7. Task status is "merged" at end.
+#   A8. Task security_review_verdict is "pass" at end.
+# ---------------------------------------------------------------------------
+run_flow2_dogfood_repro() {
+  echo "=== Scenario: flow2-dogfood-repro ==="
+  echo "Reproducing Flow 2 (Under-classification at the door) end-to-end."
+  echo "Mirrors: tests/integration.security-gate.test.ts 'Flow 2' describe block."
+  echo
+
+  # ---- Setup: create a minimal git repo ----
+  local REPO
+  REPO="$(mktemp -d -t cloverleaf-flow2-repro.XXXXXX)"
+  # Expand REPO now so the trap string carries the literal path, not the
+  # variable name (local variables are not in scope when EXIT fires).
+  # shellcheck disable=SC2064
+  trap "rm -rf '$REPO'" EXIT
+
+  # Initialise git so advance-status can run git diff against a real branch.
+  # Use -b main explicitly so the default branch is 'main' regardless of the
+  # system's init.defaultBranch config (some systems default to 'master').
+  git -C "$REPO" init -q -b main 2>/dev/null || {
+    # Older git versions (<2.28) don't support -b; rename after init.
+    git -C "$REPO" init -q
+    git -C "$REPO" symbolic-ref HEAD refs/heads/main
+  }
+  git -C "$REPO" config user.email "acceptance@cloverleaf.test"
+  git -C "$REPO" config user.name "Acceptance Test"
+
+  # Create the .cloverleaf structure.
+  mkdir -p "$REPO/.cloverleaf/projects" "$REPO/.cloverleaf/tasks"
+  mkdir -p "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/feedback"
+  printf '{"key":"DEMO","name":"Demo Project"}' > "$REPO/.cloverleaf/projects/DEMO.json"
+
+  # Seed task: low-classified at automated-gates (simulating the dogfood state).
+  # security_class="low" declared, security_review_verdict absent (null equivalent).
+  cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'TASKEOF'
+{
+  "id": "DEMO-001",
+  "type": "task",
+  "status": "automated-gates",
+  "owner": {"kind": "agent", "id": "unassigned"},
+  "project": "DEMO",
+  "title": "Dogfood reproduction task",
+  "context": {"rfc": {"project": "DEMO", "id": "DEMO-RFC-001"}},
+  "acceptance_criteria": ["Flow 2 recovery succeeds"],
+  "definition_of_done": ["Task reaches merged"],
+  "risk_class": "low",
+  "security_class": "low",
+  "security_review_verdict": null
+}
+TASKEOF
+
+  # Commit the initial state on main.
+  git -C "$REPO" add -A
+  git -C "$REPO" commit -q -m "chore: initial repo state"
+
+  # Create the feature branch with a sensitive file in its diff.
+  # scripts/deploy.sh matches "**/deploy*.sh" in config/security-paths.json.
+  git -C "$REPO" checkout -q -b cloverleaf/DEMO-001
+  mkdir -p "$REPO/scripts"
+  printf '#!/bin/bash\necho "Deploying..."\n' > "$REPO/scripts/deploy.sh"
+  git -C "$REPO" add -A
+  git -C "$REPO" commit -q -m "feat: add deploy script"
+
+  # Return to main so advance-status can run 'git diff main..cloverleaf/DEMO-001'.
+  git -C "$REPO" checkout -q main
+
+  echo "Temp repo: $REPO"
+  echo "Feature branch 'cloverleaf/DEMO-001' contains: scripts/deploy.sh"
+  echo "Task starts at status=automated-gates, security_class=low, verdict=null"
+  echo
+
+  # ---- Step 1: Attempt advance automated-gates → merged (fast-lane) ----
+  # Expected: exit 2 (SECURITY_GATE refusal). The advance-status CLI re-runs
+  # classify-security, detects scripts/deploy.sh → upgrades to high → refuses.
+  echo "Step 1: attempting advance-status automated-gates → merged (fast-lane)..."
+  REFUSAL_STDERR=""
+  REFUSAL_EXIT=0
+  REFUSAL_STDERR_FILE="$(mktemp)"
+  cloverleaf-cli advance-status "$REPO" DEMO-001 merged human human_merge fast_lane \
+    2>"$REFUSAL_STDERR_FILE" || REFUSAL_EXIT=$?
+  REFUSAL_STDERR="$(cat "$REFUSAL_STDERR_FILE")"
+  rm -f "$REFUSAL_STDERR_FILE"
+
+  # A1: must exit non-zero.
+  if [[ "$REFUSAL_EXIT" -eq 0 ]]; then
+    echo "FAIL [A1]: advance-status should have been refused but exited 0"
+    exit 1
+  fi
+  echo "✓ A1. advance-status refused (non-zero exit)"
+
+  # A2: must exit with code 2.
+  if [[ "$REFUSAL_EXIT" -ne 2 ]]; then
+    echo "FAIL [A2]: expected exit code 2 (SECURITY_GATE), got $REFUSAL_EXIT"
+    exit 1
+  fi
+  echo "✓ A2. exit code is 2 (SECURITY_GATE)"
+  echo "  [refusal evidence] stderr: $REFUSAL_STDERR"
+
+  # A3: stderr must mention security_gate or security_review_verdict.
+  if ! echo "$REFUSAL_STDERR" | grep -qiE 'security_review_verdict|security.?gate|security-gate'; then
+    echo "FAIL [A3]: refusal stderr does not mention security_review_verdict or security-gate"
+    echo "  got: $REFUSAL_STDERR"
+    exit 1
+  fi
+  echo "✓ A3. refusal stderr contains security-gate evidence"
+
+  # A4: security_class must have been written back to "high".
+  SECURITY_CLASS="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('security_class',''))" 2>/dev/null || \
+    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(d.security_class||'')")"
+  if [[ "$SECURITY_CLASS" != "high" ]]; then
+    echo "FAIL [A4]: expected security_class=high after writeback, got: $SECURITY_CLASS"
+    exit 1
+  fi
+  echo "✓ A4. security_class written back to 'high' (classify-security diff-detected scripts/deploy.sh)"
+
+  # ---- Recovery sequence ----
+  echo
+  echo "Recovery sequence:"
+
+  # Recovery step 1: advance to security-review (unconditional edge — no security_gate).
+  echo "  Recovery 1: advance automated-gates → security-review..."
+  cloverleaf-cli advance-status "$REPO" DEMO-001 security-review agent
+  echo "  ✓ advanced to security-review"
+
+  # Recovery step 2: Security Reviewer writes verdict=pass.
+  echo "  Recovery 2: set-task-field security_review_verdict=pass..."
+  SET_EXIT=0
+  cloverleaf-cli set-task-field "$REPO" DEMO-001 security_review_verdict pass || SET_EXIT=$?
+
+  # A5: set-task-field must exit 0.
+  if [[ "$SET_EXIT" -ne 0 ]]; then
+    echo "FAIL [A5]: set-task-field exited $SET_EXIT, expected 0"
+    exit 1
+  fi
+  echo "  ✓ A5. set-task-field exited 0"
+
+  # Recovery step 3: advance security-review → automated-gates.
+  echo "  Recovery 3: advance security-review → automated-gates..."
+  cloverleaf-cli advance-status "$REPO" DEMO-001 automated-gates agent
+  echo "  ✓ advanced to automated-gates"
+
+  # Recovery step 4: retry advance automated-gates → merged (fast-lane).
+  # Verdict=pass, security_class=high → guard allows.
+  echo "  Recovery 4: retry advance automated-gates → merged (fast-lane)..."
+  RETRY_EXIT=0
+  cloverleaf-cli advance-status "$REPO" DEMO-001 merged human human_merge fast_lane || RETRY_EXIT=$?
+
+  # A6: retry must exit 0.
+  if [[ "$RETRY_EXIT" -ne 0 ]]; then
+    echo "FAIL [A6]: retry advance-status exited $RETRY_EXIT, expected 0"
+    exit 1
+  fi
+  echo "✓ A6. retry advance-status exited 0 (guard passed: verdict=pass)"
+
+  # ---- Final assertions ----
+  FINAL_STATUS="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('status',''))" 2>/dev/null || \
+    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(d.status||'')")"
+  FINAL_VERDICT="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('security_review_verdict',''))" 2>/dev/null || \
+    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(String(d.security_review_verdict)||'')")"
+
+  # A7: status must be merged.
+  if [[ "$FINAL_STATUS" != "merged" ]]; then
+    echo "FAIL [A7]: expected status=merged, got: $FINAL_STATUS"
+    exit 1
+  fi
+  echo "✓ A7. task status is 'merged'"
+
+  # A8: verdict must be pass.
+  if [[ "$FINAL_VERDICT" != "pass" ]]; then
+    echo "FAIL [A8]: expected security_review_verdict=pass, got: $FINAL_VERDICT"
+    exit 1
+  fi
+  echo "✓ A8. security_review_verdict is 'pass'"
+
+  echo
+  echo "=== flow2-dogfood-repro: all 8 assertions passed ==="
+  echo "  [refusal observed]  exit code 2 + security-gate stderr (A1–A3)"
+  echo "  [writeback observed] security_class upgraded to 'high' (A4)"
+  echo "  [recovery succeeded] task reached status='merged' with verdict='pass' (A5–A8)"
+}
+
+# ---------------------------------------------------------------------------
+# Scenario dispatch
+# ---------------------------------------------------------------------------
+case "${1:-default}" in
+  flow2-dogfood-repro)
+    run_flow2_dogfood_repro
+    exit 0
+    ;;
+  default|"")
+    : # fall through to default scenario below
+    ;;
+  *)
+    echo "Unknown scenario: $1"
+    echo "Available scenarios: flow2-dogfood-repro"
+    exit 2
+    ;;
+esac
+
+# ---------------------------------------------------------------------------
+# Default scenario (no argument given)
+# ---------------------------------------------------------------------------
 
 REPO="$(mktemp -d -t cloverleaf-walker-acceptance.XXXXXX)"
 trap 'rm -rf "$REPO"' EXIT

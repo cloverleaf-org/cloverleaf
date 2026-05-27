@@ -2,6 +2,26 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.8.1 — 2026-05-27
+
+**Mechanical enforcement of the security-review state.** v0.8.0 delivered the Security Reviewer agent; the 2026-05-25 claw-crypto dogfood validated the feature's value but showed the LLM driving /cloverleaf-run skipped the bookkeeping. 0.8.1 makes the bookkeeping non-prose.
+
+### Changed
+- `cloverleaf-cli advance-status` enforces the Standard 0.7.1 `security_gate` annotation. On any transition with the flag, it performs a **classify-security writeback**: re-runs classify-security against the real diff and writes back `security_class: "high"` on under-classification, then validates. On refusal: **exit code 2** + canonical error message naming the required recovery action.
+- `cloverleaf-cli advance-status review → automated-gates` resets `security_review_verdict` to null (rework invalidates prior security pass), atomic with the status change.
+- `cloverleaf-security-review` skill writes `security_review_verdict` on each terminal branch via `set-task-field`, committed before `advance-status`.
+- `cloverleaf-run` skill's "Security gate (both lanes)" section keeps belt-and-suspenders prose; new refusal-and-recover subsection documents the exit-code-2 recovery pattern.
+- `prompts/security-reviewer.md` requires `verdict` on the agent response envelope.
+
+### Added
+- `cloverleaf-cli set-task-field <repoRoot> <taskId> <field> <value>` — focused write primitive used by the security-review skill. Allowlist scoped to `security_review_verdict`.
+- `classifyTaskSecurity(repoRoot, taskId, opts?)` helper extracted from the classify-security CLI handler; used by both the CLI and `advanceStatus`.
+- `__setMockChangedFiles` testing seam in `lib/security-classify.ts` for deterministic integration tests.
+- Integration tests for Flows 1–4 + backward-compat (`reference-impl/tests/integration.security-gate.test.ts`), including the load-bearing Flow 2 dogfood reproduction.
+
+### Dependencies
+- `@cloverleaf/standard` peer dep bumped from `^0.7.0` to `^0.7.1` (adds `security_gate` + `resets_security_verdict` transition annotations).
+
 ## 0.8.0 — 2026-05-13
 
 ### Added
