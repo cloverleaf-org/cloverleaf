@@ -1098,9 +1098,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.8.2', () => {
-    // v0.8.2: check-scope honors .gitattributes merge=union annotations.
-    expect(pkg.version).toBe('0.8.2');
+  it('reports version 0.8.3', () => {
+    // v0.8.3: dispatching skills carry the foreground-mode convention; eliminates LLM-improvised sleep-poll antipattern in walker Session B.
+    expect(pkg.version).toBe('0.8.3');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
