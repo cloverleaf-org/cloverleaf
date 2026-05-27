@@ -1,7 +1,7 @@
 {
   "id": "CLV-107",
   "type": "task",
-  "status": "final-gate",
+  "status": "merged",
   "owner": {
     "kind": "agent",
     "id": "implementer"
