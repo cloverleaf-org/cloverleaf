@@ -1,0 +1,15 @@
+{
+  "event_id": "c4affb0b-ab97-41a4-bb84-a69f2ef8a6fc",
+  "event_type": "gate_decision",
+  "occurred_at": "2026-05-27T13:06:32.403Z",
+  "gate": "final_approval_gate",
+  "work_item_id": {
+    "project": "CLV",
+    "id": "CLV-103"
+  },
+  "decision": "approve",
+  "approver": {
+    "kind": "human",
+    "id": "local-user"
+  }
+}
