@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { emitStatusTransition, formatReason } from './events.js';
-import { validateStatusTransitionLegality } from '@cloverleaf/standard/validators/index.js';
+import { validateStatusTransitionLegality, validateSecurityGate } from '@cloverleaf/standard/validators/index.js';
 import type { StatusTransitions } from '@cloverleaf/standard/validators/index.js';
 
 const req = createRequire(import.meta.url);
@@ -54,6 +54,16 @@ export function advanceWorkItemStatus<T>(params: AdvanceWorkItemParams<T>): Adva
   if (!result.ok) {
     const msgs = result.violations.map((v) => v.message).join('; ');
     throw new Error(`Illegal transition ${from} → ${to}: ${msgs}`);
+  }
+
+  if (workItemType === 'task') {
+    const sgResult = validateSecurityGate(event, stateMachine, validateFixture as never);
+    if (!sgResult.ok) {
+      const msgs = sgResult.violations.map((v) => v.message).join('; ');
+      const err = new Error(msgs);
+      (err as Error & { code?: string }).code = 'SECURITY_GATE';
+      throw err;
+    }
   }
 
   const emittedPath = emitStatusTransition(repoRoot, {

@@ -12,6 +12,8 @@ export interface TaskDoc {
   title: string;
   status: string;
   risk_class: 'low' | 'high';
+  security_class?: 'low' | 'high';
+  security_review_verdict?: 'pass' | 'bounce' | 'escalate' | null;
   owner: { kind: 'agent' | 'human' | 'system'; id: string };
   acceptance_criteria: string[];
   definition_of_done: string[];
@@ -66,6 +68,8 @@ export function advanceStatus(
     project: task.project,
     status: task.status,
     risk_class: riskClass,
+    security_class: task.security_class,
+    security_review_verdict: task.security_review_verdict,
     context: { rfc: { project: task.project, id: task.id } },
     definition_of_done: task.definition_of_done,
     acceptance_criteria: task.acceptance_criteria,

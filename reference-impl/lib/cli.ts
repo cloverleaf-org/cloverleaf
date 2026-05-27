@@ -71,7 +71,7 @@ import { classifyFiles } from './scope-check.js';
 import type { SiblingScope } from './scope-check.js';
 import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
 import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
-import { loadSecurityPathsConfig, computeSecurityClassification } from './security-classify.js';
+import { classifyTaskSecurity } from './security-classify.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -777,21 +777,13 @@ try {
       const branch = branchIdx >= 0 ? rest[branchIdx + 1] : undefined;
       const [repoRoot, taskId] = positional;
       if (!repoRoot || !taskId) usage('classify-security <repoRoot> <taskId> [--branch <branch>]');
-      let task;
+      let result;
       try {
-        task = loadTask(repoRoot, taskId);
+        result = classifyTaskSecurity(repoRoot, taskId, branch ? { branch } : undefined);
       } catch (err) {
         process.stderr.write(`cloverleaf-cli classify-security: ${err instanceof Error ? err.message : String(err)}\n`);
         process.exit(2);
       }
-      const declared = (task as Record<string, unknown>).security_class === 'high' ? 'high' : 'low';
-      const cfg = loadSecurityPathsConfig(repoRoot);
-      let changed: string[] = [];
-      if (branch) {
-        const out = execSync(`git -C ${repoRoot} diff --name-only main..${branch}`, { encoding: 'utf-8' });
-        changed = out.split('\n').filter(Boolean);
-      }
-      const result = computeSecurityClassification(declared, changed, cfg);
       process.stdout.write(JSON.stringify(result) + '\n');
       break;
     }
