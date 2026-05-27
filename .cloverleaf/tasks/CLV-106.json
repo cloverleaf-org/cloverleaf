@@ -40,5 +40,5 @@
       "reference-impl/tests/prompts.test.ts"
     ]
   },
-  "security_review_verdict": null
+  "security_review_verdict": "pass"
 }
