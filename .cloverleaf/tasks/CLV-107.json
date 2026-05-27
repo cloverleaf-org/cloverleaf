@@ -1,7 +1,7 @@
 {
   "id": "CLV-107",
   "type": "task",
-  "status": "review",
+  "status": "automated-gates",
   "owner": {
     "kind": "agent",
     "id": "implementer"
@@ -36,5 +36,6 @@
     "files_touched": [
       "reference-impl/tests/integration.security-gate.test.ts"
     ]
-  }
+  },
+  "security_review_verdict": null
 }
