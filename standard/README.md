@@ -12,7 +12,7 @@ npm install @cloverleaf/standard
 
 - `schemas/` — JSON Schemas for Work Items, events, rule formats, problem, feedback, status-transitions.
 - `agent-contracts/` — OpenAPI 3.1 specs for the seven Cloverleaf agents.
-- `state-machines/` — Canonical status transition graphs for each Work Item type.
+- `state-machines/` — Canonical status transition graphs for each Work Item type. As of 0.7.1, the three transitions out of `automated-gates` (`→ ui-review`, `→ qa`, `→ merged`) plus the `review → automated-gates` reset edge are annotated `security_gate: true` and `resets_security_verdict: true` respectively; the guard requires `security_review_verdict === "pass"` when `security_class === "high"`. See `validators/security-gate.ts`.
 - `validators/` — TypeScript reference implementations for runtime invariants.
 - `examples/{valid,invalid}/` — Per-schema positive and negative example documents with `.meta.json` sidecars declaring conformance level.
 - `examples/scenarios/` — End-to-end scenarios exercising all schemas together.

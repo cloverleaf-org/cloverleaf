@@ -1,0 +1,93 @@
+{
+  "verdict": "bounce",
+  "summary": "UI review bounced: 4 link-in-text-block error findings introduced by CLV-108's new cross-reference links in /guide/05-delivery.mdx and /guide/07-agents.mdx.",
+  "findings": [
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Dimension mismatch for guide at mobile: Baseline: 500x667, Candidate: 375x667",
+      "metadata": {
+        "viewport": "mobile",
+        "result": "dimension-mismatch",
+        "details": "Baseline: 500x667, Candidate: 375x667"
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Visual diff for guide at tablet: fail (diffRatio=6.663%)",
+      "metadata": {
+        "viewport": "tablet",
+        "result": "fail",
+        "diffRatio": 0.06662877400716145,
+        "maxDiffRatio": 0.01
+      }
+    },
+    {
+      "severity": "info",
+      "rule": "visual-diff",
+      "message": "Visual diff for guide at desktop: fail (diffRatio=3.142%)",
+      "metadata": {
+        "viewport": "desktop",
+        "result": "fail",
+        "diffRatio": 0.031416015625,
+        "maxDiffRatio": 0.01
+      }
+    },
+    {
+      "severity": "warning",
+      "rule": "heading-order",
+      "message": "[axe] Heading levels should only increase by one. New <h4> 'Mechanical enforcement (reference-impl 0.8.1+)' in 07-agents.mdx jumps from <h2> with no intervening <h3>. Either promote to ### or wrap under an intermediate ### heading.",
+      "metadata": {
+        "impact": "moderate",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/heading-order?application=axeAPI",
+        "target": "#mechanical-enforcement-reference-impl-081",
+        "html": "<h4 id=\"mechanical-enforcement-reference-impl-081\">Mechanical enforcement (reference-impl 0.8.1+)</h4>"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "link-in-text-block",
+      "message": "[axe] Links must be distinguishable without relying on color. Inline cross-reference link <a href=\"/guide/07-agents\">Chapter 7 (Agents)</a> in 05-delivery.mdx fails WCAG 2.1 SC 1.4.1.",
+      "metadata": {
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=axeAPI",
+        "target": "a[href$=\"07-agents\"]",
+        "html": "<a href=\"/guide/07-agents\">Chapter 7 (Agents)</a>"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "link-in-text-block",
+      "message": "[axe] Links must be distinguishable without relying on color. Inline cross-reference link <a href=\"/guide/08-gates\">Chapter 8 (Gates)</a> in 05-delivery.mdx (paragraph 11) fails WCAG 2.1 SC 1.4.1.",
+      "metadata": {
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=axeAPI",
+        "target": "p:nth-child(11) > a[href$=\"08-gates\"]",
+        "html": "<a href=\"/guide/08-gates\">Chapter 8 (Gates)</a>"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "link-in-text-block",
+      "message": "[axe] Links must be distinguishable without relying on color. Inline cross-reference link <a href=\"/guide/05-delivery\">Chapter 5 (Delivery)</a> in 07-agents.mdx fails WCAG 2.1 SC 1.4.1.",
+      "metadata": {
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=axeAPI",
+        "target": "a[href$=\"05-delivery\"]",
+        "html": "<a href=\"/guide/05-delivery\">Chapter 5 (Delivery)</a>"
+      }
+    },
+    {
+      "severity": "error",
+      "rule": "link-in-text-block",
+      "message": "[axe] Links must be distinguishable without relying on color. Inline cross-reference link <a href=\"/guide/08-gates\">Chapter 8 (Gates)</a> in 07-agents.mdx (paragraph 10) fails WCAG 2.1 SC 1.4.1.",
+      "metadata": {
+        "impact": "serious",
+        "helpUrl": "https://dequeuniversity.com/rules/axe/4.11/link-in-text-block?application=axeAPI",
+        "target": "p:nth-child(10) > a[href$=\"08-gates\"]",
+        "html": "<a href=\"/guide/08-gates\">Chapter 8 (Gates)</a>"
+      }
+    }
+  ]
+}
