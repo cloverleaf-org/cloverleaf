@@ -3,6 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'nod
 import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { __setMockChangedFiles, __setMockClassifyError } from '../lib/security-classify.js';
+import { advanceStatus } from '../lib/task.js';
 
 const CLI = resolve(__dirname, '..', 'lib', 'cli.ts');
 
@@ -1431,6 +1433,249 @@ describe('cli — security-gate wiring (v0.8.1)', () => {
     expect(r.exitCode).toBe(0);
     const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'SG-4.json'), 'utf-8'));
     expect(task.status).toBe('implementing');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-104: advance-status: classify-security writeback
+// ---------------------------------------------------------------------------
+
+describe('advance-status: classify-security writeback', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-wb-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'projects', 'WB.json'),
+      JSON.stringify({ key: 'WB', name: 'WritebackTest' })
+    );
+
+    // Init git repo so the writeback commit can succeed.
+    execSync('git init -q -b main', { cwd: tmp });
+    execSync('git config user.email test@test', { cwd: tmp });
+    execSync('git config user.name test', { cwd: tmp });
+    writeFileSync(join(tmp, 'README.md'), 'init\n');
+    execSync('git add . && git commit -q -m initial', { cwd: tmp });
+    execSync('git checkout -q -b cloverleaf/WB-1', { cwd: tmp });
+
+    // Add a sensitive file to the feature branch so git diff detects it.
+    mkdirSync(join(tmp, 'scripts'), { recursive: true });
+    writeFileSync(join(tmp, 'scripts', 'deploy.sh'), '#!/bin/bash\necho deploy\n');
+    execSync('git add . && git commit -q -m "add deploy script"', { cwd: tmp });
+  });
+
+  afterEach(() => {
+    __setMockChangedFiles(null);
+    __setMockClassifyError(null);
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  function writeWbTask(
+    id: string,
+    status: string,
+    securityClass: 'low' | 'high',
+    verdict: 'pass' | 'bounce' | 'escalate' | null | undefined
+  ): void {
+    const doc: Record<string, unknown> = {
+      type: 'task', id, project: 'WB', status,
+      owner: { kind: 'agent', id: 'implementer' },
+      title: 'wb test task',
+      context: { rfc: { project: 'WB', id: 'WB-RFC-1' } },
+      acceptance_criteria: ['ac'], definition_of_done: ['dod'],
+      risk_class: 'high', security_class: securityClass,
+    };
+    if (verdict !== undefined) doc.security_review_verdict = verdict;
+    writeFileSync(join(tmp, '.cloverleaf', 'tasks', `${id}.json`), JSON.stringify(doc) + '\n');
+    execSync('git add . && git commit -q -m "write task"', { cwd: tmp });
+  }
+
+  it('declared=low + sensitive diff → writeback fires (security_class becomes high) AND validator refuses (high+null)', () => {
+    // git diff main..cloverleaf/WB-1 will include scripts/deploy.sh which matches **/deploy*.sh
+    writeWbTask('WB-1', 'automated-gates', 'low', null);
+
+    // Advance should fail because: writeback sets security_class=high, then validator
+    // refuses high+null.
+    const r = run(['advance-status', tmp, 'WB-1', 'ui-review', 'agent', '', 'full_pipeline']);
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr.toLowerCase()).toMatch(/security.gate|security_review_verdict/);
+
+    // Reload from disk — security_class must have been upgraded.
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'WB-1.json'), 'utf-8'));
+    expect(task.security_class).toBe('high');
+  });
+
+  it('declared=low + benign diff → no writeback, advance succeeds', () => {
+    // Use the mock to inject a benign (non-sensitive) file list; classifyTaskSecurity
+    // will return effective='low', so no writeback fires and the advance succeeds.
+    const tmp3 = mkdtempSync(join(tmpdir(), 'cl-wb-benign-'));
+    try {
+      mkdirSync(join(tmp3, '.cloverleaf', 'projects'), { recursive: true });
+      mkdirSync(join(tmp3, '.cloverleaf', 'tasks'), { recursive: true });
+      mkdirSync(join(tmp3, '.cloverleaf', 'events'), { recursive: true });
+      writeFileSync(
+        join(tmp3, '.cloverleaf', 'projects', 'WB.json'),
+        JSON.stringify({ key: 'WB', name: 'WritebackTest' })
+      );
+      const doc: Record<string, unknown> = {
+        type: 'task', id: 'WB-2', project: 'WB', status: 'automated-gates',
+        owner: { kind: 'agent', id: 'implementer' },
+        title: 'wb test task',
+        context: { rfc: { project: 'WB', id: 'WB-RFC-1' } },
+        acceptance_criteria: ['ac'], definition_of_done: ['dod'],
+        risk_class: 'high', security_class: 'low', security_review_verdict: null,
+      };
+      writeFileSync(join(tmp3, '.cloverleaf', 'tasks', 'WB-2.json'), JSON.stringify(doc) + '\n');
+      // Inject a benign file list; none match path_patterns, so effective='low'.
+      __setMockChangedFiles(['README.md']);
+      const result = advanceStatus(tmp3, 'WB-2', 'ui-review', 'agent', { path: 'full_pipeline' });
+      expect(result.status).toBe('ui-review');
+      const task = JSON.parse(readFileSync(join(tmp3, '.cloverleaf', 'tasks', 'WB-2.json'), 'utf-8'));
+      expect(task.status).toBe('ui-review');
+      expect(task.security_class).toBe('low');
+    } finally {
+      __setMockChangedFiles(null);
+      rmSync(tmp3, { recursive: true, force: true });
+    }
+  });
+
+  it('classify-security exception → stderr contains classify-security and high; validator refuses guarded transition', () => {
+    // Force classifyTaskSecurity to throw via the testing seam to exercise the
+    // error-fallback path in advanceStatus. We call advanceStatus directly (not via CLI).
+    const tmp4 = mkdtempSync(join(tmpdir(), 'cl-wb-exc-'));
+    // Capture stderr writes so we can assert on them.
+    let stderrCapture = '';
+    const origWrite = process.stderr.write.bind(process.stderr);
+    const patchedWrite = (chunk: Uint8Array | string, ...rest: unknown[]): boolean => {
+      stderrCapture += String(chunk);
+      // @ts-expect-error — we pass rest through even though types are tricky
+      return origWrite(chunk, ...rest);
+    };
+    process.stderr.write = patchedWrite as typeof process.stderr.write;
+
+    __setMockClassifyError(new Error('mock git error: repository not found'));
+    try {
+      mkdirSync(join(tmp4, '.cloverleaf', 'projects'), { recursive: true });
+      mkdirSync(join(tmp4, '.cloverleaf', 'tasks'), { recursive: true });
+      mkdirSync(join(tmp4, '.cloverleaf', 'events'), { recursive: true });
+      writeFileSync(
+        join(tmp4, '.cloverleaf', 'projects', 'WB.json'),
+        JSON.stringify({ key: 'WB', name: 'WritebackTest' })
+      );
+      // Task with security_class: 'low' and verdict=null — error path treats effective='high'.
+      const doc: Record<string, unknown> = {
+        type: 'task', id: 'WB-3', project: 'WB', status: 'automated-gates',
+        owner: { kind: 'agent', id: 'implementer' },
+        title: 'wb exc task',
+        context: { rfc: { project: 'WB', id: 'WB-RFC-1' } },
+        acceptance_criteria: ['ac'], definition_of_done: ['dod'],
+        risk_class: 'high', security_class: 'low', security_review_verdict: null,
+      };
+      writeFileSync(join(tmp4, '.cloverleaf', 'tasks', 'WB-3.json'), JSON.stringify(doc) + '\n');
+
+      // advanceStatus catches the throw, emits stderr, treats effective='high'.
+      // Writeback fires (best-effort git commit skipped — no git repo).
+      // Validator refuses high+null with SECURITY_GATE.
+      let caughtError: (Error & { code?: string }) | null = null;
+      try {
+        advanceStatus(tmp4, 'WB-3', 'ui-review', 'agent', { path: 'full_pipeline' });
+      } catch (err) {
+        caughtError = err as Error & { code?: string };
+      }
+
+      // Stderr must mention 'classify-security' and 'high'.
+      expect(stderrCapture).toMatch(/classify-security/);
+      expect(stderrCapture).toMatch(/high/);
+
+      // Validator must have refused (SECURITY_GATE).
+      expect(caughtError).not.toBeNull();
+      expect(caughtError?.code).toBe('SECURITY_GATE');
+    } finally {
+      process.stderr.write = origWrite as typeof process.stderr.write;
+      __setMockClassifyError(null);
+      rmSync(tmp4, { recursive: true, force: true });
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// CLV-104: advance-status: verdict reset on review → automated-gates
+// ---------------------------------------------------------------------------
+
+describe('advance-status: verdict reset on review → automated-gates', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-vr-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'projects', 'VR.json'),
+      JSON.stringify({ key: 'VR', name: 'VerdictReset' })
+    );
+    execSync('git init -q -b main', { cwd: tmp });
+    execSync('git config user.email test@test', { cwd: tmp });
+    execSync('git config user.name test', { cwd: tmp });
+    writeFileSync(join(tmp, 'seed.txt'), 'x\n');
+    execSync('git add . && git commit -q -m init', { cwd: tmp });
+  });
+
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  function writeVrTask(
+    id: string,
+    status: string,
+    verdict: 'pass' | 'bounce' | 'escalate' | null | undefined
+  ): void {
+    const doc: Record<string, unknown> = {
+      type: 'task', id, project: 'VR', status,
+      owner: { kind: 'agent', id: 'implementer' },
+      title: 'vr test task',
+      context: { rfc: { project: 'VR', id: 'VR-RFC-1' } },
+      acceptance_criteria: ['ac'], definition_of_done: ['dod'],
+      risk_class: 'high', security_class: 'low',
+    };
+    if (verdict !== undefined) doc.security_review_verdict = verdict;
+    writeFileSync(join(tmp, '.cloverleaf', 'tasks', `${id}.json`), JSON.stringify(doc) + '\n');
+    execSync('git add . && git commit -q -m "write task"', { cwd: tmp });
+  }
+
+  it('review → automated-gates resets security_review_verdict=pass to null; single commit with both messages', () => {
+    writeVrTask('VR-1', 'review', 'pass');
+    const r = run(['advance-status', tmp, 'VR-1', 'automated-gates', 'agent']);
+    expect(r.exitCode).toBe(0);
+
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'VR-1.json'), 'utf-8'));
+    expect(task.status).toBe('automated-gates');
+    expect(task.security_review_verdict).toBeNull();
+
+    // Verify a single commit with the combined message.
+    const log = execSync('git log --oneline -1', { cwd: tmp, encoding: 'utf-8' }).trim();
+    expect(log).toMatch(/status review → automated-gates/);
+    expect(log).toMatch(/security_review_verdict → null/);
+  });
+
+  it('verdict reset is idempotent: verdict=null remains null after review → automated-gates', () => {
+    writeVrTask('VR-2', 'review', null);
+    const r = run(['advance-status', tmp, 'VR-2', 'automated-gates', 'agent']);
+    expect(r.exitCode).toBe(0);
+
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'VR-2.json'), 'utf-8'));
+    expect(task.status).toBe('automated-gates');
+    expect(task.security_review_verdict).toBeNull();
+  });
+
+  it('security-review → automated-gates does NOT reset security_review_verdict', () => {
+    writeVrTask('VR-3', 'security-review', 'pass');
+    const r = run(['advance-status', tmp, 'VR-3', 'automated-gates', 'agent']);
+    expect(r.exitCode).toBe(0);
+
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'VR-3.json'), 'utf-8'));
+    expect(task.status).toBe('automated-gates');
+    expect(task.security_review_verdict).toBe('pass');
   });
 });
 
