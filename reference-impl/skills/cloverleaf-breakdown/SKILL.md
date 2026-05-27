@@ -46,6 +46,8 @@ The user has invoked this skill with an RFC-ID (e.g., `CLV-009`).
 
    In the subagent context, also supply a hint that `next_id_base === $PLAN_ID`, so task IDs in `tasks[]` start at `PLAN_ID + 1`. The Plan agent allocates its own ID as `next_id_base` and task IDs sequentially after.
 
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 7. Parse subagent response — expected JSON conforming to `plan.schema.json`. Required fields: `id, type: "plan", status: "drafting", owner, project, parent_rfc, task_dag (edge-based), tasks (inline Task docs, status=pending)`. 3-bounce budget per invocation.
 
 8. Ensure output `plan.id === $PLAN_ID`, `project === $PROJECT_ID`, `parent_rfc === { project: <rfc.project>, id: $RFC_ID }`. If the subagent drifted, override these before save.

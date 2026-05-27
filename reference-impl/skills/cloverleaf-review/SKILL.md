@@ -42,6 +42,8 @@ description: Run the Reviewer agent on a task in the `review` state. Emits a fee
    - `model`: `sonnet`
    - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/reviewer.md` with substitutions for `{{task}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{diff}}`.
 
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 6. Parse the subagent's response. Expect a feedback envelope JSON of the form `{"verdict": "pass"|"bounce", "summary": "...", "findings": [...]}`. Validate shape: verdict must be `pass` or `bounce`; if `bounce`, findings must have at least one entry with `severity` (one of `blocker|error|warning|info`) and `message`.
 
 7. Branch on verdict:

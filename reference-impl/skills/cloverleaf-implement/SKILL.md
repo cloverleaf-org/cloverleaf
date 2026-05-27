@@ -32,6 +32,8 @@ The user has invoked this skill with a TASK-ID (e.g., `DEMO-001`).
      - `{{repo_root}}` → absolute path to the current repo
      - `{{base_branch}}` → `main` (or the current default branch)
 
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 5. Parse the subagent's response. Expect JSON of the form `{"status": "done", "branch": "...", "files_changed": [...], "summary": "..."}` or `{"status": "blocked", "reason": "..."}`.
 
 6. On `blocked`: report the reason and stop. Do NOT advance status.

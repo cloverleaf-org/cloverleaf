@@ -38,6 +38,8 @@ The user has invoked this skill with a SPIKE-ID (e.g., `CLV-010`).
      - `{{brief}}` → `null` (unused for runSpike)
      - `{{prior_rfc}}`, `{{completed_spikes}}` → `null`
 
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 6. Parse subagent response. Expected: the spike JSON with `status: "completed"`, `findings: string`, `recommendation: string`. Schema: `spike.schema.json` (validated by save-spike).
 
    If output fails schema validation: bounce. Budget: 3 bounces. On exhaustion: report and stop without advancing to completed.

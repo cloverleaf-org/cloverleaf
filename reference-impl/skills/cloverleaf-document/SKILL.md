@@ -43,6 +43,8 @@ description: Run the Documenter agent on a task in the `implementing` state (ful
      - `{{base_branch}}` → `main`
      - `{{repo_root}}` → absolute path
 
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 6. Parse the subagent's response. Expect JSON of the form `{"commits_added": N, "files_changed": [...], "summary": "..."}`.
 
 7. On failure to parse or response with invalid shape: report the response and stop without advancing state.

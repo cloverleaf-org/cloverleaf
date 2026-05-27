@@ -28,6 +28,9 @@ description: Run the Security Reviewer agent on a task in the `security-review` 
    - `subagent_type`: `general-purpose`
    - `model`: `sonnet`
    - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/security-reviewer.md` with substitutions for `{{task}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{diff}}`.
+
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
    Parse the subagent's feedback envelope (`verdict` + `findings[]`).
 
 6. **Merge + derive verdict.** Concatenate Pass A findings + Pass B findings into one `findings[]`. Derive the final verdict from the max severity across ALL findings:
