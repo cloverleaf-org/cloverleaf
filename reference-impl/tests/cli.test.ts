@@ -1194,6 +1194,97 @@ describe('cli — check-scope (CLV-87)', () => {
     const contestedFiles = result.contested.map((e: { file: string }) => e.file);
     expect(contestedFiles).toContain('lib/bar.ts');
   });
+
+  // merge=union awareness (reference-impl 0.8.2)
+
+  it('shared file (merge=union via root .gitattributes) + sibling claim → extension, not contested', () => {
+    // Record the sibling on main first.
+    execSync('git checkout -q main', { cwd: repoRoot });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-002.json'), JSON.stringify({
+      type: 'task', project: 'DEMO', id: 'DEMO-002',
+      title: 'bump sibling', status: 'review', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['a'], definition_of_done: ['d'],
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-1' } },
+      scope: { files_touched: ['CHANGELOG.md'] },
+    }));
+    execSync('git add . && git commit -q -m "add bump sibling"', { cwd: repoRoot });
+    execSync('git checkout -q cloverleaf/DEMO-001', { cwd: repoRoot });
+
+    // On the feature branch, add .gitattributes annotating CHANGELOG.md merge=union,
+    // plus the CHANGELOG.md edit itself.
+    writeFileSync(join(repoRoot, '.gitattributes'), 'CHANGELOG.md merge=union\n');
+    writeFileSync(join(repoRoot, 'CHANGELOG.md'), '## [Unreleased]\n- added foo\n');
+    execSync('git add . && git commit -q -m "add .gitattributes + touch CHANGELOG.md"', { cwd: repoRoot });
+
+    const { stdout, exitCode } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/DEMO-001',
+    ]);
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    // CHANGELOG.md is annotated merge=union → must land in extension, not contested
+    expect(result.contested).toEqual([]);
+    expect(result.extension).toContain('CHANGELOG.md');
+  });
+
+  it('non-shared file (no merge=union) + sibling claim → contested (regression guard)', () => {
+    // No .gitattributes file. Sibling claims lib/conflict.ts.
+    execSync('git checkout -q main', { cwd: repoRoot });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-003.json'), JSON.stringify({
+      type: 'task', project: 'DEMO', id: 'DEMO-003',
+      title: 'conflict sibling', status: 'review', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['a'], definition_of_done: ['d'],
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-1' } },
+      scope: { files_touched: ['lib/conflict.ts'] },
+    }));
+    execSync('git add . && git commit -q -m "add conflict sibling"', { cwd: repoRoot });
+    execSync('git checkout -q cloverleaf/DEMO-001', { cwd: repoRoot });
+
+    // Touch lib/conflict.ts on the feature branch
+    mkdirSync(join(repoRoot, 'lib'), { recursive: true });
+    writeFileSync(join(repoRoot, 'lib', 'conflict.ts'), 'export const z = 3;');
+    execSync('git add . && git commit -q -m "touch lib/conflict.ts"', { cwd: repoRoot });
+
+    const { stdout, exitCode } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/DEMO-001',
+    ]);
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    const contestedFiles = result.contested.map((e: { file: string }) => e.file);
+    expect(contestedFiles).toContain('lib/conflict.ts');
+  });
+
+  it('subdir .gitattributes: merge=union inherits to nested files', () => {
+    // .gitattributes inside pkg/, not at root. git check-attr should resolve correctly.
+    // First record the sibling on main:
+    execSync('git checkout -q main', { cwd: repoRoot });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-004.json'), JSON.stringify({
+      type: 'task', project: 'DEMO', id: 'DEMO-004',
+      title: 'subdir bump sibling', status: 'review', risk_class: 'low',
+      owner: { kind: 'agent', id: 'implementer' },
+      acceptance_criteria: ['a'], definition_of_done: ['d'],
+      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-1' } },
+      scope: { files_touched: ['pkg/CHANGELOG.md'] },
+    }));
+    execSync('git add . && git commit -q -m "add subdir bump sibling"', { cwd: repoRoot });
+    execSync('git checkout -q cloverleaf/DEMO-001', { cwd: repoRoot });
+
+    // On the feature branch, create pkg/, the subdir .gitattributes, AND the CHANGELOG.
+    mkdirSync(join(repoRoot, 'pkg'), { recursive: true });
+    writeFileSync(join(repoRoot, 'pkg', '.gitattributes'), 'CHANGELOG.md merge=union\n');
+    writeFileSync(join(repoRoot, 'pkg', 'CHANGELOG.md'), '## [Unreleased]\n- subdir change\n');
+    execSync('git add . && git commit -q -m "add pkg/.gitattributes + pkg/CHANGELOG.md"', { cwd: repoRoot });
+
+    const { stdout, exitCode } = run([
+      'check-scope', repoRoot, 'DEMO-001', '--branch', 'cloverleaf/DEMO-001',
+    ]);
+    expect(exitCode).toBe(0);
+    const result = JSON.parse(stdout);
+    // Subdir .gitattributes should resolve pkg/CHANGELOG.md as merge=union
+    expect(result.contested).toEqual([]);
+    expect(result.extension).toContain('pkg/CHANGELOG.md');
+  });
 });
 
 // ---------------------------------------------------------------------------
