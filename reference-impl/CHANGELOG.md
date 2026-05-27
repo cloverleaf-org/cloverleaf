@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.8.2 — 2026-05-27
+
+### Changed
+- `cloverleaf-cli check-scope` honors `.gitattributes merge=union` annotations. Files marked `merge=union` (e.g., `reference-impl/CHANGELOG.md` and `standard/CHANGELOG.md`) are no longer reported as `contested` when a sibling task in the same Plan also touches them — they fall through to `extension[]` and auto-extend post-merge. This unblocks the multi-writer CHANGELOG pattern that `.gitattributes` already declared but `check-scope` was failing to honor.
+
+### Notes
+- Pre-fix behavior is a strict subset of post-fix: single-writer collisions on files without `merge=union` still escalate exactly as before.
+- Standard is unchanged (still 0.7.1).
+- The `.gitattributes` parity bump adds `standard/CHANGELOG.md merge=union` alongside the existing `reference-impl/CHANGELOG.md merge=union`.
+
 ## 0.8.1 — 2026-05-27
 
 **Mechanical enforcement of the security-review state.** v0.8.0 delivered the Security Reviewer agent; the 2026-05-25 claw-crypto dogfood validated the feature's value but showed the LLM driving /cloverleaf-run skipped the bookkeeping. 0.8.1 makes the bookkeeping non-prose.
