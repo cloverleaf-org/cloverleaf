@@ -44,7 +44,9 @@ The `security_gate` and `resets_security_verdict` annotations on the Task state 
 - **`security_gate: true`** — annotates the three outbound edges from the `automated-gates` hub (`→ ui-review`, `→ qa`, `→ merged`). When a task's `security_class` is `"high"`, `advance-status` will refuse the transition with exit code 2 unless `security_review_verdict === "pass"`. The refusal is mechanical: the CLI re-runs `classify-security` on the actual diff before checking the verdict, so a task that was classified `low` at creation but touches sensitive paths in the real diff is caught at the gate.
 - **`resets_security_verdict: true`** — annotates the `review → automated-gates` edge. When the Reviewer bounces a task back to the Implementer and rework is eventually re-submitted, the prior security pass is invalidated atomically with the status change. The Security Reviewer must run again before the guarded transitions are available.
 
-These are preconditions on existing edges, not new states. The Security Reviewer still routes through `automated-gates` in both lanes — see [Chapter 7 (Agents)](/guide/07-agents) for the reviewer agent's behaviour and [Chapter 8 (Gates)](/guide/08-gates) for how the human gate interacts with the security verdict.
+These are preconditions on existing edges, not new states. The Security Reviewer still routes through `automated-gates` in both lanes.
+
+**See also:** [Chapter 7 (Agents)](/guide/07-agents) · [Chapter 8 (Gates)](/guide/08-gates)
 
 ### Failure handling on Delivery
 

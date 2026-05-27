@@ -12,7 +12,7 @@ Cloverleaf defines 8 default agent roles. They are recommended, not mandated —
 
 The 8th role, **Security Reviewer**, is a hybrid two-pass agent: deterministic secret scan (cloud keys, tokens, PEM headers) followed by LLM judgment (injection, authz, deserialization, SSRF, input validation, weak crypto). It routes by severity — blocker findings escalate, error/warning findings bounce back to the Implementer, clean diffs pass. It runs at the `automated-gates` hub when a task's `security_class` is high.
 
-#### Mechanical enforcement (reference-impl 0.8.1+)
+### Mechanical enforcement (reference-impl 0.8.1+)
 
 Starting with reference-impl 0.8.1 and Standard 0.7.1, the security-review requirement is mechanically enforced by `advance-status` — not just by orchestrator prose.
 
@@ -20,6 +20,8 @@ Starting with reference-impl 0.8.1 and Standard 0.7.1, the security-review requi
 
 **Motivation.** During the v0.8.0 claw-crypto dogfood (2026-05-25), the LLM orchestrator driving `/cloverleaf-run` skipped the security-review bookkeeping — the diff triggered the security path but the state machine advance was not gated. The v0.8.1 writeback-and-refuse pattern closes the gap: the tool refuses, the orchestrator reads the error, advances to `security-review`, completes the pass, and retries. No human intervention required for the common case.
 
-**Belt-and-suspenders.** The orchestrator skill (`/cloverleaf-run`) keeps its "Security gate (both lanes)" prose and the refusal-and-recover subsection. The CLI enforcement is a second line of defence — it fires even if the skill is misconfigured, forked, or invoked by a different LLM. See [Chapter 5 (Delivery)](/guide/05-delivery) for the `security_gate` annotation and [Chapter 8 (Gates)](/guide/08-gates) for the human gate interaction.
+**Belt-and-suspenders.** The orchestrator skill (`/cloverleaf-run`) keeps its "Security gate (both lanes)" prose and the refusal-and-recover subsection. The CLI enforcement is a second line of defence — it fires even if the skill is misconfigured, forked, or invoked by a different LLM.
+
+**See also:** [Chapter 5 (Delivery)](/guide/05-delivery) · [Chapter 8 (Gates)](/guide/08-gates)
 
 A solo developer can run all 8 by switching personas in a single session. A 50-person team can map them to specialized teams. The methodology only requires that the *function* of each role is filled at the right phase.
