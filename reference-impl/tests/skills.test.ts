@@ -1778,3 +1778,27 @@ describe('cloverleaf-run skill (CLV-106 — refusal-and-recover prose)', () => {
     expect(body).toMatch(/advance to.*security-review.*first|advance-status.*security-review/i);
   });
 });
+
+describe('dispatching skills carry the foreground-mode convention (v0.8.3)', () => {
+  const DISPATCHING_SKILLS = [
+    'cloverleaf-implement',
+    'cloverleaf-document',
+    'cloverleaf-review',
+    'cloverleaf-ui-review',
+    'cloverleaf-qa',
+    'cloverleaf-security-review',
+    'cloverleaf-draft-rfc',
+    'cloverleaf-spike',
+    'cloverleaf-breakdown',
+  ];
+
+  for (const skill of DISPATCHING_SKILLS) {
+    it(`${skill} SKILL.md instructs foreground Task tool + no background polling`, () => {
+      const content = readSkill(skill);
+      // The canonical block must be present (three discriminating tokens).
+      expect(content).toMatch(/foreground mode/i);
+      expect(content).toMatch(/run_in_background/);
+      expect(content).toMatch(/foreground `sleep`/);
+    });
+  }
+});
