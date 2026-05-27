@@ -45,4 +45,25 @@ describe('renderQaReport', () => {
     const html = renderQaReport([]);
     expect(html.toLowerCase()).toMatch(/no.*(runs|results)/);
   });
+
+  it('does not crash when a row field is undefined', () => {
+    const result = renderQaReport([{
+      ruleId: 'rule-1',
+      command: 'npm test',
+      cwd: '.',
+      durationMs: 100,
+      passed: true,
+      stdoutTail: undefined as unknown as string,
+      stderrTail: undefined as unknown as string,
+    }]);
+    expect(typeof result).toBe('string');
+    expect(result).toContain('<tr');
+    expect(result).toContain('rule-1');
+  });
+
+  it('does not crash when every row field is missing', () => {
+    const result = renderQaReport([{} as unknown as Parameters<typeof renderQaReport>[0][number]]);
+    expect(typeof result).toBe('string');
+    expect(result).toContain('<tr');
+  });
 });
