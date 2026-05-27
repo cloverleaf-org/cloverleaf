@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.8.3 — 2026-05-27
+
+### Changed
+- Nine cloverleaf delivery + discovery skills (`cloverleaf-implement`, `cloverleaf-document`, `cloverleaf-review`, `cloverleaf-ui-review`, `cloverleaf-qa`, `cloverleaf-security-review`, `cloverleaf-draft-rfc`, `cloverleaf-spike`, `cloverleaf-breakdown`) now carry an explicit **"Dispatch conventions"** block inline with their Task-tool dispatch step. The block instructs the LLM to invoke the Task tool in its default foreground mode and NOT to background-dispatch or poll. Eliminates the `Blocked: sleep` antipattern that fired on every agent dispatch during the v0.8.1 walker run.
+
+### Notes
+- Pure prose change in skill bodies. No CLI changes, no Standard contract change.
+- A parameterized regression test in `tests/skills.test.ts` asserts every dispatching skill carries the canonical block.
+- Walker UX improvement: fewer `tool_use_error` events on every per-task delivery + discovery dispatch.
+
 ## 0.8.2 — 2026-05-27
 
 ### Changed

@@ -72,6 +72,8 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
       - `{{affected_routes}}` → the value of `$AFFECTED` (verbatim — may be `"all"`, a JSON array, or `[]` but step 6 handled `[]` already)
       - `{{ui_review_config}}` → JSON-stringified result of `cloverleaf-cli ui-review-config <repo_root>` (used by the subagent to scope viewport sizes, thresholds, and axe rule overrides)
 
+    **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 11. Parse the subagent's response. Expect `{"verdict": "pass"|"bounce"|"escalate", "summary": "...", "findings": [...]}`.
 
 12. **Read the baseline-approval sidecar** (after the subagent completes, regardless of verdict):

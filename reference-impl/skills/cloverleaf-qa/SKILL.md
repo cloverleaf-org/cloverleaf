@@ -49,6 +49,8 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
    - `model`: `sonnet`
    - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/qa.md` with substitutions for `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{qa_rules}}` (the JSON loaded in step 5).
 
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 8. Parse response: expect `{"verdict": "pass"|"bounce"|"escalate", "summary", "findings", "results"}`.
 
 9. Branch on verdict:

@@ -41,6 +41,8 @@ The user has invoked this skill with an RFC-ID (e.g., `CLV-009`).
      - `{{completed_spikes}}` → `COMPLETED_SPIKES` JSON array (or `[]`)
      - `{{spike}}` → (unused for draftRfc; substitute `null`)
 
+   **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
+
 6. Parse subagent's response: expected JSON conforming to `rfc.schema.json`. Required fields: `id`, `type: "rfc"`, `status: "drafting"`, `owner`, `project`, `title`, `problem`, `solution`, `unknowns` (array of strings), `acceptance_criteria`, `out_of_scope`.
 
    If output fails schema validation: bounce. Budget: 3 bounces per invocation. On budget exhaustion: report and stop without advancing state.

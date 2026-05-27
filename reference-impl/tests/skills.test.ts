@@ -1098,9 +1098,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.8.2', () => {
-    // v0.8.2: check-scope honors .gitattributes merge=union annotations.
-    expect(pkg.version).toBe('0.8.2');
+  it('reports version 0.8.3', () => {
+    // v0.8.3: dispatching skills carry the foreground-mode convention; eliminates LLM-improvised sleep-poll antipattern in walker Session B.
+    expect(pkg.version).toBe('0.8.3');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
@@ -1777,4 +1777,28 @@ describe('cloverleaf-run skill (CLV-106 — refusal-and-recover prose)', () => {
   it('recovery sequence directs to advance to security-review first', () => {
     expect(body).toMatch(/advance to.*security-review.*first|advance-status.*security-review/i);
   });
+});
+
+describe('dispatching skills carry the foreground-mode convention (v0.8.3)', () => {
+  const DISPATCHING_SKILLS = [
+    'cloverleaf-implement',
+    'cloverleaf-document',
+    'cloverleaf-review',
+    'cloverleaf-ui-review',
+    'cloverleaf-qa',
+    'cloverleaf-security-review',
+    'cloverleaf-draft-rfc',
+    'cloverleaf-spike',
+    'cloverleaf-breakdown',
+  ];
+
+  for (const skill of DISPATCHING_SKILLS) {
+    it(`${skill} SKILL.md instructs foreground Task tool + no background polling`, () => {
+      const content = readSkill(skill);
+      // The canonical block must be present (three discriminating tokens).
+      expect(content).toMatch(/foreground mode/i);
+      expect(content).toMatch(/run_in_background/);
+      expect(content).toMatch(/foreground `sleep`/);
+    });
+  }
 });
