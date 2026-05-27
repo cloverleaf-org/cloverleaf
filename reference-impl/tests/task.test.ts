@@ -59,6 +59,27 @@ describe('state', () => {
     expect(loadTask(repoRoot, 'DEMO-001').title).toBe('Updated title');
   });
 
+  it('round-trips security_review_verdict=pass verbatim', () => {
+    const task = loadTask(repoRoot, 'DEMO-001');
+    task.security_class = 'high';
+    task.security_review_verdict = 'pass';
+    saveTask(repoRoot, task);
+    const reloaded = loadTask(repoRoot, 'DEMO-001');
+    expect(reloaded.security_review_verdict).toBe('pass');
+    expect(reloaded.security_class).toBe('high');
+  });
+
+  it('round-trips security_review_verdict=null distinct from absent', () => {
+    const task = loadTask(repoRoot, 'DEMO-001');
+    task.security_class = 'high';
+    task.security_review_verdict = null;
+    saveTask(repoRoot, task);
+    const reloaded = loadTask(repoRoot, 'DEMO-001');
+    // null must be preserved — not stripped — so hasOwnProperty returns true
+    expect(Object.prototype.hasOwnProperty.call(reloaded, 'security_review_verdict')).toBe(true);
+    expect(reloaded.security_review_verdict).toBeNull();
+  });
+
   it('saveTask auto-creates the tasks directory on first write (v0.5.1)', () => {
     const fresh = mkdtempSync(join(tmpdir(), 'cl-task-fresh-'));
     try {

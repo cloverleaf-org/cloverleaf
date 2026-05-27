@@ -1360,3 +1360,77 @@ describe('cli — classify-security (v0.8.0)', () => {
   });
 });
 
+describe('cli — security-gate wiring (v0.8.1)', () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = mkdtempSync(join(tmpdir(), 'cl-sg-'));
+    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
+    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'projects', 'SG.json'),
+      JSON.stringify({ key: 'SG', name: 'SecurityGate' })
+    );
+  });
+
+  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
+
+  function writeTask(
+    id: string,
+    status: string,
+    securityClass: 'low' | 'high',
+    verdict: 'pass' | 'bounce' | 'escalate' | null | undefined
+  ): void {
+    const doc: Record<string, unknown> = {
+      type: 'task',
+      id,
+      project: 'SG',
+      status,
+      owner: { kind: 'agent', id: 'implementer' },
+      title: 'sg test task',
+      context: { rfc: { project: 'SG', id: 'SG-RFC-1' } },
+      acceptance_criteria: ['ac'],
+      definition_of_done: ['dod'],
+      risk_class: 'high',
+      security_class: securityClass,
+    };
+    if (verdict !== undefined) {
+      doc.security_review_verdict = verdict;
+    }
+    writeFileSync(
+      join(tmp, '.cloverleaf', 'tasks', `${id}.json`),
+      JSON.stringify(doc) + '\n'
+    );
+  }
+
+  it('advance-status refuses automated-gates → ui-review on high+null with a security-gate error', () => {
+    writeTask('SG-1', 'automated-gates', 'high', null);
+    const r = run(['advance-status', tmp, 'SG-1', 'ui-review', 'agent', '', 'full_pipeline']);
+    expect(r.exitCode).not.toBe(0);
+    expect(r.stderr.toLowerCase()).toMatch(/security.gate|security_review_verdict/);
+  });
+
+  it('advance-status allows automated-gates → ui-review on high+pass', () => {
+    writeTask('SG-2', 'automated-gates', 'high', 'pass');
+    const r = run(['advance-status', tmp, 'SG-2', 'ui-review', 'agent', '', 'full_pipeline']);
+    expect(r.exitCode).toBe(0);
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'SG-2.json'), 'utf-8'));
+    expect(task.status).toBe('ui-review');
+  });
+
+  it('advance-status allows automated-gates → ui-review on low+null', () => {
+    writeTask('SG-3', 'automated-gates', 'low', null);
+    const r = run(['advance-status', tmp, 'SG-3', 'ui-review', 'agent', '', 'full_pipeline']);
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('advance-status allows automated-gates → implementing (escape hatch) even on high+null', () => {
+    writeTask('SG-4', 'automated-gates', 'high', null);
+    const r = run(['advance-status', tmp, 'SG-4', 'implementing', 'agent']);
+    expect(r.exitCode).toBe(0);
+    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'SG-4.json'), 'utf-8'));
+    expect(task.status).toBe('implementing');
+  });
+});
+

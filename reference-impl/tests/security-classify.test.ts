@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadSecurityPathsConfig, matchesSensitivePath, matchesSensitiveKeyword, computeSecurityClassification } from '../lib/security-classify.js';
+import { loadSecurityPathsConfig, matchesSensitivePath, matchesSensitiveKeyword, computeSecurityClassification, classifyTaskSecurity, __setMockChangedFiles } from '../lib/security-classify.js';
 
 const cfg = loadSecurityPathsConfig(process.cwd());
 
@@ -75,5 +75,80 @@ describe('loadSecurityPathsConfig', () => {
     } finally {
       rmSync(tmp, { recursive: true, force: true });
     }
+  });
+});
+
+describe('classifyTaskSecurity', () => {
+  let repoRoot: string;
+
+  function writeTask(
+    id: string,
+    securityClass?: 'low' | 'high'
+  ): void {
+    mkdirSync(join(repoRoot, '.cloverleaf', 'tasks'), { recursive: true });
+    const doc: Record<string, unknown> = {
+      type: 'task',
+      id,
+      project: 'T',
+      status: 'automated-gates',
+      owner: { kind: 'agent', id: 'implementer' },
+      title: 'test',
+      context: { rfc: { project: 'T', id: 'T-RFC-1' } },
+      acceptance_criteria: ['ac'],
+      definition_of_done: ['dod'],
+      risk_class: 'low',
+    };
+    if (securityClass !== undefined) {
+      doc.security_class = securityClass;
+    }
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'tasks', `${id}.json`),
+      JSON.stringify(doc) + '\n'
+    );
+  }
+
+  afterEach(() => {
+    // Always clear the mock after each test.
+    __setMockChangedFiles(null);
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('declared=low + injected sensitive file → effective=high, diff_detected=true', () => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-cst-'));
+    writeTask('T-1', 'low');
+    __setMockChangedFiles(['engine/exchange.py', 'scripts/deploy.sh']);
+    const result = classifyTaskSecurity(repoRoot, 'T-1');
+    expect(result.declared).toBe('low');
+    expect(result.diff_detected).toBe(true);
+    expect(result.effective).toBe('high');
+    expect(result.matched_paths).toContain('scripts/deploy.sh');
+  });
+
+  it('declared=low + injected benign file → effective=low', () => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-cst-'));
+    writeTask('T-2', 'low');
+    __setMockChangedFiles(['engine/loop.py', 'README.md']);
+    const result = classifyTaskSecurity(repoRoot, 'T-2');
+    expect(result.declared).toBe('low');
+    expect(result.diff_detected).toBe(false);
+    expect(result.effective).toBe('low');
+  });
+
+  it('declared=high + any file list → effective=high', () => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-cst-'));
+    writeTask('T-3', 'high');
+    __setMockChangedFiles(['engine/loop.py']);
+    const result = classifyTaskSecurity(repoRoot, 'T-3');
+    expect(result.declared).toBe('high');
+    expect(result.effective).toBe('high');
+  });
+
+  it('opts.changedFiles overrides mock', () => {
+    repoRoot = mkdtempSync(join(tmpdir(), 'cloverleaf-cst-'));
+    writeTask('T-4', 'low');
+    __setMockChangedFiles(['scripts/deploy.sh']); // would be high
+    const result = classifyTaskSecurity(repoRoot, 'T-4', { changedFiles: ['README.md'] });
+    // opts.changedFiles wins → benign → low
+    expect(result.effective).toBe('low');
   });
 });
