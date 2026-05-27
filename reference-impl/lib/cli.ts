@@ -45,7 +45,7 @@
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, execFileSync } from 'node:child_process';
 import { loadTask, saveTask } from './task.js';
 import { advanceStatus } from './task.js';
 import { emitGateDecision } from './events.js';
@@ -68,7 +68,7 @@ import { buildBaselinePath } from './visual-diff.js';
 import { computeReadyTasks, detectCycle } from './dag-walker.js';
 import { readWalkState, writeWalkState, walkStatePath } from './walk-state.js';
 import { loadWalkerConfig } from './walker-config.js';
-import { classifyFiles } from './scope-check.js';
+import { classifyFiles, normalizePath } from './scope-check.js';
 import type { SiblingScope } from './scope-check.js';
 import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
 import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
@@ -663,8 +663,35 @@ try {
         // No diff is fine (empty branch)
       }
 
-      // 4. Classify and output
-      const result = classifyFiles(taskDoc, modifiedFiles, siblingScopes);
+      // 4. Compute sharedFiles via git check-attr (merge=union honors user's multi-writer intent)
+      let sharedFiles = new Set<string>();
+      if (modifiedFiles.length > 0) {
+        try {
+          const out = execFileSync(
+            'git',
+            ['-C', repoRoot, 'check-attr', '-z', 'merge', '--', ...modifiedFiles],
+            { encoding: 'utf-8' },
+          );
+          // -z output: NUL-separated triplets: path\0attr\0value\0
+          const parts = out.split('\0');
+          for (let i = 0; i + 2 < parts.length; i += 3) {
+            const path = parts[i];
+            const attr = parts[i + 1];
+            const value = parts[i + 2];
+            if (attr === 'merge' && value === 'union') {
+              sharedFiles.add(normalizePath(path));
+            }
+          }
+        } catch (err) {
+          process.stderr.write(
+            `cloverleaf-cli check-scope: git check-attr failed (${err instanceof Error ? err.message : String(err)}); proceeding with no shared-file annotations.\n`,
+          );
+          sharedFiles = new Set();
+        }
+      }
+
+      // 5. Classify and output
+      const result = classifyFiles(taskDoc, modifiedFiles, siblingScopes, sharedFiles);
       process.stdout.write(JSON.stringify(result) + '\n');
       process.exit(0);
     }

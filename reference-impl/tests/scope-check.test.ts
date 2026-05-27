@@ -188,3 +188,66 @@ describe('classifyFiles', () => {
     expect(result.contested).toEqual([]);
   });
 });
+
+describe('classifyFiles — sharedFiles (merge=union awareness)', () => {
+  // 1. file in sharedFiles + ownSet → own (ownSet wins)
+  it('places a shared file in own when also declared in scope', () => {
+    const task = makeTask('CLV-001', ['CHANGELOG.md']);
+    const result = classifyFiles(task, ['CHANGELOG.md'], [], new Set(['CHANGELOG.md']));
+    expect(result.own).toEqual(['CHANGELOG.md']);
+    expect(result.contested).toEqual([]);
+    expect(result.extension).toEqual([]);
+  });
+
+  // 2. file in sharedFiles + sibling claim → extension (NOT contested) — load-bearing
+  it('places a shared file in extension even when a sibling claims it (no contested)', () => {
+    const task = makeTask('CLV-001', []);
+    const siblings: SiblingScope[] = [{ taskId: 'CLV-002', files: ['CHANGELOG.md'] }];
+    const result = classifyFiles(task, ['CHANGELOG.md'], siblings, new Set(['CHANGELOG.md']));
+    expect(result.own).toEqual([]);
+    expect(result.contested).toEqual([]);
+    expect(result.extension).toEqual(['CHANGELOG.md']);
+  });
+
+  // 3. file in sharedFiles + nowhere declared → extension
+  it('places a shared file in extension when no task claims it', () => {
+    const task = makeTask('CLV-001', []);
+    const result = classifyFiles(task, ['CHANGELOG.md'], [], new Set(['CHANGELOG.md']));
+    expect(result.extension).toEqual(['CHANGELOG.md']);
+    expect(result.contested).toEqual([]);
+    expect(result.own).toEqual([]);
+  });
+
+  // 4. file NOT in sharedFiles + sibling claim → contested (regression guard)
+  it('still reports contested for non-shared files claimed by a sibling', () => {
+    const task = makeTask('CLV-001', []);
+    const siblings: SiblingScope[] = [{ taskId: 'CLV-002', files: ['lib/foo.ts'] }];
+    const result = classifyFiles(task, ['lib/foo.ts'], siblings, new Set());
+    expect(result.contested).toEqual([{ file: 'lib/foo.ts', owner: 'CLV-002' }]);
+    expect(result.extension).toEqual([]);
+  });
+
+  // 5. sharedFiles undefined → identical to pre-change behavior
+  it('behaves identically to pre-change when sharedFiles is undefined', () => {
+    const task = makeTask('CLV-001', []);
+    const siblings: SiblingScope[] = [{ taskId: 'CLV-002', files: ['lib/foo.ts'] }];
+    const result = classifyFiles(task, ['lib/foo.ts'], siblings); // no 4th arg
+    expect(result.contested).toEqual([{ file: 'lib/foo.ts', owner: 'CLV-002' }]);
+  });
+
+  // 6. precedence: own > sharedFiles > siblingMap
+  it('honors precedence: ownSet wins over sharedFiles even when both contain the file', () => {
+    const task = makeTask('CLV-001', ['CHANGELOG.md']);
+    const siblings: SiblingScope[] = [{ taskId: 'CLV-002', files: ['CHANGELOG.md'] }];
+    const result = classifyFiles(
+      task,
+      ['CHANGELOG.md'],
+      siblings,
+      new Set(['CHANGELOG.md']),
+    );
+    // ownSet check fires first; sharedFiles + siblingMap never consulted
+    expect(result.own).toEqual(['CHANGELOG.md']);
+    expect(result.contested).toEqual([]);
+    expect(result.extension).toEqual([]);
+  });
+});
