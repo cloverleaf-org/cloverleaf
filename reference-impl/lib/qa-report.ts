@@ -8,8 +8,10 @@ export interface QaRunResult {
   stderrTail: string;
 }
 
-function escape(s: string): string {
-  return s
+function escape(s: unknown): string {
+  if (s === undefined || s === null) return '';
+  const str = typeof s === 'string' ? s : String(s);
+  return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

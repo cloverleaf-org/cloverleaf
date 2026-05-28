@@ -1,6 +1,7 @@
 import { cpSync, existsSync, rmSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
+import { loadDiscoveryConfig } from './discovery-config.js';
 
 /**
  * Prepare a freshly-created git worktree of the cloverleaf monorepo for running reference-impl
@@ -129,6 +130,20 @@ export function prepWorktree(mainRoot: string, worktreePath: string): void {
   primeCopy(mainStandardNm, wtStandardNm);
   primeCopy(mainRefImplNm, wtRefImplNm);
   primeCopy(join(resolvedMain, 'reference-impl', 'dist'), join(worktreePath, 'reference-impl', 'dist'));
+
+  // Honor discovery_config.prep_copy_dirs: copy each listed gitignored directory
+  // (e.g., docs/superpowers) from mainRoot into the worktree. Walker briefs reference
+  // these paths but git checkouts of main don't carry gitignored content.
+  const discoveryConfig = loadDiscoveryConfig(resolvedMain);
+  for (const dir of discoveryConfig.prep_copy_dirs) {
+    const srcPath = join(resolvedMain, dir);
+    const dstPath = join(worktreePath, dir);
+    if (!existsSync(srcPath)) {
+      process.stderr.write(`prep-worktree: prep_copy_dirs entry '${dir}' not found at ${srcPath} — skipping.\n`);
+      continue;
+    }
+    primeCopy(srcPath, dstPath);
+  }
 
   execSync('npm run build', {
     cwd: join(worktreePath, 'standard'),

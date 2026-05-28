@@ -408,4 +408,36 @@ describe('prepWorktree', () => {
       rmSync(emptyRoot, { recursive: true, force: true });
     }
   });
+
+  it('copies prep_copy_dirs into the worktree when configured', () => {
+    // Add a .cloverleaf/config/discovery.json to main with prep_copy_dirs set.
+    mkdirSync(join(main, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(
+      join(main, '.cloverleaf', 'config', 'discovery.json'),
+      JSON.stringify({
+        docContextUri: 'docs/',
+        projectId: 'TST',
+        idStart: 1,
+        prep_copy_dirs: ['docs/superpowers'],
+      }),
+    );
+    // Populate the gitignored doc tree on main.
+    mkdirSync(join(main, 'docs', 'superpowers', 'specs'), { recursive: true });
+    writeFileSync(join(main, 'docs', 'superpowers', 'specs', 'sample.md'), '# sample\n');
+
+    prepWorktree(main, wt);
+
+    expect(existsSync(join(wt, 'docs', 'superpowers', 'specs', 'sample.md'))).toBe(true);
+  });
+
+  it('does NOT copy any extra dirs when prep_copy_dirs is empty (default)', () => {
+    // Stage docs/superpowers/ on main but DO NOT opt in via .cloverleaf/config/discovery.json.
+    mkdirSync(join(main, 'docs', 'superpowers'), { recursive: true });
+    writeFileSync(join(main, 'docs', 'superpowers', 'sample.md'), '# sample\n');
+
+    prepWorktree(main, wt);
+
+    // Default behavior: no extra copy.
+    expect(existsSync(join(wt, 'docs', 'superpowers'))).toBe(false);
+  });
 });

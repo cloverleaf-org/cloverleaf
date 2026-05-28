@@ -1,5 +1,6 @@
 {
   "docContextUri": "docs/",
   "projectId": "CLV",
-  "idStart": 9
+  "idStart": 9,
+  "prep_copy_dirs": ["docs/superpowers"]
 }

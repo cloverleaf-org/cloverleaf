@@ -51,4 +51,37 @@ describe('loadDiscoveryConfig', () => {
     expect(c.docContextUri).toBe('');     // from default
     expect(c.idStart).toBe(1);            // from default
   });
+
+  it('prep_copy_dirs defaults to [] when absent from consumer config', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      JSON.stringify({ docContextUri: 'docs/', projectId: 'TST', idStart: 1 })
+    );
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.prep_copy_dirs).toEqual([]);
+  });
+
+  it('prep_copy_dirs preserves the array when present and valid', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      JSON.stringify({
+        docContextUri: 'docs/', projectId: 'TST', idStart: 1,
+        prep_copy_dirs: ['docs/superpowers', 'docs/internal'],
+      })
+    );
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.prep_copy_dirs).toEqual(['docs/superpowers', 'docs/internal']);
+  });
+
+  it('prep_copy_dirs defaults to [] when value is non-array (malformed config)', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      JSON.stringify({
+        docContextUri: 'docs/', projectId: 'TST', idStart: 1,
+        prep_copy_dirs: 'docs/superpowers',  // wrong shape
+      })
+    );
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.prep_copy_dirs).toEqual([]);
+  });
 });
