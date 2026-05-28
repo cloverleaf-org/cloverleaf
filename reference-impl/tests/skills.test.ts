@@ -1098,9 +1098,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.8.4', () => {
-    // v0.8.4: two walker-UX bug fixes — defensive escape() in qa-report; prep-worktree copies discovery_config.prep_copy_dirs.
-    expect(pkg.version).toBe('0.8.4');
+  it('reports version 0.8.5', () => {
+    // v0.8.5: reviewer/qa prompts document the npx tsx module-load recipe (no node -e improvisation).
+    expect(pkg.version).toBe('0.8.5');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
