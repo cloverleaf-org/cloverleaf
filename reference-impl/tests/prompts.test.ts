@@ -659,3 +659,19 @@ describe('security-reviewer prompt (CLV-106 — Return contract verdict enum)', 
     expect(body).toMatch(/host skill|cloverleaf-security-review/i);
   });
 });
+
+describe('followup #4 — tsx module-load recipe: reviewer + qa prompts', () => {
+  const PROMPT_NAMES = ['reviewer', 'qa'] as const;
+
+  for (const name of PROMPT_NAMES) {
+    it(`${name}.md documents the npx tsx module-load recipe`, () => {
+      const body = readPrompt(name);
+      // Names the blessed tool (appears in both the prose and the example).
+      expect(body).toContain('npx tsx');
+      // Canonical recipe lead — a unique marker that survives reordering.
+      expect(body).toContain('Loading or running a module directly');
+      // Rationale anchor — the "why" cannot be silently stripped.
+      expect(body).toContain('ERR_MODULE_NOT_FOUND');
+    });
+  }
+});
