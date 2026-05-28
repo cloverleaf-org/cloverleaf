@@ -92,7 +92,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    SERVER_PID=$!
    ```
 
-   > **Playwright script placement (Bug #3 fix):** If you need to write a standalone `.mjs` driver script at any point, place it **inside the worktree** (e.g., `$WT/site/playwright-driver.mjs`) and run it from there (`node "$WT/site/playwright-driver.mjs"`). Node's ESM module resolution walks up from the script's own directory — a script placed outside the worktree (where `node_modules/playwright` was installed by `npm ci`) cannot resolve the `playwright` import and will fail.
+   > **Playwright/driver script placement (Bug #3 fix) — applies to EVERY script you write, including retries and ad-hoc fallbacks:** place any standalone `.mjs` driver **inside the worktree** (e.g., `$WT/site/playwright-driver.mjs`) and run it from there (`node "$WT/site/playwright-driver.mjs"`). Node's ESM module resolution walks up from the script's own directory — a script placed anywhere outside the worktree (e.g. `/tmp`) cannot resolve the `playwright` import (or any `node_modules` package) and fails with `ERR_MODULE_NOT_FOUND`. If a driver errors and you retry, fix it in place in `$WT/site/` — never relocate or recreate it under `/tmp`.
 
 4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, kill it and return verdict `escalate`.
 
@@ -117,6 +117,9 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    a. Launch a Playwright browser context using the `browser` engine.
 
    b. **Visual-diff pass (when `visualDiff.enabled` is true):**
+
+      **Visual diffing is ONLY `compareVisual` (pixelmatch). There is no ImageMagick.** Never shell out to `convert`, `compare`, `magick`, or any external image tool to diff or convert images — they are not installed and not a dependency. Screenshot via Playwright (`page.screenshot`) → pass the buffer to `compareVisual` (`lib/visual-diff.ts`). If `compareVisual` is hard to invoke, your driver script failed to resolve — fix the script (see the placement rule), do **not** substitute an external tool.
+
       For each route in the (capped) route list × each viewport in `{{ui_review_config}}.viewports`:
       - Set Playwright viewport to `{ width, height }` from the config.
       - Apply mask CSS — inject a style that sets `visibility: hidden` on any selector in `visualDiff.mask`.
