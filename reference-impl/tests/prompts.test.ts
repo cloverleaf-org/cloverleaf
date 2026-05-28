@@ -277,6 +277,24 @@ describe('ui-reviewer prompt (CLV-36 — Playwright script placement bug #3)', (
     // The invocation command must use the worktree path, not a bare /tmp/ path.
     expect(body).toMatch(/node "\$WT\/site\//);
   });
+
+  it('extends the placement rule to retries / ad-hoc scripts and fix-in-place (#6 hardening)', () => {
+    // Bug #3 drift recurred on a retry (CLV-108 wrote /tmp/cl-ui-review-r2.mjs).
+    expect(body).toMatch(/including retries/i);
+    expect(body).toMatch(/fix it in place/i);
+  });
+});
+
+describe('ui-reviewer prompt (#6 — no ImageMagick; visual diff is compareVisual/pixelmatch)', () => {
+  const body = readPrompt('ui-reviewer');
+
+  it('forbids ImageMagick and names compareVisual/pixelmatch as the only diff path', () => {
+    // CLV-108: agent improvised `convert`/`compare`; neither exists — diff is pixelmatch.
+    expect(body).toContain('There is no ImageMagick');
+    expect(body).toMatch(/never shell out to/i);
+    expect(body).toContain('compareVisual');
+    expect(body).toMatch(/pixelmatch/i);
+  });
 });
 
 describe('qa prompt', () => {
