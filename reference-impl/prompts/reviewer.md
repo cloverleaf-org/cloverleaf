@@ -65,5 +65,10 @@ A `pass` verdict MAY have an empty `findings` array or omit it. A `bounce` verdi
   Use `--detach` with a SHA rather than a branch name: when running inside a walker worktree, the feature branch (and main) may already be checked out in another worktree, causing `git worktree add` to fail with "fatal: branch … is already checked out". Detaching at a SHA bypasses this constraint entirely.
 
   This keeps `.cloverleaf/` on main intact.
+- **Loading or running a module directly.** Do not improvise `node -e "import('./lib/x.js')"` to spot-check a module — sources are `.ts` and the build emits `.mjs`, so a bare `.js` import resolves to neither and fails with `ERR_MODULE_NOT_FOUND`. Use `npx tsx` instead (already in the worktree's `node_modules`): it resolves `.ts` sources **and** the project's `.js`-style import specifiers, so the natural import works. Run it from the worktree's `reference-impl/` directory; for anything the test suite already covers, prefer `npm test`.
+
+  ```bash
+  npx tsx -e "import('./lib/<module>.js').then(m => console.log(Object.keys(m)))"
+  ```
 - Severities (per the Cloverleaf feedback schema): `blocker` = wrong behavior / missing AC / broken tests; `error` = notable defect that should be fixed but doesn't break AC; `warning` = should fix; `info` = nit / style. Use `blocker` and `error` for bounces.
 - If a criterion is subjective, lean toward pass — the task author chose those words deliberately.
