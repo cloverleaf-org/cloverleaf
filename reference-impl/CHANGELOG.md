@@ -2,6 +2,15 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.8.6 — 2026-05-28
+
+### Changed
+- `prompts/ui-reviewer.md` hardened against two agent-improvisation failures seen in the v0.8.1 walker (CLV-108): (1) an explicit prohibition on shelling out to ImageMagick (`convert`/`compare`/`magick`) — visual diffing is **only** `compareVisual` (pixelmatch, `lib/visual-diff.ts`); ImageMagick is not installed and not a dependency. (2) The CLV-36 Playwright-script-placement rule now explicitly covers retries and ad-hoc fallback scripts ("fix it in place in `$WT/site/`, never relocate to `/tmp`"), closing the retry loophole the agent fell through.
+
+### Notes
+- Pure prose change in one agent prompt. No CLI changes, no dependency changes, no Standard contract change (still 0.7.1).
+- Regression guards added/extended in `tests/prompts.test.ts` (new ImageMagick-prohibition block; CLV-36 block extended for retry coverage).
+
 ## 0.8.5 — 2026-05-28
 
 ### Changed
