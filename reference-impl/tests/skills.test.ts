@@ -1098,9 +1098,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.8.5', () => {
-    // v0.8.5: reviewer/qa prompts document the npx tsx module-load recipe (no node -e improvisation).
-    expect(pkg.version).toBe('0.8.5');
+  it('reports version 0.8.6', () => {
+    // v0.8.6: ui-reviewer prompt hardening — forbid ImageMagick (visual diff is compareVisual/pixelmatch); placement rule covers retries.
+    expect(pkg.version).toBe('0.8.6');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
