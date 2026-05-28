@@ -2,6 +2,15 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.8.5 — 2026-05-28
+
+### Changed
+- `prompts/reviewer.md` and `prompts/qa.md` now document a **module-load recipe**: to load or run a single module directly, use `npx tsx` (already in the worktree's `node_modules`) rather than improvising `node -e "import('./lib/x.js')"`. tsx resolves `.ts` sources and the project's `.js`-style import specifiers, so the natural import works; plain `node -e` failed with `ERR_MODULE_NOT_FOUND` because sources are `.ts` and the build emits `.mjs`. Eliminates the wasted-turn import failure the Reviewer hit on CLV-103/CLV-104 in the v0.8.1 walker run.
+
+### Notes
+- Pure prose change in two agent prompts. No CLI changes, no dependency changes, no Standard contract change (still 0.7.1).
+- A parameterized regression test in `tests/prompts.test.ts` asserts both prompts carry the recipe.
+
 ## 0.8.4 — 2026-05-27
 
 ### Fixed
