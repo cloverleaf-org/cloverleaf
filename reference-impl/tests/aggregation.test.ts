@@ -33,3 +33,54 @@ describe('aggregate — any-veto', () => {
     expect(r.rationale).toContain('no blocking members');
   });
 });
+
+describe('aggregate — unanimous', () => {
+  it('passes only when all pass', () => {
+    expect(aggregate([m('a', 'pass'), m('b', 'pass')], 'unanimous').verdict).toBe('pass');
+    expect(aggregate([m('a', 'pass'), m('b', 'bounce')], 'unanimous').verdict).toBe('bounce');
+  });
+});
+
+describe('aggregate — majority', () => {
+  it('passes on strict majority', () => {
+    expect(aggregate([m('a', 'pass'), m('b', 'pass'), m('c', 'bounce')], 'majority').verdict).toBe('pass');
+  });
+  it('bounces on a tie (fail-safe)', () => {
+    expect(aggregate([m('a', 'pass'), m('b', 'bounce')], 'majority').verdict).toBe('bounce');
+  });
+});
+
+describe('aggregate — quorum(k)', () => {
+  it('passes when >= k members pass', () => {
+    expect(aggregate([m('a', 'pass'), m('b', 'pass'), m('c', 'bounce')], { quorum: 2 }).verdict).toBe('pass');
+  });
+  it('bounces when fewer than k pass', () => {
+    expect(aggregate([m('a', 'pass'), m('b', 'bounce'), m('c', 'bounce')], { quorum: 2 }).verdict).toBe('bounce');
+  });
+});
+
+describe('aggregate — weighted', () => {
+  it('passes when pass-weight is a strict majority of total weight (default)', () => {
+    const r = aggregate([m('senior', 'pass', { weight: 3 }), m('junior', 'bounce', { weight: 1 })], 'weighted');
+    expect(r.verdict).toBe('pass'); // 3 of 4 > half
+  });
+  it('honors an explicit weightedThreshold', () => {
+    const r = aggregate([m('a', 'pass', { weight: 2 }), m('b', 'bounce', { weight: 2 })], 'weighted', { weightedThreshold: 2 });
+    expect(r.verdict).toBe('pass'); // passWeight 2 >= threshold 2
+  });
+});
+
+describe('aggregate — single member degenerates to that member', () => {
+  it('any-veto single pass → pass; single bounce → bounce', () => {
+    expect(aggregate([m('a', 'pass')], 'any-veto').verdict).toBe('pass');
+    expect(aggregate([m('a', 'bounce')], 'any-veto').verdict).toBe('bounce');
+  });
+});
+
+describe('aggregate — empty members (degenerate)', () => {
+  it('passes with the no-blocking-members rationale', () => {
+    const r = aggregate([], 'any-veto');
+    expect(r.verdict).toBe('pass');
+    expect(r.rationale).toBe('no blocking members');
+  });
+});

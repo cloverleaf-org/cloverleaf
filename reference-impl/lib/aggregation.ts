@@ -55,6 +55,8 @@ export function aggregate(
     pass = passCount === total;
     detail = `any-veto: ${passCount}/${total} passed`;
   } else if (rule === 'unanimous') {
+    // Currently identical to any-veto over blocking members. Kept as a distinct
+    // named rule for clarity and possible future divergence; do not merge.
     pass = passCount === total;
     detail = `unanimous: ${passCount}/${total} passed`;
   } else if (rule === 'majority') {
