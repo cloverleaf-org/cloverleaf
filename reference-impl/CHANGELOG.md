@@ -2,6 +2,11 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.9.0 — 2026-06-18
+
+### Added
+- **Configurable review councils (Slice 1).** A per-project `council.json` can bind a review *council* to the `task.review` gate: a profile of rounds (sequential waves) composed from the built-in reviewers (`reviewer`, `security`, `ui`, `qa`), with member activation predicates (`security_class:high`, `ui_changes`) and deterministic verdict aggregation (`any-veto` default, plus `unanimous` / `majority` / `quorum(k)` / `weighted`). New `lib/aggregation.ts`, `lib/council-config.ts`, `lib/council.ts`, shipped `config/council.json`, and read-only CLI subcommands `council-plan` and `aggregate-verdicts`. The shipped default reproduces the existing pipeline exactly, so projects with no `council.json` are unaffected.
+
 ## 0.8.6 — 2026-05-28
 
 ### Changed

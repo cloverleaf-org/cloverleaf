@@ -25,6 +25,35 @@ describe('package config defaults must stay framework-generic', () => {
   }
 });
 
+describe('config/council.json — package default shape (reproduces today)', () => {
+  const raw = readFileSync(resolve(CONFIG_DIR, 'council.json'), 'utf-8');
+  const cfg = JSON.parse(raw) as {
+    profiles: Record<string, { rounds: { member: string; when?: string }[][]; aggregation: string; on_round_bounce?: string }>;
+    gates: Record<string, unknown>;
+  };
+
+  it('binds task.review to the default profile', () => {
+    expect(cfg.gates['task.review']).toBe('default');
+  });
+
+  it('round 1 is the fresh-eyes reviewer alone', () => {
+    expect(cfg.profiles.default.rounds[0]).toEqual([{ member: 'reviewer' }]);
+  });
+
+  it('round 2 is conditional security/ui + unconditional qa', () => {
+    const r2 = cfg.profiles.default.rounds[1];
+    expect(r2.map((x) => x.member)).toEqual(['security', 'ui', 'qa']);
+    expect(r2.find((x) => x.member === 'security')!.when).toBe('security_class:high');
+    expect(r2.find((x) => x.member === 'ui')!.when).toBe('ui_changes');
+    expect(r2.find((x) => x.member === 'qa')!.when).toBeUndefined();
+  });
+
+  it('aggregates any-veto and stops on a bouncing round (matches today)', () => {
+    expect(cfg.profiles.default.aggregation).toBe('any-veto');
+    expect(cfg.profiles.default.on_round_bounce).toBe('stop');
+  });
+});
+
 describe('config/discovery.json — package default shape', () => {
   const raw = readFileSync(resolve(CONFIG_DIR, 'discovery.json'), 'utf-8');
   const cfg = JSON.parse(raw) as Record<string, unknown>;
