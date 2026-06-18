@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { loadCouncilConfig } from '../lib/council-config.js';
+import { loadCouncilConfig, loadCouncilConfigWithSource } from '../lib/council-config.js';
 
 describe('loadCouncilConfig', () => {
   let repoRoot: string;
@@ -61,5 +61,27 @@ describe('loadCouncilConfig', () => {
     writeFileSync(join(dir, 'council.json'), 'null');
     const cfg = loadCouncilConfig(repoRoot);
     expect(cfg.gates['task.review']).toBe('default');
+  });
+});
+
+describe('loadCouncilConfigWithSource', () => {
+  it("source is 'default' when no consumer file exists", () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'clv-cc-'));
+    expect(loadCouncilConfigWithSource(repoRoot).source).toBe('default');
+  });
+  it("source is 'consumer' when a valid consumer file exists", () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'clv-cc-'));
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'council.json'),
+      JSON.stringify({ profiles: { p: { rounds: [[{ member: 'reviewer' }]], aggregation: 'any-veto' } }, gates: { 'task.review': 'p' } }));
+    const { config, source } = loadCouncilConfigWithSource(repoRoot);
+    expect(source).toBe('consumer');
+    expect(config.gates['task.review']).toBe('p');
+  });
+  it("source falls back to 'default' when the consumer file is malformed", () => {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'clv-cc-'));
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'council.json'), '{ not json');
+    expect(loadCouncilConfigWithSource(repoRoot).source).toBe('default');
   });
 });
