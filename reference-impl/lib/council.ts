@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { loadCouncilConfig, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
 import type { ThresholdRule } from './aggregation.js';
 import { loadTask } from './task.js';
@@ -56,11 +56,12 @@ export function resolveBinding(
  * Resolve changed files for predicate evaluation. Callers should pass
  * `opts.changedFiles` (e.g. from a prior `git diff`); when omitted we run
  * `git diff main..cloverleaf/<taskId>` and fall back to [] on any git error.
+ * Exported for direct testing of the (now orchestrator-live) git path.
  */
-function resolveChangedFiles(repoRoot: string, taskId: string, opts: { changedFiles?: string[] }): string[] {
+export function resolveChangedFiles(repoRoot: string, taskId: string, opts: { changedFiles?: string[] } = {}): string[] {
   if (opts.changedFiles !== undefined) return opts.changedFiles;
   try {
-    const out = execSync(`git -C ${repoRoot} diff --name-only main..cloverleaf/${taskId}`, { encoding: 'utf-8' });
+    const out = execFileSync('git', ['-C', repoRoot, 'diff', '--name-only', `main..cloverleaf/${taskId}`], { encoding: 'utf-8' });
     return out.split('\n').filter(Boolean);
   } catch {
     return [];
