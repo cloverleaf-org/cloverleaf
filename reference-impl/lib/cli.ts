@@ -844,9 +844,16 @@ try {
       const [membersJson, ruleArg] = positional;
       if (!membersJson || !ruleArg) usage('aggregate-verdicts requires <membersJson> <rule>');
       const members = JSON.parse(membersJson) as MemberVerdict[];
-      const rule: ThresholdRule = ruleArg.startsWith('quorum:')
-        ? { quorum: parseInt(ruleArg.split(':')[1], 10) }
-        : (ruleArg as ThresholdRule);
+      let rule: ThresholdRule;
+      if (ruleArg.startsWith('quorum:')) {
+        const quorumN = parseInt(ruleArg.split(':')[1], 10);
+        if (Number.isNaN(quorumN) || quorumN < 1) {
+          usage(`aggregate-verdicts: quorum value must be a positive integer, got '${ruleArg}'`);
+        }
+        rule = { quorum: quorumN };
+      } else {
+        rule = ruleArg as ThresholdRule;
+      }
       const wt = flags.find((f) => f.startsWith('--weighted-threshold='));
       const opts = wt ? { weightedThreshold: parseFloat(wt.replace('--weighted-threshold=', '')) } : {};
       process.stdout.write(JSON.stringify(aggregate(members, rule, opts)) + '\n');

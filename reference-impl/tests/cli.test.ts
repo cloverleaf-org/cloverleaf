@@ -348,6 +348,12 @@ describe('cli', () => {
     const { stdout } = run(['aggregate-verdicts', members, 'majority']);
     expect(JSON.parse(stdout).verdict).toBe('escalate');
   });
+
+  it('aggregate-verdicts rejects a non-numeric quorum', () => {
+    const members = JSON.stringify([{ member: 'a', verdict: 'pass' }]);
+    const { exitCode } = run(['aggregate-verdicts', members, 'quorum:abc']);
+    expect(exitCode).toBe(2);
+  });
 });
 
 describe('cli — rfc', () => {
