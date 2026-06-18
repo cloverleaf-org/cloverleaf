@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { loadSecurityPathsConfig, matchesSensitivePath, matchesSensitiveKeyword, computeSecurityClassification, classifyTaskSecurity, __setMockChangedFiles } from '../lib/security-classify.js';
@@ -150,5 +151,37 @@ describe('classifyTaskSecurity', () => {
     const result = classifyTaskSecurity(repoRoot, 'T-4', { changedFiles: ['README.md'] });
     // opts.changedFiles wins → benign → low
     expect(result.effective).toBe('low');
+  });
+});
+
+describe('classifyTaskSecurity git path — hardened against spaces in repoRoot', () => {
+  it('classifies via a real git diff when repoRoot contains a space', () => {
+    __setMockChangedFiles(null); // force the real git path
+    const base = mkdtempSync(join(tmpdir(), 'clv-sec-'));
+    const repoRoot = join(base, 'dir with space');
+    mkdirSync(join(repoRoot, '.cloverleaf', 'tasks'), { recursive: true });
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
+      JSON.stringify({
+        id: 'DEMO-001', type: 'task', status: 'review', project: 'DEMO', title: 't',
+        owner: { kind: 'agent', id: 'unassigned' }, context: {},
+        acceptance_criteria: ['a'], definition_of_done: ['d'],
+        risk_class: 'low', security_class: 'low',
+      }),
+    );
+    const git = (args: string[]) => execFileSync('git', ['-C', repoRoot, ...args], { stdio: 'pipe' });
+    git(['init', '-q', '-b', 'main']);
+    git(['config', 'user.email', 't@t']);
+    git(['config', 'user.name', 't']);
+    writeFileSync(join(repoRoot, 'readme.md'), 'x');
+    git(['add', '.']); git(['commit', '-qm', 'init']);
+    git(['checkout', '-q', '-b', 'cloverleaf/DEMO-001']);
+    mkdirSync(join(repoRoot, 'config'), { recursive: true });
+    writeFileSync(join(repoRoot, 'config', 'secret.txt'), 'KEY=1'); // matches default pattern **/*secret* (needs a subdir: **/ compiles to .*/ which requires a slash)
+    git(['add', '.']); git(['commit', '-qm', 'add secret']);
+
+    const result = classifyTaskSecurity(repoRoot, 'DEMO-001');
+    expect(result.effective).toBe('high');
+    __setMockChangedFiles(null);
   });
 });
