@@ -312,6 +312,42 @@ describe('cli', () => {
       expect(prompt).toContain('/prompts/documenter.md');
     });
   });
+
+  it('council-plan returns the default plan for task.review', () => {
+    const { stdout, exitCode } = run(['council-plan', repoRoot, 'DEMO-001', 'task.review', '--changed-files=']);
+    expect(exitCode).toBe(0);
+    const plan = JSON.parse(stdout);
+    expect(plan.profile).toBe('default');
+    expect(plan.rounds.map((r: { member: string }[]) => r.map((x) => x.member))).toEqual([['reviewer'], ['qa']]);
+  });
+
+  it('council-plan activates security for a declared-high task', () => {
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-002.json'),
+      JSON.stringify({
+        id: 'DEMO-002', type: 'task', status: 'review', owner: { kind: 'agent', id: 'unassigned' },
+        project: 'DEMO', title: 'demo2', context: {}, acceptance_criteria: ['a'], definition_of_done: ['d'],
+        risk_class: 'high', security_class: 'high',
+      }),
+    );
+    const { stdout, exitCode } = run(['council-plan', repoRoot, 'DEMO-002', 'task.review', '--changed-files=']);
+    expect(exitCode).toBe(0);
+    const plan = JSON.parse(stdout);
+    expect(plan.rounds.map((r: { member: string }[]) => r.map((x) => x.member))).toEqual([['reviewer'], ['security', 'qa']]);
+  });
+
+  it('aggregate-verdicts combines member verdicts by rule', () => {
+    const members = JSON.stringify([{ member: 'a', verdict: 'pass' }, { member: 'b', verdict: 'bounce' }]);
+    const { stdout, exitCode } = run(['aggregate-verdicts', members, 'any-veto']);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout).verdict).toBe('bounce');
+  });
+
+  it('aggregate-verdicts honors escalate short-circuit', () => {
+    const members = JSON.stringify([{ member: 'a', verdict: 'pass' }, { member: 'b', verdict: 'escalate' }]);
+    const { stdout } = run(['aggregate-verdicts', members, 'majority']);
+    expect(JSON.parse(stdout).verdict).toBe('escalate');
+  });
 });
 
 describe('cli — rfc', () => {

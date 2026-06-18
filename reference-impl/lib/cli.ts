@@ -73,6 +73,8 @@ import type { SiblingScope } from './scope-check.js';
 import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
 import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
 import { classifyTaskSecurity } from './security-classify.js';
+import { resolveCouncilPlan } from './council.js';
+import { aggregate, type MemberVerdict, type ThresholdRule } from './aggregation.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -119,6 +121,8 @@ function usage(msg?: string): never {
       '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n' +
       '  secret-scan <repoRoot> --branch <branch>\n' +
       '  classify-security <repoRoot> <taskId> [--branch <branch>]\n' +
+      '  council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]\n' +
+      '  aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]\n' +
       '  set-task-field <repoRoot> <taskId> <field> <value>\n'
   );
   process.exit(2);
@@ -814,6 +818,38 @@ try {
         process.exit(2);
       }
       process.stdout.write(JSON.stringify(result) + '\n');
+      break;
+    }
+
+    case 'council-plan': {
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [repoRoot, taskId, gateKey] = positional;
+      if (!repoRoot || !taskId) usage('council-plan requires <repoRoot> <taskId> [gateKey]');
+      const cf = flags.find((f) => f.startsWith('--changed-files='));
+      const changedFiles = cf !== undefined
+        ? cf.replace('--changed-files=', '').split(',').filter(Boolean)
+        : undefined;
+      const plan = resolveCouncilPlan(
+        repoRoot, taskId, gateKey || 'task.review',
+        changedFiles !== undefined ? { changedFiles } : {},
+      );
+      process.stdout.write(JSON.stringify(plan) + '\n');
+      break;
+    }
+
+    case 'aggregate-verdicts': {
+      const positional = rest.filter((a) => !a.startsWith('--'));
+      const flags = rest.filter((a) => a.startsWith('--'));
+      const [membersJson, ruleArg] = positional;
+      if (!membersJson || !ruleArg) usage('aggregate-verdicts requires <membersJson> <rule>');
+      const members = JSON.parse(membersJson) as MemberVerdict[];
+      const rule: ThresholdRule = ruleArg.startsWith('quorum:')
+        ? { quorum: parseInt(ruleArg.split(':')[1], 10) }
+        : (ruleArg as ThresholdRule);
+      const wt = flags.find((f) => f.startsWith('--weighted-threshold='));
+      const opts = wt ? { weightedThreshold: parseFloat(wt.replace('--weighted-threshold=', '')) } : {};
+      process.stdout.write(JSON.stringify(aggregate(members, rule, opts)) + '\n');
       break;
     }
 
