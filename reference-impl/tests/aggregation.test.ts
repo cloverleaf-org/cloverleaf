@@ -35,8 +35,10 @@ describe('aggregate — any-veto', () => {
 });
 
 describe('aggregate — unanimous', () => {
-  it('passes only when all pass', () => {
+  it('passes when all blocking members pass', () => {
     expect(aggregate([m('a', 'pass'), m('b', 'pass')], 'unanimous').verdict).toBe('pass');
+  });
+  it('bounces when any blocking member bounces', () => {
     expect(aggregate([m('a', 'pass'), m('b', 'bounce')], 'unanimous').verdict).toBe('bounce');
   });
 });
@@ -68,10 +70,14 @@ describe('aggregate — weighted', () => {
     const r = aggregate([m('a', 'pass', { weight: 2 }), m('b', 'bounce', { weight: 2 })], 'weighted', { weightedThreshold: 2 });
     expect(r.verdict).toBe('pass'); // passWeight 2 >= threshold 2
   });
+  it('bounces when pass-weight is a minority of total weight (default)', () => {
+    const r = aggregate([m('senior', 'bounce', { weight: 3 }), m('junior', 'pass', { weight: 1 })], 'weighted');
+    expect(r.verdict).toBe('bounce'); // 1 of 4 is not > half
+  });
 });
 
-describe('aggregate — single member degenerates to that member', () => {
-  it('any-veto single pass → pass; single bounce → bounce', () => {
+describe('aggregate — any-veto with a single blocking member', () => {
+  it('single pass → pass; single bounce → bounce', () => {
     expect(aggregate([m('a', 'pass')], 'any-veto').verdict).toBe('pass');
     expect(aggregate([m('a', 'bounce')], 'any-veto').verdict).toBe('bounce');
   });
