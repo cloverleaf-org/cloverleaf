@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { loadCouncilConfigWithSource, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
-import type { ThresholdRule } from './aggregation.js';
-import { loadTask } from './task.js';
+import type { ThresholdRule, CouncilVerdict } from './aggregation.js';
+import { loadTask, saveTask, advanceStatus } from './task.js';
+import { writeCouncilResult, type CouncilResult } from './council-result.js';
 import { classifyTaskSecurity } from './security-classify.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
 
@@ -118,4 +119,73 @@ export function resolveCouncilPlan(
     on_round_bounce: profile.on_round_bounce ?? 'stop',
     source,
   };
+}
+
+/**
+ * Drive the FSM transition implied by a council verdict (the runner's terminal step).
+ * Council-authoritative: on a pass it records the council's gating verdict so the
+ * v0.8.1 security precondition is satisfied for any high-security gated transition;
+ * the per-member basis (incl. an omitted or out-voted `security` member) is written
+ * to the result artifact. Walks the minimal legal path to the lane's pre-merge state.
+ */
+export function applyCouncilVerdict(
+  repoRoot: string,
+  taskId: string,
+  gate: string,
+  council: CouncilVerdict,
+): CouncilResult {
+  const task = loadTask(repoRoot, taskId);
+  if (task.status !== 'review') {
+    throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'review'`);
+  }
+  const lane: 'fast' | 'full' = task.risk_class === 'high' ? 'full' : 'fast';
+  const securityMember = council.members.find((m) => m.member === 'security');
+  const walk: string[] = ['review'];
+
+  if (council.verdict === 'escalate') {
+    advanceStatus(repoRoot, taskId, 'escalated', 'agent');
+    walk.push('escalated');
+  } else if (council.verdict === 'bounce') {
+    advanceStatus(repoRoot, taskId, 'implementing', 'agent');
+    walk.push('implementing');
+  } else {
+    // pass — minimal legal walk; review→automated-gates resets the security verdict,
+    // so set the council's gating verdict AFTER that transition.
+    advanceStatus(repoRoot, taskId, 'automated-gates', 'agent');
+    walk.push('automated-gates');
+    const atGates = loadTask(repoRoot, taskId);
+    atGates.security_review_verdict = 'pass';
+    saveTask(repoRoot, atGates);
+    if (lane === 'full') {
+      advanceStatus(repoRoot, taskId, 'qa', 'agent', { path: 'full_pipeline' });
+      walk.push('qa');
+      advanceStatus(repoRoot, taskId, 'final-gate', 'agent', { path: 'full_pipeline' });
+      walk.push('final-gate');
+    }
+  }
+
+  const result: CouncilResult = {
+    gate,
+    final_verdict: council.verdict,
+    rule: council.rule,
+    rationale: council.rationale,
+    members: council.members.map((m) => ({
+      member: m.member,
+      verdict: m.verdict,
+      blocking: m.blocking !== false,
+      weight: m.weight ?? 1,
+    })),
+    walk,
+    security: {
+      member_verdict: securityMember ? securityMember.verdict : 'absent',
+      gating_verdict_set: council.verdict === 'pass' ? 'pass' : null,
+      basis: !securityMember
+        ? 'no security member configured; advanced under council authority'
+        : securityMember.verdict === 'pass'
+          ? 'security member passed'
+          : `security member returned '${securityMember.verdict}'; council ${council.verdict} by rule ${JSON.stringify(council.rule)}`,
+    },
+  };
+  writeCouncilResult(repoRoot, taskId, result);
+  return result;
 }
