@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "default": {
+      "rounds": [
+        [ { "member": "reviewer" } ],
+        [
+          { "member": "security", "when": "security_class:high" },
+          { "member": "ui", "when": "ui_changes" },
+          { "member": "qa" }
+        ]
+      ],
+      "aggregation": "any-veto",
+      "on_round_bounce": "stop"
+    }
+  },
+  "gates": {
+    "task.review": "default"
+  }
+}
