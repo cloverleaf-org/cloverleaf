@@ -368,6 +368,22 @@ describe('cli', () => {
     expect(exitCode).toBe(0);
     expect(JSON.parse(stdout).source).toBe('default');
   });
+
+  it('apply-council-verdict drives a fast-lane pass to automated-gates', () => {
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
+      JSON.stringify({
+        id: 'DEMO-001', type: 'task', status: 'review', project: 'DEMO', title: 't',
+        owner: { kind: 'agent', id: 'unassigned' }, context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-001' } },
+        acceptance_criteria: ['a'], definition_of_done: ['d'], risk_class: 'low',
+      }),
+    );
+    const verdict = JSON.stringify({ verdict: 'pass', rule: 'any-veto', rationale: 'ok', members: [{ member: 'reviewer', verdict: 'pass' }] });
+    const { stdout, exitCode } = run(['apply-council-verdict', repoRoot, 'DEMO-001', 'task.review', verdict]);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout).final_verdict).toBe('pass');
+    expect(JSON.parse(readFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'), 'utf-8')).status).toBe('automated-gates');
+  });
 });
 
 describe('cli — rfc', () => {
