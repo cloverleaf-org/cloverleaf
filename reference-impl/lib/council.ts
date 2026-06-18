@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { loadCouncilConfig, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
+import { loadCouncilConfigWithSource, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
 import type { ThresholdRule } from './aggregation.js';
 import { loadTask } from './task.js';
 import { classifyTaskSecurity } from './security-classify.js';
@@ -18,6 +18,7 @@ export interface CouncilPlan {
   rounds: ResolvedMember[][];
   aggregation: ThresholdRule;
   on_round_bounce: 'stop' | 'continue';
+  source: 'consumer' | 'default';
 }
 
 interface WhenContext {
@@ -74,22 +75,25 @@ export function resolveCouncilPlan(
   gateKey = 'task.review',
   opts: { changedFiles?: string[] } = {},
 ): CouncilPlan {
-  const config: CouncilConfig = loadCouncilConfig(repoRoot);
+  const { config, source } = loadCouncilConfigWithSource(repoRoot);
   const task = loadTask(repoRoot, taskId) as unknown as Record<string, unknown>;
 
   const { profile: profileName, mode } = resolveBinding(config.gates[gateKey], task);
   const empty: CouncilPlan = {
-    gate: gateKey,
-    profile: null,
-    mode,
-    rounds: [],
-    aggregation: 'any-veto',
-    on_round_bounce: 'stop',
+    gate: gateKey, profile: null, mode, rounds: [],
+    aggregation: 'any-veto', on_round_bounce: 'stop', source,
   };
   if (profileName === null) return empty;
 
   const profile = config.profiles[profileName];
-  if (!profile) return empty; // unknown profile → fail toward today's behavior
+  if (!profile) {
+    if (source === 'consumer') {
+      process.stderr.write(
+        `cloverleaf-cli council-plan: profile '${profileName}' bound to gate '${gateKey}' not found in council.json; falling back to today's behavior.\n`,
+      );
+    }
+    return empty; // unknown profile → fail toward today's behavior
+  }
 
   const changed = resolveChangedFiles(repoRoot, taskId, opts);
   const securityHigh = classifyTaskSecurity(repoRoot, taskId, { changedFiles: changed }).effective === 'high';
@@ -112,5 +116,6 @@ export function resolveCouncilPlan(
     rounds,
     aggregation: profile.aggregation,
     on_round_bounce: profile.on_round_bounce ?? 'stop',
+    source,
   };
 }
