@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyCouncilVerdict } from '../lib/council.js';
+import { applyCouncilVerdict, resolveCouncilPlan } from '../lib/council.js';
 import { loadTask } from '../lib/task.js';
+import { aggregate } from '../lib/aggregation.js';
 import { readCouncilResult } from '../lib/council-result.js';
 import type { CouncilVerdict } from '../lib/aggregation.js';
 
@@ -70,5 +71,28 @@ describe('applyCouncilVerdict', () => {
     const t = loadTask(r, 'DEMO-001'); t.status = 'implementing';
     writeFileSync(join(r, '.cloverleaf', 'tasks', 'DEMO-001.json'), JSON.stringify(t));
     expect(() => applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]))).toThrow(/expected 'review'/);
+  });
+});
+
+describe('opt-in integration (council-plan → aggregate → apply)', () => {
+  it('no council.json → source default, orchestrator would take today\'s path', () => {
+    const r = repoWithReviewTask('high');
+    expect(resolveCouncilPlan(r, 'DEMO-001', 'task.review', { changedFiles: [] }).source).toBe('default');
+  });
+  it('consumer council.json (drop ui+security, qa+reviewer only) → council passes to final-gate', () => {
+    const r = repoWithReviewTask('high', 'high'); // security-HIGH + security dropped → proves topology-B through the gate
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { lean: { rounds: [[{ member: 'reviewer' }, { member: 'qa' }]], aggregation: 'any-veto' } },
+      gates: { 'task.review': 'lean' },
+    }));
+    const plan = resolveCouncilPlan(r, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.source).toBe('consumer');
+    const members = plan.rounds.flat().map((m) => ({ member: m.member, verdict: 'pass' as const, blocking: m.blocking, weight: m.weight }));
+    const verdict = aggregate(members, plan.aggregation);
+    expect(verdict.verdict).toBe('pass');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', verdict);
+    expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
+    expect(res.security.member_verdict).toBe('absent'); // security deliberately dropped — topology-B
   });
 });
