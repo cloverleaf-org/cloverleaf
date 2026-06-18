@@ -41,6 +41,9 @@
  *   secret-scan <repoRoot> --branch <branch>
  *   classify-security <repoRoot> <taskId> [--branch <branch>]
  *   set-task-field <repoRoot> <taskId> <field> <value>
+ *   council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]
+ *   aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]
+ *   apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>
  */
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';

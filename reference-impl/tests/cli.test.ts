@@ -354,6 +354,20 @@ describe('cli', () => {
     const { exitCode } = run(['aggregate-verdicts', members, 'quorum:abc']);
     expect(exitCode).toBe(2);
   });
+
+  it('council-plan reports source=default with no consumer config', () => {
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
+      JSON.stringify({
+        id: 'DEMO-001', type: 'task', status: 'review', project: 'DEMO', title: 't',
+        owner: { kind: 'agent', id: 'unassigned' }, context: {},
+        acceptance_criteria: ['a'], definition_of_done: ['d'], risk_class: 'low',
+      }),
+    );
+    const { stdout, exitCode } = run(['council-plan', repoRoot, 'DEMO-001', 'task.review', '--changed-files=']);
+    expect(exitCode).toBe(0);
+    expect(JSON.parse(stdout).source).toBe('default');
+  });
 });
 
 describe('cli — rfc', () => {
