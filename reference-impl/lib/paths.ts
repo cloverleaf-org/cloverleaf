@@ -41,3 +41,7 @@ export function runsDir(repoRoot: string): string {
 export function uiReviewRunDir(repoRoot: string, taskId: string): string {
   return resolve(runsDir(repoRoot), taskId, 'ui-review');
 }
+
+export function councilRunDir(repoRoot: string, taskId: string): string {
+  return resolve(runsDir(repoRoot), taskId, 'council');
+}
