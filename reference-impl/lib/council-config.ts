@@ -35,7 +35,12 @@ function isObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
 
-function normalize(doc: Partial<CouncilConfig>): CouncilConfig {
+// Full-replacement (not merge): a consumer council.json wholly replaces the
+// shipped default — matching the qa-rules / security-paths loaders. A partial
+// consumer file (e.g. only `profiles`) intentionally yields empty `gates`,
+// i.e. no bound gates → today's behavior. Per-profile shape validation is a
+// later (validator) slice; this loader normalizes only the top-level containers.
+function normalize(doc: Record<string, unknown>): CouncilConfig {
   return {
     profiles: isObject(doc.profiles) ? (doc.profiles as Record<string, CouncilProfile>) : {},
     gates: isObject(doc.gates) ? (doc.gates as Record<string, GateBinding>) : {},
@@ -46,16 +51,22 @@ function loadDefaultConfig(): CouncilConfig {
   if (!existsSync(DEFAULT_CONFIG)) {
     throw new Error(`council config not found at ${DEFAULT_CONFIG}`);
   }
-  return normalize(JSON.parse(readFileSync(DEFAULT_CONFIG, 'utf-8')) as Partial<CouncilConfig>);
+  const parsed: unknown = JSON.parse(readFileSync(DEFAULT_CONFIG, 'utf-8'));
+  if (!isObject(parsed)) {
+    throw new Error(`council config malformed (not an object) at ${DEFAULT_CONFIG}`);
+  }
+  return normalize(parsed);
 }
 
 export function loadCouncilConfig(repoRoot: string): CouncilConfig {
   const consumerPath = join(repoRoot, '.cloverleaf', 'config', 'council.json');
   if (existsSync(consumerPath)) {
     try {
-      return normalize(JSON.parse(readFileSync(consumerPath, 'utf-8')) as Partial<CouncilConfig>);
+      const parsed: unknown = JSON.parse(readFileSync(consumerPath, 'utf-8'));
+      if (!isObject(parsed)) throw new Error('council.json is not an object');
+      return normalize(parsed);
     } catch {
-      // fall through to package default
+      // malformed / non-object consumer config → fall back to package default
     }
   }
   return loadDefaultConfig();

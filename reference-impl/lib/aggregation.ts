@@ -70,10 +70,12 @@ export function aggregate(
     detail =
       `weighted: passWeight ${passWeight}/${totalWeight}` +
       (threshold !== undefined ? ` (threshold ${threshold})` : '');
-  } else {
+  } else if (typeof rule === 'object' && rule !== null && 'quorum' in rule) {
     const k = rule.quorum;
     pass = passCount >= k;
     detail = `quorum(${k}): ${passCount}/${total} passed`;
+  } else {
+    throw new Error(`aggregate: unknown aggregation rule ${JSON.stringify(rule)}`);
   }
 
   return {

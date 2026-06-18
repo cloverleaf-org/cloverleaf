@@ -90,3 +90,10 @@ describe('aggregate — empty members (degenerate)', () => {
     expect(r.rationale).toBe('no blocking members');
   });
 });
+
+describe('aggregate — unknown rule fails loud', () => {
+  it('throws on an unrecognized aggregation rule (rather than silently bouncing)', () => {
+    // @ts-expect-error — deliberately passing an invalid rule to exercise the runtime guard
+    expect(() => aggregate([m('a', 'pass')], 'any_veto')).toThrow(/unknown aggregation rule/);
+  });
+});

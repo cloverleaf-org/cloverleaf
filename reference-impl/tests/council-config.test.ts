@@ -18,6 +18,7 @@ describe('loadCouncilConfig', () => {
     const cfg = loadCouncilConfig(repoRoot);
     expect(cfg.gates['task.review']).toBe('default');
     expect(cfg.profiles.default.rounds[0]).toEqual([{ member: 'reviewer' }]);
+    expect(cfg.profiles.default.rounds[1].map((mem) => mem.member)).toEqual(['security', 'ui', 'qa']);
   });
 
   it('returns the consumer override when present', () => {
@@ -33,6 +34,7 @@ describe('loadCouncilConfig', () => {
     const cfg = loadCouncilConfig(repoRoot);
     expect(cfg.gates['task.review']).toBe('strict');
     expect(cfg.profiles.strict.aggregation).toBe('unanimous');
+    expect(cfg.profiles.default).toBeUndefined(); // full replacement — default profile is not merged in
   });
 
   it('falls back to default on invalid JSON', () => {
@@ -43,12 +45,21 @@ describe('loadCouncilConfig', () => {
     expect(cfg.gates['task.review']).toBe('default');
   });
 
-  it('normalizes missing profiles/gates keys to empty objects', () => {
+  it('fully replaces the default: a partial consumer file yields empty gates + no default leak', () => {
     const dir = join(repoRoot, '.cloverleaf', 'config');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'council.json'), JSON.stringify({ profiles: { x: { rounds: [], aggregation: 'any-veto' } } }));
     const cfg = loadCouncilConfig(repoRoot);
     expect(cfg.gates).toEqual({});
     expect(Object.keys(cfg.profiles)).toContain('x');
+    expect(cfg.profiles.default).toBeUndefined(); // replace, not merge
+  });
+
+  it('falls back to default when consumer JSON is a non-object (e.g. null)', () => {
+    const dir = join(repoRoot, '.cloverleaf', 'config');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'council.json'), 'null');
+    const cfg = loadCouncilConfig(repoRoot);
+    expect(cfg.gates['task.review']).toBe('default');
   });
 });
