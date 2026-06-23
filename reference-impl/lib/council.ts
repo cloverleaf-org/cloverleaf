@@ -1,7 +1,8 @@
-import { execSync } from 'node:child_process';
-import { loadCouncilConfig, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
-import type { ThresholdRule } from './aggregation.js';
-import { loadTask } from './task.js';
+import { execFileSync } from 'node:child_process';
+import { loadCouncilConfigWithSource, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
+import type { ThresholdRule, CouncilVerdict } from './aggregation.js';
+import { loadTask, saveTask, advanceStatus } from './task.js';
+import { writeCouncilResult, type CouncilResult } from './council-result.js';
 import { classifyTaskSecurity } from './security-classify.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
 
@@ -18,6 +19,7 @@ export interface CouncilPlan {
   rounds: ResolvedMember[][];
   aggregation: ThresholdRule;
   on_round_bounce: 'stop' | 'continue';
+  source: 'consumer' | 'default';
 }
 
 interface WhenContext {
@@ -56,11 +58,12 @@ export function resolveBinding(
  * Resolve changed files for predicate evaluation. Callers should pass
  * `opts.changedFiles` (e.g. from a prior `git diff`); when omitted we run
  * `git diff main..cloverleaf/<taskId>` and fall back to [] on any git error.
+ * Exported for direct testing of the (now orchestrator-live) git path.
  */
-function resolveChangedFiles(repoRoot: string, taskId: string, opts: { changedFiles?: string[] }): string[] {
+export function resolveChangedFiles(repoRoot: string, taskId: string, opts: { changedFiles?: string[] } = {}): string[] {
   if (opts.changedFiles !== undefined) return opts.changedFiles;
   try {
-    const out = execSync(`git -C ${repoRoot} diff --name-only main..cloverleaf/${taskId}`, { encoding: 'utf-8' });
+    const out = execFileSync('git', ['-C', repoRoot, 'diff', '--name-only', `main..cloverleaf/${taskId}`], { encoding: 'utf-8' });
     return out.split('\n').filter(Boolean);
   } catch {
     return [];
@@ -73,22 +76,25 @@ export function resolveCouncilPlan(
   gateKey = 'task.review',
   opts: { changedFiles?: string[] } = {},
 ): CouncilPlan {
-  const config: CouncilConfig = loadCouncilConfig(repoRoot);
+  const { config, source } = loadCouncilConfigWithSource(repoRoot);
   const task = loadTask(repoRoot, taskId) as unknown as Record<string, unknown>;
 
   const { profile: profileName, mode } = resolveBinding(config.gates[gateKey], task);
   const empty: CouncilPlan = {
-    gate: gateKey,
-    profile: null,
-    mode,
-    rounds: [],
-    aggregation: 'any-veto',
-    on_round_bounce: 'stop',
+    gate: gateKey, profile: null, mode, rounds: [],
+    aggregation: 'any-veto', on_round_bounce: 'stop', source,
   };
   if (profileName === null) return empty;
 
   const profile = config.profiles[profileName];
-  if (!profile) return empty; // unknown profile → fail toward today's behavior
+  if (!profile) {
+    if (source === 'consumer') {
+      process.stderr.write(
+        `cloverleaf-cli council-plan: profile '${profileName}' bound to gate '${gateKey}' not found in council.json; falling back to today's behavior.\n`,
+      );
+    }
+    return empty; // unknown profile → fail toward today's behavior
+  }
 
   const changed = resolveChangedFiles(repoRoot, taskId, opts);
   const securityHigh = classifyTaskSecurity(repoRoot, taskId, { changedFiles: changed }).effective === 'high';
@@ -111,5 +117,75 @@ export function resolveCouncilPlan(
     rounds,
     aggregation: profile.aggregation,
     on_round_bounce: profile.on_round_bounce ?? 'stop',
+    source,
   };
+}
+
+/**
+ * Drive the FSM transition implied by a council verdict (the runner's terminal step).
+ * Council-authoritative: on a pass it records the council's gating verdict so the
+ * v0.8.1 security precondition is satisfied for any high-security gated transition;
+ * the per-member basis (incl. an omitted or out-voted `security` member) is written
+ * to the result artifact. Walks the minimal legal path to the lane's pre-merge state.
+ */
+export function applyCouncilVerdict(
+  repoRoot: string,
+  taskId: string,
+  gate: string,
+  council: CouncilVerdict,
+): CouncilResult {
+  const task = loadTask(repoRoot, taskId);
+  if (task.status !== 'review') {
+    throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'review'`);
+  }
+  const lane: 'fast' | 'full' = task.risk_class === 'high' ? 'full' : 'fast';
+  const securityMember = council.members.find((m) => m.member === 'security');
+  const walk: string[] = ['review'];
+
+  if (council.verdict === 'escalate') {
+    advanceStatus(repoRoot, taskId, 'escalated', 'agent');
+    walk.push('escalated');
+  } else if (council.verdict === 'bounce') {
+    advanceStatus(repoRoot, taskId, 'implementing', 'agent');
+    walk.push('implementing');
+  } else {
+    // pass — minimal legal walk; review→automated-gates resets the security verdict,
+    // so set the council's gating verdict AFTER that transition.
+    advanceStatus(repoRoot, taskId, 'automated-gates', 'agent');
+    walk.push('automated-gates');
+    const atGates = loadTask(repoRoot, taskId);
+    atGates.security_review_verdict = 'pass';
+    saveTask(repoRoot, atGates);
+    if (lane === 'full') {
+      advanceStatus(repoRoot, taskId, 'qa', 'agent', { path: 'full_pipeline' });
+      walk.push('qa');
+      advanceStatus(repoRoot, taskId, 'final-gate', 'agent', { path: 'full_pipeline' });
+      walk.push('final-gate');
+    }
+  }
+
+  const result: CouncilResult = {
+    gate,
+    final_verdict: council.verdict,
+    rule: council.rule,
+    rationale: council.rationale,
+    members: council.members.map((m) => ({
+      member: m.member,
+      verdict: m.verdict,
+      blocking: m.blocking !== false,
+      weight: m.weight ?? 1,
+    })),
+    walk,
+    security: {
+      member_verdict: securityMember ? securityMember.verdict : 'absent',
+      gating_verdict_set: council.verdict === 'pass' ? 'pass' : null,
+      basis: !securityMember
+        ? 'no security member configured; advanced under council authority'
+        : securityMember.verdict === 'pass'
+          ? 'security member passed'
+          : `security member returned '${securityMember.verdict}'; council ${council.verdict} by rule ${JSON.stringify(council.rule)}`,
+    },
+  };
+  writeCouncilResult(repoRoot, taskId, result);
+  return result;
 }

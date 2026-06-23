@@ -6,6 +6,7 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 
 ### Added
 - **Configurable review councils (Slice 1).** A per-project `council.json` can bind a review *council* to the `task.review` gate: a profile of rounds (sequential waves) composed from the built-in reviewers (`reviewer`, `security`, `ui`, `qa`), with member activation predicates (`security_class:high`, `ui_changes`) and deterministic verdict aggregation (`any-veto` default, plus `unanimous` / `majority` / `quorum(k)` / `weighted`). New `lib/aggregation.ts`, `lib/council-config.ts`, `lib/council.ts`, shipped `config/council.json`, and read-only CLI subcommands `council-plan` and `aggregate-verdicts`. The shipped default reproduces the existing pipeline exactly, so projects with no `council.json` are unaffected.
+- **Configurable review councils — wired into the pipeline.** When a project provides a `.cloverleaf/config/council.json`, `cloverleaf-run` drives the `task.review` gate via the configured council: each active member runs as a read-only review, verdicts combine through the configured deterministic rule, and the outcome drives the FSM with a full audit artifact at `.cloverleaf/runs/<task>/council/task.review.json`. Projects with no `council.json` are unaffected — the existing review path runs verbatim. New `lib/council-result.ts` and CLI subcommand `apply-council-verdict`; `council-plan` now reports its config `source`.
 
 ## 0.8.6 — 2026-05-28
 

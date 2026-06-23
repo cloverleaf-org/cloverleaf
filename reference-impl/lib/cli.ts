@@ -41,6 +41,9 @@
  *   secret-scan <repoRoot> --branch <branch>
  *   classify-security <repoRoot> <taskId> [--branch <branch>]
  *   set-task-field <repoRoot> <taskId> <field> <value>
+ *   council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]
+ *   aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]
+ *   apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>
  */
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -73,8 +76,8 @@ import type { SiblingScope } from './scope-check.js';
 import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
 import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
 import { classifyTaskSecurity } from './security-classify.js';
-import { resolveCouncilPlan } from './council.js';
-import { aggregate, type MemberVerdict, type ThresholdRule } from './aggregation.js';
+import { resolveCouncilPlan, applyCouncilVerdict } from './council.js';
+import { aggregate, type MemberVerdict, type ThresholdRule, type CouncilVerdict } from './aggregation.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -123,6 +126,7 @@ function usage(msg?: string): never {
       '  classify-security <repoRoot> <taskId> [--branch <branch>]\n' +
       '  council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]\n' +
       '  aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]\n' +
+      '  apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>\n' +
       '  set-task-field <repoRoot> <taskId> <field> <value>\n'
   );
   process.exit(2);
@@ -857,6 +861,16 @@ try {
       const wt = flags.find((f) => f.startsWith('--weighted-threshold='));
       const opts = wt ? { weightedThreshold: parseFloat(wt.replace('--weighted-threshold=', '')) } : {};
       process.stdout.write(JSON.stringify(aggregate(members, rule, opts)) + '\n');
+      break;
+    }
+
+    case 'apply-council-verdict': {
+      const [repoRoot, taskId, gate, verdictJson] = rest;
+      if (!repoRoot || !taskId || !gate || !verdictJson)
+        usage('apply-council-verdict requires <repoRoot> <taskId> <gate> <councilVerdictJson>');
+      const council = JSON.parse(verdictJson) as CouncilVerdict;
+      const result = applyCouncilVerdict(repoRoot, taskId, gate, council);
+      process.stdout.write(JSON.stringify(result) + '\n');
       break;
     }
 

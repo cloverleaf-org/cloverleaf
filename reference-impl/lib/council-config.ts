@@ -58,16 +58,22 @@ function loadDefaultConfig(): CouncilConfig {
   return normalize(parsed);
 }
 
-export function loadCouncilConfig(repoRoot: string): CouncilConfig {
+export function loadCouncilConfigWithSource(
+  repoRoot: string,
+): { config: CouncilConfig; source: 'consumer' | 'default' } {
   const consumerPath = join(repoRoot, '.cloverleaf', 'config', 'council.json');
   if (existsSync(consumerPath)) {
     try {
       const parsed: unknown = JSON.parse(readFileSync(consumerPath, 'utf-8'));
       if (!isObject(parsed)) throw new Error('council.json is not an object');
-      return normalize(parsed);
+      return { config: normalize(parsed), source: 'consumer' };
     } catch {
       // malformed / non-object consumer config → fall back to package default
     }
   }
-  return loadDefaultConfig();
+  return { config: loadDefaultConfig(), source: 'default' };
+}
+
+export function loadCouncilConfig(repoRoot: string): CouncilConfig {
+  return loadCouncilConfigWithSource(repoRoot).config;
 }

@@ -28,6 +28,12 @@
 #                          the load-bearing dogfood trail captured in
 #                          tests/integration.security-gate.test.ts (Flow 2 describe block).
 #
+#   council-optin        — Exercises the opt-in council end-to-end against a real temp
+#                          repo with a consumer .cloverleaf/config/council.json. Asserts
+#                          council-plan reports source=consumer, apply-council-verdict
+#                          drives a high-risk task to final-gate, and the council result
+#                          artifact is written.
+#
 # Run via `npm run acceptance:walker` from the reference-impl/ directory or
 # directly: `bash scripts/acceptance-walker.sh [scenario]`.
 set -euo pipefail
@@ -78,6 +84,44 @@ set -euo pipefail
 #   A7. Task status is "merged" at end.
 #   A8. Task security_review_verdict is "pass" at end.
 # ---------------------------------------------------------------------------
+run_council_optin() {
+  echo "=== Scenario: council-optin ==="
+  REPO="$(mktemp -d -t cloverleaf-council-optin.XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$REPO'" EXIT
+  mkdir -p "$REPO/.cloverleaf/tasks" "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/config"
+
+  cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'JSON'
+{ "id": "DEMO-001", "type": "task", "status": "review", "project": "DEMO", "title": "t",
+  "owner": { "kind": "agent", "id": "unassigned" }, "context": { "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" } },
+  "acceptance_criteria": ["a"], "definition_of_done": ["d"], "risk_class": "high" }
+JSON
+
+  cat > "$REPO/.cloverleaf/config/council.json" <<'JSON'
+{ "profiles": { "lean": { "rounds": [[{ "member": "reviewer" }, { "member": "qa" }]], "aggregation": "any-veto" } },
+  "gates": { "task.review": "lean" } }
+JSON
+
+  COUNCIL_PLAN_OUT="$(cloverleaf-cli council-plan "$REPO" DEMO-001 task.review --changed-files=)"
+  SRC="$(python3 -c "import json,sys; d=json.loads('$COUNCIL_PLAN_OUT'.strip()); print(d.get('source',''))" 2>/dev/null || \
+    node -e "const d=JSON.parse(process.env.COUNCIL_PLAN_OUT||'{}'); process.stdout.write(d.source||'')" <<< "" )"
+  [ "$SRC" = "consumer" ] || { echo "FAIL: expected source=consumer, got '$SRC'"; exit 1; }
+  echo "✓ council-plan reports source=consumer"
+
+  VERDICT='{"verdict":"pass","rule":"any-veto","rationale":"ok","members":[{"member":"reviewer","verdict":"pass"},{"member":"qa","verdict":"pass"}]}'
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review "$VERDICT" > /dev/null
+
+  STATUS="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('status',''))" 2>/dev/null || \
+    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(d.status||'')")"
+  [ "$STATUS" = "final-gate" ] || { echo "FAIL: expected final-gate, got '$STATUS'"; exit 1; }
+  echo "✓ apply-council-verdict advanced task to final-gate"
+
+  [ -f "$REPO/.cloverleaf/runs/DEMO-001/council/task.review.json" ] || { echo "FAIL: council result artifact missing"; exit 1; }
+  echo "✓ council result artifact exists"
+
+  echo "=== council-optin: all assertions passed ==="
+}
+
 run_flow2_dogfood_repro() {
   echo "=== Scenario: flow2-dogfood-repro ==="
   echo "Reproducing Flow 2 (Under-classification at the door) end-to-end."
@@ -265,12 +309,16 @@ case "${1:-default}" in
     run_flow2_dogfood_repro
     exit 0
     ;;
+  council-optin)
+    run_council_optin
+    exit 0
+    ;;
   default|"")
     : # fall through to default scenario below
     ;;
   *)
     echo "Unknown scenario: $1"
-    echo "Available scenarios: flow2-dogfood-repro"
+    echo "Available scenarios: flow2-dogfood-repro, council-optin"
     exit 2
     ;;
 esac

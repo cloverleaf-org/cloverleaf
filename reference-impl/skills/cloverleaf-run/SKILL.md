@@ -57,9 +57,11 @@ Recovery sequence:
 
 2. Load task: `cloverleaf-cli load-task <repo_root> <TASK-ID>`. Verify `status === "pending"`. If not, report and stop.
 
-3. Read `task.risk_class`:
-   - `"low"` → go to section 4 (Fast Lane)
-   - `"high"` → go to section 5 (Full Pipeline)
+3. **Council gate detection (opt-in).** Run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` and parse the JSON plan. If `plan.source === "consumer"` **and** `plan.profile !== null`, the project has opted into a configured review council — drive the review phase via **section 7 (Council review path)** instead of the hardcoded reviewer/security/ui/qa steps in sections 4/5. Otherwise (`source: "default"`, or no `task.review` binding) proceed exactly as today:
+   - `task.risk_class === "low"` → section 4 (Fast Lane)
+   - `task.risk_class === "high"` → section 5 (Full Pipeline)
+
+   When the council path is active it still uses the Implementer (and, for the full pipeline, the Documenter) to produce the branch; only the review→merge portion is council-driven.
 
 ### 4. Fast Lane
 
@@ -121,6 +123,35 @@ Loop:
 - `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`
 - Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> escalated (bounce budget exhausted)"`.
 - Report: "✗ Escalated `<TASK-ID>`. Review `.cloverleaf/feedback/` and either refine the task or take over manually. Counters: reviewer=<N>, ui_reviewer=<N>, qa=<N>, security=<N>."
+
+### 7. Council review path (opt-in; active when council-plan source is "consumer")
+
+Initialize `council_bounces = 0`.
+
+7.1 **Produce the branch.** Run the Implementer (`/cloverleaf-implement <TASK-ID>` steps); for `risk_class: "high"` also run the Documenter (`/cloverleaf-document <TASK-ID>` steps). The task reaches `review`.
+
+7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`. For each round **in order**, for each member in the round, dispatch the member's prompt as a **read-only** subagent and capture its `{verdict, summary, findings}` envelope — do **not** advance state:
+   - `reviewer` → `prompts/reviewer.md`, feedback prefix `r`
+   - `security` → `prompts/security-reviewer.md`, prefix `s`
+   - `ui` → `prompts/ui-reviewer.md`, prefix `u`
+   - `qa` → `prompts/qa.md`, prefix `q`
+
+   **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID>`).
+
+   Persist each member's envelope: `echo '<envelope>' > /tmp/clv-council-<member>.json && cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/clv-council-<member>.json --prefix=<r|s|u|q>`. Collect a members array `[{ "member": "<id>", "verdict": "<pass|bounce|escalate>", "blocking": <plan member blocking>, "weight": <plan member weight> }]`.
+
+   **Short-circuit:** if any member returns `escalate`, stop immediately. Otherwise, after each round, if `plan.on_round_bounce === "stop"` and any **blocking** member in that round returned `bounce`, stop before the next round. Always finish the members already running in the current round (batched).
+
+7.3 **Aggregate.** Map `plan.aggregation` to the CLI rule argument: a string passes through; `{ "quorum": k }` → `quorum:k`. Run `cloverleaf-cli aggregate-verdicts '<members-json>' <rule>` and capture the council verdict JSON.
+
+7.4 **Apply.** Run `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.review '<council-verdict-json>'`. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> council review (<verdict>)"`.
+
+7.5 **Branch on the task's new status (reload with `load-task`):**
+   - `automated-gates` (fast lane pass) or `final-gate` (full pipeline pass) → proceed to the merge: inline `/cloverleaf-merge <TASK-ID>`.
+   - `implementing` (bounce) → `council_bounces += 1`. If `council_bounces >= 3`, escalate (section 6). Else return to 7.1.
+   - `escalated` → stop and surface to the user (review `.cloverleaf/feedback/` and `.cloverleaf/runs/<TASK-ID>/council/task.review.json`).
+
+The council result artifact at `.cloverleaf/runs/<TASK-ID>/council/task.review.json` records per-member verdicts, the aggregate, and the security basis (incl. an omitted or out-voted `security` member). On any member-dispatch failure or unparseable envelope, stop and report — never treat a failed member as a pass.
 
 ## Rules
 

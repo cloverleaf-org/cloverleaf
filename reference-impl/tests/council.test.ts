@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveCouncilPlan, resolveBinding, evaluateWhen } from '../lib/council.js';
+import { execFileSync as _git } from 'node:child_process';
+import { resolveCouncilPlan, resolveBinding, evaluateWhen, resolveChangedFiles } from '../lib/council.js';
 
 function makeRepo(taskOverrides: Record<string, unknown> = {}): string {
   const repoRoot = mkdtempSync(join(tmpdir(), 'clv-council-'));
@@ -88,5 +89,49 @@ describe('resolveCouncilPlan — default council reproduces today (REGRESSION GU
     repoRoot = makeRepo();
     const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
     expect(plan.rounds[0][0]).toEqual({ member: 'reviewer', blocking: true, weight: 1 });
+  });
+});
+
+describe('resolveCouncilPlan — source + unknown profile', () => {
+  it("default config → source 'default'", () => {
+    const repoRoot = makeRepo();
+    expect(resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] }).source).toBe('default');
+  });
+  it("consumer config → source 'consumer'", () => {
+    const repoRoot = makeRepo();
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'council.json'),
+      JSON.stringify({ profiles: { p: { rounds: [[{ member: 'reviewer' }]], aggregation: 'any-veto' } }, gates: { 'task.review': 'p' } }));
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.source).toBe('consumer');
+    expect(plan.profile).toBe('p');
+  });
+  it('unknown profile in a consumer file → empty plan + stderr notice', () => {
+    const repoRoot = makeRepo();
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'council.json'),
+      JSON.stringify({ profiles: {}, gates: { 'task.review': 'ghost' } }));
+    const spy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.profile).toBeNull();
+    expect(plan.source).toBe('consumer');
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining("profile 'ghost'"));
+    spy.mockRestore();
+  });
+});
+
+describe('resolveChangedFiles git path — hardened against spaces in repoRoot', () => {
+  it('returns changed files via real git when repoRoot contains a space', () => {
+    const base = mkdtempSync(join(tmpdir(), 'clv-rcf-'));
+    const repoRoot = join(base, 'dir with space');
+    mkdirSync(repoRoot, { recursive: true });
+    const git = (args: string[]) => _git('git', ['-C', repoRoot, ...args], { stdio: 'pipe' });
+    git(['init', '-q', '-b', 'main']);
+    git(['config', 'user.email', 't@t']); git(['config', 'user.name', 't']);
+    writeFileSync(join(repoRoot, 'a.txt'), 'x'); git(['add', '.']); git(['commit', '-qm', 'init']);
+    git(['checkout', '-q', '-b', 'cloverleaf/DEMO-001']);
+    writeFileSync(join(repoRoot, 'b.txt'), 'y'); git(['add', '.']); git(['commit', '-qm', 'b']);
+
+    expect(resolveChangedFiles(repoRoot, 'DEMO-001')).toEqual(['b.txt']);
   });
 });
