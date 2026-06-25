@@ -63,7 +63,7 @@ export function resolveBinding(
 export function resolveChangedFiles(repoRoot: string, taskId: string, opts: { changedFiles?: string[] } = {}): string[] {
   if (opts.changedFiles !== undefined) return opts.changedFiles;
   try {
-    const out = execFileSync('git', ['-C', repoRoot, 'diff', '--name-only', `main..cloverleaf/${taskId}`], { encoding: 'utf-8' });
+    const out = execFileSync('git', ['-C', repoRoot, 'diff', '--name-only', `main..cloverleaf/${taskId}`], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
     return out.split('\n').filter(Boolean);
   } catch {
     return [];
