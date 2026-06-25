@@ -72,6 +72,12 @@ describe('applyCouncilVerdict', () => {
     writeFileSync(join(r, '.cloverleaf', 'tasks', 'DEMO-001.json'), JSON.stringify(t));
     expect(() => applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]))).toThrow(/expected 'review'/);
   });
+  it('throws for a gate other than task.review (Minor 1 — gate guard)', () => {
+    const r = repoWithReviewTask('high');
+    expect(() =>
+      applyCouncilVerdict(r, 'DEMO-001', 'plan.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }])),
+    ).toThrow(/not supported yet|task\.review/);
+  });
 });
 
 describe('opt-in integration (council-plan → aggregate → apply)', () => {
@@ -94,5 +100,25 @@ describe('opt-in integration (council-plan → aggregate → apply)', () => {
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', verdict);
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
     expect(res.security.member_verdict).toBe('absent'); // security deliberately dropped — topology-B
+  });
+});
+
+describe('walk_note — administrative qa traversal (F5)', () => {
+  it('full lane with qa OMITTED from members → walk_note set', () => {
+    const r = repoWithReviewTask('high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
+    expect(res.walk).toContain('qa');
+    expect(res.walk_note).toBe('qa state traversed administratively; no qa member ran');
+  });
+  it('full lane with qa AS a member → walk_note undefined', () => {
+    const r = repoWithReviewTask('high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review',
+      V('pass', [{ member: 'reviewer', verdict: 'pass' }, { member: 'qa', verdict: 'pass' }]));
+    expect(res.walk_note).toBeUndefined();
+  });
+  it('fast lane → walk_note undefined', () => {
+    const r = repoWithReviewTask('low');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
+    expect(res.walk_note).toBeUndefined();
   });
 });

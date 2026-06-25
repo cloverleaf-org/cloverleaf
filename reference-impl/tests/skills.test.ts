@@ -239,6 +239,19 @@ describe('cloverleaf-run skill (v0.2 path-aware)', () => {
   });
 });
 
+describe('cloverleaf-run skill — council review path (§7) polish (0.9.0)', () => {
+  const body = readSkill('cloverleaf-run');
+
+  it('§7.2 {{diff}} excludes .cloverleaf/ orchestration churn (F3)', () => {
+    expect(body).toContain("git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'");
+  });
+
+  it('§7.4 commit is guarded against an empty index and notes the FSM self-commits (F4)', () => {
+    expect(body).toContain('git diff --cached --quiet || git commit');
+    expect(body).toMatch(/self-commit/i);
+  });
+});
+
 describe('cloverleaf-ui-review skill (v0.4)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
 

@@ -63,7 +63,7 @@ export function resolveBinding(
 export function resolveChangedFiles(repoRoot: string, taskId: string, opts: { changedFiles?: string[] } = {}): string[] {
   if (opts.changedFiles !== undefined) return opts.changedFiles;
   try {
-    const out = execFileSync('git', ['-C', repoRoot, 'diff', '--name-only', `main..cloverleaf/${taskId}`], { encoding: 'utf-8' });
+    const out = execFileSync('git', ['-C', repoRoot, 'diff', '--name-only', `main..cloverleaf/${taskId}`], { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
     return out.split('\n').filter(Boolean);
   } catch {
     return [];
@@ -134,6 +134,12 @@ export function applyCouncilVerdict(
   gate: string,
   council: CouncilVerdict,
 ): CouncilResult {
+  if (gate !== 'task.review') {
+    throw new Error(
+      `apply-council-verdict: gate '${gate}' is not supported yet — the FSM walk is hardcoded for the ` +
+      `task.review → merge lane. Binding other gates needs a gate-aware walk (council Slice 3).`,
+    );
+  }
   const task = loadTask(repoRoot, taskId);
   if (task.status !== 'review') {
     throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'review'`);
@@ -164,6 +170,9 @@ export function applyCouncilVerdict(
     }
   }
 
+  const qaTraversedAdministratively =
+    lane === 'full' && walk.includes('qa') && !council.members.some((m) => m.member === 'qa');
+
   const result: CouncilResult = {
     gate,
     final_verdict: council.verdict,
@@ -176,6 +185,9 @@ export function applyCouncilVerdict(
       weight: m.weight ?? 1,
     })),
     walk,
+    ...(qaTraversedAdministratively
+      ? { walk_note: 'qa state traversed administratively; no qa member ran' }
+      : {}),
     security: {
       member_verdict: securityMember ? securityMember.verdict : 'absent',
       gating_verdict_set: council.verdict === 'pass' ? 'pass' : null,

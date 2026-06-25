@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { __setMockChangedFiles, __setMockClassifyError } from '../lib/security-classify.js';
@@ -1947,6 +1947,61 @@ describe('CLI set-task-field', () => {
     const r = run(['set-task-field', tmp, 'STF-1', 'status', 'merged']);
     expect(r.exitCode).not.toBe(0);
     expect(r.stderr).toMatch(/security_review_verdict/);
+  });
+});
+
+describe('council CLI stderr hygiene (F1)', () => {
+  // A non-git temp repo with a consumer council.json + a review task, and NO
+  // cloverleaf/<task> branch → every council git-diff range is unresolvable.
+  function councilRepo(): string {
+    const repoRoot = mkdtempSync(join(tmpdir(), 'clv-f1-'));
+    mkdirSync(join(repoRoot, '.cloverleaf', 'tasks'), { recursive: true });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'events'), { recursive: true });
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
+      JSON.stringify({
+        id: 'DEMO-001', type: 'task', status: 'review', project: 'DEMO', title: 't',
+        owner: { kind: 'agent', id: 'unassigned' },
+        context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-001' } },
+        acceptance_criteria: ['a'], definition_of_done: ['d'],
+        risk_class: 'high', security_class: 'high',
+      }),
+    );
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'config', 'council.json'),
+      JSON.stringify({
+        profiles: { p: { rounds: [[{ member: 'reviewer' }, { member: 'qa' }]], aggregation: 'any-veto' } },
+        gates: { 'task.review': 'p' },
+      }),
+    );
+    return repoRoot;
+  }
+
+  const GIT_NOISE = /fatal|Not a git repository|--no-index|usage: git diff/;
+
+  it('council-plan does not leak a git usage block to stderr (council.ts site)', () => {
+    const repoRoot = councilRepo();
+    const res = spawnSync('npx', ['tsx', CLI, 'council-plan', repoRoot, 'DEMO-001', 'task.review'], {
+      encoding: 'utf-8',
+    });
+    expect(res.stderr).not.toMatch(GIT_NOISE);
+    expect(() => JSON.parse(res.stdout)).not.toThrow();
+    rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  it('apply-council-verdict does not leak a git usage block to stderr (security-classify.ts site)', () => {
+    const repoRoot = councilRepo();
+    const verdict = JSON.stringify({
+      verdict: 'pass', rule: 'any-veto', rationale: 'ok',
+      members: [{ member: 'reviewer', verdict: 'pass' }, { member: 'qa', verdict: 'pass' }],
+    });
+    const res = spawnSync(
+      'npx', ['tsx', CLI, 'apply-council-verdict', repoRoot, 'DEMO-001', 'task.review', verdict],
+      { encoding: 'utf-8' },
+    );
+    expect(res.stderr).not.toMatch(GIT_NOISE);
+    rmSync(repoRoot, { recursive: true, force: true });
   });
 });
 

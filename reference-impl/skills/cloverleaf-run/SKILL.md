@@ -136,7 +136,7 @@ Initialize `council_bounces = 0`.
    - `ui` → `prompts/ui-reviewer.md`, prefix `u`
    - `qa` → `prompts/qa.md`, prefix `q`
 
-   **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID>`).
+   **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`).
 
    Persist each member's envelope: `echo '<envelope>' > /tmp/clv-council-<member>.json && cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/clv-council-<member>.json --prefix=<r|s|u|q>`. Collect a members array `[{ "member": "<id>", "verdict": "<pass|bounce|escalate>", "blocking": <plan member blocking>, "weight": <plan member weight> }]`.
 
@@ -144,7 +144,7 @@ Initialize `council_bounces = 0`.
 
 7.3 **Aggregate.** Map `plan.aggregation` to the CLI rule argument: a string passes through; `{ "quorum": k }` → `quorum:k`. Run `cloverleaf-cli aggregate-verdicts '<members-json>' <rule>` and capture the council verdict JSON.
 
-7.4 **Apply.** Run `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.review '<council-verdict-json>'`. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> council review (<verdict>)"`.
+7.4 **Apply.** Run `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.review '<council-verdict-json>'`. The FSM walk may self-commit some transitions (e.g. `security_class → high`, the rework verdict-reset), so the wrap-up commit can find nothing staged — that is expected. Commit the remainder: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> council review (<verdict>)")`.
 
 7.5 **Branch on the task's new status (reload with `load-task`):**
    - `automated-gates` (fast lane pass) or `final-gate` (full pipeline pass) → proceed to the merge: inline `/cloverleaf-merge <TASK-ID>`.
