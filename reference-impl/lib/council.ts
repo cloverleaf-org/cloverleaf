@@ -170,6 +170,9 @@ export function applyCouncilVerdict(
     }
   }
 
+  const qaTraversedAdministratively =
+    lane === 'full' && walk.includes('qa') && !council.members.some((m) => m.member === 'qa');
+
   const result: CouncilResult = {
     gate,
     final_verdict: council.verdict,
@@ -182,6 +185,9 @@ export function applyCouncilVerdict(
       weight: m.weight ?? 1,
     })),
     walk,
+    ...(qaTraversedAdministratively
+      ? { walk_note: 'qa state traversed administratively; no qa member ran' }
+      : {}),
     security: {
       member_verdict: securityMember ? securityMember.verdict : 'absent',
       gating_verdict_set: council.verdict === 'pass' ? 'pass' : null,
