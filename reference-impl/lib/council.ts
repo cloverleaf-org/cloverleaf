@@ -134,6 +134,12 @@ export function applyCouncilVerdict(
   gate: string,
   council: CouncilVerdict,
 ): CouncilResult {
+  if (gate !== 'task.review') {
+    throw new Error(
+      `apply-council-verdict: gate '${gate}' is not supported yet — the FSM walk is hardcoded for the ` +
+      `task.review → merge lane. Binding other gates needs a gate-aware walk (council Slice 3).`,
+    );
+  }
   const task = loadTask(repoRoot, taskId);
   if (task.status !== 'review') {
     throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'review'`);

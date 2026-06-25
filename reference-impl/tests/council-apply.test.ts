@@ -72,6 +72,12 @@ describe('applyCouncilVerdict', () => {
     writeFileSync(join(r, '.cloverleaf', 'tasks', 'DEMO-001.json'), JSON.stringify(t));
     expect(() => applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]))).toThrow(/expected 'review'/);
   });
+  it('throws for a gate other than task.review (Minor 1 — gate guard)', () => {
+    const r = repoWithReviewTask('high');
+    expect(() =>
+      applyCouncilVerdict(r, 'DEMO-001', 'plan.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }])),
+    ).toThrow(/not supported yet|task\.review/);
+  });
 });
 
 describe('opt-in integration (council-plan → aggregate → apply)', () => {
