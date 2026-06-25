@@ -239,6 +239,14 @@ describe('cloverleaf-run skill (v0.2 path-aware)', () => {
   });
 });
 
+describe('cloverleaf-run skill — council review path (§7) polish (0.9.0)', () => {
+  const body = readSkill('cloverleaf-run');
+
+  it('§7.2 {{diff}} excludes .cloverleaf/ orchestration churn (F3)', () => {
+    expect(body).toContain("git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'");
+  });
+});
+
 describe('cloverleaf-ui-review skill (v0.4)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
 
