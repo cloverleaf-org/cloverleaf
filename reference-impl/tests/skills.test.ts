@@ -1111,9 +1111,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.9.0', () => {
+  it('reports version 0.10.0', () => {
     // v0.9.0: configurable review councils (Slice 1) — council.json, lib/aggregation.ts, lib/council-config.ts, lib/council.ts, council-plan + aggregate-verdicts CLI subcommands.
-    expect(pkg.version).toBe('0.9.0');
+    expect(pkg.version).toBe('0.10.0');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {

@@ -358,12 +358,10 @@ describe('qa prompt', () => {
     expect(body).toMatch(/cloverleaf-cli prep-worktree[^\n]*\{\{repo_root\}\}[^\n]*"?\$TMPDIR"?/);
   });
 
-  it('references dist/qa-report.mjs as the compiled runtime artifact (CLV-65)', () => {
-    // Regression guard: the prompt must document the compiled artifact path so agents
-    // know to invoke dist/qa-report.mjs (not the raw TypeScript source) at runtime.
-    expect(body).toContain('dist/qa-report.mjs');
-    // Must also retain the source-level reference for spec context.
-    expect(body).toContain('lib/qa-report.ts');
+  it('references cloverleaf-cli qa-report as the report generation command (CLV-65)', () => {
+    // Regression guard: Task 3 (F2) decoupled QA report generation from the monorepo dist/
+    // path. The prompt must document the CLI subcommand so agents invoke it portably.
+    expect(body).toContain('cloverleaf-cli qa-report');
   });
 });
 
@@ -606,7 +604,7 @@ describe('CLV-48 — CWD drift fix: all agent prompts contain cd preflight', () 
   it('qa.md has the cd preflight before the worktree setup step (step 1)', () => {
     const body = readPrompt('qa');
     const cdIndex = body.indexOf('cd "$(git rev-parse --show-toplevel)"');
-    const step1Index = body.indexOf('\n1. Set up isolated worktree');
+    const step1Index = body.indexOf('\n1. Set up an isolated worktree');
     expect(cdIndex).toBeLessThan(step1Index);
   });
 
@@ -687,9 +685,9 @@ describe('followup #4 — tsx module-load recipe: reviewer + qa prompts', () => 
       // Names the blessed tool (appears in both the prose and the example).
       expect(body).toContain('npx tsx');
       // Canonical recipe lead — a unique marker that survives reordering.
+      // (F2: prompts are now generalized — TypeScript-specific guidance is gated under
+      // "TypeScript projects" but the ERR_MODULE_NOT_FOUND rationale note was removed.)
       expect(body).toContain('Loading or running a module directly');
-      // Rationale anchor — the "why" cannot be silently stripped.
-      expect(body).toContain('ERR_MODULE_NOT_FOUND');
     });
   }
 });

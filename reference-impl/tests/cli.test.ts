@@ -761,15 +761,22 @@ describe('cli — prep-worktree', () => {
     expect(stderr).toMatch(/prep-worktree requires <mainRoot> <worktreePath>/);
   });
 
-  it('exits non-zero with a clear error when the worktree is not primed', () => {
-    // Missing package.json is enough for prep-worktree to bail — exercising the CLI wiring,
-    // not the lib itself (lib has its own unit tests).
+  it('exits non-zero with a clear error when an embedded/monorepo worktree is not primed', () => {
+    // F2: prep-worktree is now topology-aware. A worktree without standard/ or reference-impl/
+    // is treated as a non-monorepo consumer and succeeds (nothing to copy). To exercise the
+    // error path we must create a worktree that looks like a monorepo clone (has both
+    // standard/package.json and reference-impl/package.json) but whose mainRoot has no
+    // node_modules — that still fails with a helpful message.
     const mainTmp = mkdtempSync(join(tmpdir(), 'cli-prep-main-'));
     const wtTmp = mkdtempSync(join(tmpdir(), 'cli-prep-wt-'));
     try {
+      mkdirSync(join(wtTmp, 'standard'), { recursive: true });
+      mkdirSync(join(wtTmp, 'reference-impl'), { recursive: true });
+      writeFileSync(join(wtTmp, 'standard', 'package.json'), JSON.stringify({ name: '@cloverleaf/standard' }));
+      writeFileSync(join(wtTmp, 'reference-impl', 'package.json'), JSON.stringify({ name: '@cloverleaf/reference-impl' }));
       const { exitCode, stderr } = run(['prep-worktree', mainTmp, wtTmp]);
       expect(exitCode).not.toBe(0);
-      expect(stderr).toMatch(/package\.json|node_modules/);
+      expect(stderr).toMatch(/node_modules/);
     } finally {
       rmSync(mainTmp, { recursive: true, force: true });
       rmSync(wtTmp, { recursive: true, force: true });
