@@ -1815,3 +1815,34 @@ describe('dispatching skills carry the foreground-mode convention (v0.8.3)', () 
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// F2: test-runner agnosticism — implementer + reviewer honor qa-rules.json
+// ---------------------------------------------------------------------------
+
+describe('test-runner agnosticism (F2)', () => {
+  const read = (rel: string) =>
+    readFileSync(resolve(__dirname, '..', rel), 'utf-8');
+
+  it('implementer.md references {{test_rules}} and no longer hardcodes "npm test" as the test step', () => {
+    const md = read('prompts/implementer.md');
+    expect(md).toContain('{{test_rules}}');
+  });
+
+  it('reviewer.md references {{test_rules}}', () => {
+    const md = read('prompts/reviewer.md');
+    expect(md).toContain('{{test_rules}}');
+  });
+
+  it('the implement SKILL loads qa-rules.json for substitution', () => {
+    const md = read('skills/cloverleaf-implement/SKILL.md');
+    expect(md).toContain('qa-rules.json');
+    expect(md).toContain('{{test_rules}}');
+  });
+
+  it('the review SKILL loads qa-rules.json for substitution', () => {
+    const md = read('skills/cloverleaf-review/SKILL.md');
+    expect(md).toContain('qa-rules.json');
+    expect(md).toContain('{{test_rules}}');
+  });
+});
