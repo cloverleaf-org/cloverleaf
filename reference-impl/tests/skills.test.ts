@@ -1845,4 +1845,20 @@ describe('test-runner agnosticism (F2)', () => {
     expect(md).toContain('qa-rules.json');
     expect(md).toContain('{{test_rules}}');
   });
+
+  it('qa.md generates its report via the qa-report CLI, not a monorepo dist path', () => {
+    const md = read('prompts/qa.md');
+    expect(md).toContain('cloverleaf-cli qa-report');
+    expect(md).not.toContain('reference-impl/dist/qa-report.mjs');
+  });
+
+  it('the npx tsx module-inspect hint is framed as TypeScript-only', () => {
+    for (const f of ['prompts/qa.md', 'prompts/reviewer.md']) {
+      const md = read(f);
+      if (md.includes('npx tsx')) {
+        // The hint must be guarded as TS-specific so a non-TS agent skips it.
+        expect(md.toLowerCase()).toContain('typescript');
+      }
+    }
+  });
 });
