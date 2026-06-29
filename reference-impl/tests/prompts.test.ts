@@ -688,6 +688,9 @@ describe('followup #4 — tsx module-load recipe: reviewer + qa prompts', () => 
       // (F2: prompts are now generalized — TypeScript-specific guidance is gated under
       // "TypeScript projects" but the ERR_MODULE_NOT_FOUND rationale note was removed.)
       expect(body).toContain('Loading or running a module directly');
+      // Rationale anchor: both prompts must still explain WHY npx tsx is needed
+      // (.ts sources + .mjs emit → bare .js import resolves to neither).
+      expect(body).toContain('resolves to neither');
     });
   }
 });

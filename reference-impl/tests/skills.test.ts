@@ -1112,7 +1112,7 @@ describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
   it('reports version 0.10.0', () => {
-    // v0.9.0: configurable review councils (Slice 1) — council.json, lib/aggregation.ts, lib/council-config.ts, lib/council.ts, council-plan + aggregate-verdicts CLI subcommands.
+    // v0.10.0: non-TS-consumer toolchain agnosticism
     expect(pkg.version).toBe('0.10.0');
   });
 
