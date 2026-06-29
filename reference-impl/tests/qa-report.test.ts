@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { renderQaReport, type QaRunResult } from '../lib/qa-report.js';
+import { mkdtempSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { renderQaReport, writeQaReportFromFile, type QaRunResult } from '../lib/qa-report.js';
 
 const fixtureRun: QaRunResult = {
   ruleId: 'test',
@@ -65,5 +68,27 @@ describe('renderQaReport', () => {
     const result = renderQaReport([{} as unknown as Parameters<typeof renderQaReport>[0][number]]);
     expect(typeof result).toBe('string');
     expect(result).toContain('<tr');
+  });
+});
+
+describe('writeQaReportFromFile', () => {
+  it('reads a runs JSON file and writes an HTML report to a nested path (mkdir -p)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cl-qa-report-'));
+    try {
+      const runsPath = join(dir, 'runs.json');
+      const outPath = join(dir, 'nested', 'sub', 'report.html');
+      const runs: QaRunResult[] = [{
+        ruleId: 'py', command: 'pytest', cwd: '.', durationMs: 5, passed: true,
+        stdoutTail: '1 passed', stderrTail: '',
+      }];
+      writeFileSync(runsPath, JSON.stringify(runs));
+      writeQaReportFromFile(runsPath, outPath);
+      expect(existsSync(outPath)).toBe(true);
+      const html = readFileSync(outPath, 'utf-8');
+      expect(html).toContain('<!DOCTYPE html>');
+      expect(html).toContain('pytest');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

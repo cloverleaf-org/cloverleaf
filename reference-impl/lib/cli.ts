@@ -31,6 +31,7 @@
  *   next-work-item-id <repoRoot> <project>
  *   discovery-config --repo-root <repoRoot>
  *   prep-worktree <mainRoot> <worktreePath>
+ *   qa-report <runs.json> <out.html>
  *   dag-ready-tasks <repoRoot> <planId> <maxConcurrent>
  *   dag-detect-cycle <repoRoot> <planId>
  *   walk-state-read <repoRoot> <planId>
@@ -66,6 +67,7 @@ import { loadSpike, saveSpike, advanceSpikeStatus, type SpikeDoc } from './spike
 import { loadPlan, savePlan, advancePlanStatus, materialiseTasksFromPlan, type PlanDoc } from './plan.js';
 import { loadDiscoveryConfig } from './discovery-config.js';
 import { prepWorktree } from './prep-worktree.js';
+import { writeQaReportFromFile } from './qa-report.js';
 import { readUiReviewState, writeUiReviewState } from './ui-review-state.js';
 import { buildBaselinePath } from './visual-diff.js';
 import { computeReadyTasks, detectCycle } from './dag-walker.js';
@@ -115,6 +117,7 @@ function usage(msg?: string): never {
       '  next-work-item-id <repoRoot> <project>\n' +
       '  discovery-config --repo-root <repoRoot>\n' +
       '  prep-worktree <mainRoot> <worktreePath>\n' +
+      '  qa-report <runs.json> <out.html>\n' +
       '  dag-ready-tasks <repoRoot> <planId> <maxConcurrent>\n' +
       '  dag-detect-cycle <repoRoot> <planId>\n' +
       '  walk-state-read <repoRoot> <planId>\n' +
@@ -503,6 +506,13 @@ try {
       const [mainRoot, worktreePath] = rest;
       if (!mainRoot || !worktreePath) usage('prep-worktree requires <mainRoot> <worktreePath>');
       prepWorktree(mainRoot, worktreePath);
+      break;
+    }
+
+    case 'qa-report': {
+      const [runsJsonPath, outHtmlPath] = rest;
+      if (!runsJsonPath || !outHtmlPath) usage('qa-report requires <runs.json> <out.html>');
+      writeQaReportFromFile(runsJsonPath, outHtmlPath);
       break;
     }
 
