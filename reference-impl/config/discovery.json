@@ -1,5 +1,6 @@
 {
   "docContextUri": "",
   "projectId": "",
-  "idStart": 1
+  "idStart": 1,
+  "worktree_setup_command": ""
 }

@@ -84,4 +84,33 @@ describe('loadDiscoveryConfig', () => {
     const c = loadDiscoveryConfig(tmp);
     expect(c.prep_copy_dirs).toEqual([]);
   });
+
+  it('worktree_setup_command defaults to "" when absent', () => {
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.worktree_setup_command).toBe('');
+  });
+
+  it('worktree_setup_command round-trips a consumer override', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      JSON.stringify({
+        docContextUri: 'docs/', projectId: 'TST', idStart: 1,
+        worktree_setup_command: 'pip install -e .',
+      })
+    );
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.worktree_setup_command).toBe('pip install -e .');
+  });
+
+  it('worktree_setup_command defaults to "" when value is non-string (malformed)', () => {
+    writeFileSync(
+      join(tmp, '.cloverleaf/config/discovery.json'),
+      JSON.stringify({
+        docContextUri: 'docs/', projectId: 'TST', idStart: 1,
+        worktree_setup_command: 42,
+      })
+    );
+    const c = loadDiscoveryConfig(tmp);
+    expect(c.worktree_setup_command).toBe('');
+  });
 });
