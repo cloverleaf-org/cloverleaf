@@ -95,48 +95,69 @@ function buildMissingNodeModulesError(mainRoot: string): Error {
 }
 
 export function prepWorktree(mainRoot: string, worktreePath: string): void {
-  const wtStandardPkg = join(worktreePath, 'standard', 'package.json');
-  const wtRefImplPkg = join(worktreePath, 'reference-impl', 'package.json');
+  const embedded =
+    existsSync(join(worktreePath, 'standard', 'package.json')) &&
+    existsSync(join(worktreePath, 'reference-impl', 'package.json'));
 
-  if (!existsSync(wtStandardPkg)) {
-    throw new Error(`worktree missing standard/package.json at ${wtStandardPkg}`);
+  // configRoot is where .cloverleaf/config/discovery.json is read from. Embedded mode
+  // walks up to the primary repo (which holds node_modules + the config); a non-monorepo
+  // consumer uses mainRoot directly.
+  let configRoot: string;
+  if (embedded) {
+    const resolvedMain = findPrimaryRoot(mainRoot);
+    if (resolvedMain === null) {
+      throw buildMissingNodeModulesError(mainRoot);
+    }
+    configRoot = resolvedMain;
+  } else {
+    configRoot = mainRoot;
   }
-  if (!existsSync(wtRefImplPkg)) {
-    throw new Error(`worktree missing reference-impl/package.json at ${wtRefImplPkg}`);
+
+  const config = loadDiscoveryConfig(configRoot);
+
+  if (embedded) {
+    // Embedded / monorepo mode: prime the cloverleaf TS tooling (unchanged behavior).
+    copyEmbeddedArtifacts(configRoot, worktreePath);
   }
 
-  // Resolve the actual primary repo root: start from mainRoot and walk up until we find a
-  // directory containing both standard/node_modules and reference-impl/node_modules.
-  const resolvedMain = findPrimaryRoot(mainRoot);
-  if (resolvedMain === null) {
-    throw buildMissingNodeModulesError(mainRoot);
+  // Both modes: copy any gitignored dirs the consumer's tests/briefs reference.
+  copyPrepDirs(configRoot, config.prep_copy_dirs, worktreePath);
+
+  if (embedded) {
+    // Build standard/ fresh from the worktree's own sources.
+    execSync('npm run build', {
+      cwd: join(worktreePath, 'standard'),
+      stdio: 'pipe',
+    });
   }
 
-  const mainStandardNm = join(resolvedMain, 'standard', 'node_modules');
-  const mainRefImplNm = join(resolvedMain, 'reference-impl', 'node_modules');
+  // Both modes: run the consumer's worktree setup command, if configured.
+  if (config.worktree_setup_command.trim() !== '') {
+    execSync(config.worktree_setup_command, {
+      cwd: worktreePath,
+      stdio: 'pipe',
+    });
+  }
+}
 
-  const wtStandardNm = join(worktreePath, 'standard', 'node_modules');
-  const wtRefImplNm = join(worktreePath, 'reference-impl', 'node_modules');
-
-  // verbatimSymlinks keeps relative symlink targets byte-identical, so the @cloverleaf/standard
-  // link in reference-impl/node_modules/ resolves against the worktree after copy.
-  //
-  // primeCopy wipes the destination before cpSync. Two reasons:
-  //   1. Idempotence: a partial prior run (or a re-invocation after a test failure) may
-  //      leave partial state; we must not trip on it.
-  //   2. cpSync with verbatimSymlinks: true does not reliably overwrite an existing
-  //      symlink at the destination even with force: true (CLV-20 Reviewer repro was
-  //      EEXIST on vite/node_modules/.bin on second invocation).
-  primeCopy(mainStandardNm, wtStandardNm);
-  primeCopy(mainRefImplNm, wtRefImplNm);
+/**
+ * Embedded / monorepo mode: copy the primary repo's installed cloverleaf TS deps + built
+ * dist into the worktree, preserving the @cloverleaf/standard relative symlink. (See the
+ * file header for the CLV-16/17/37/52 history.)
+ */
+function copyEmbeddedArtifacts(resolvedMain: string, worktreePath: string): void {
+  primeCopy(join(resolvedMain, 'standard', 'node_modules'), join(worktreePath, 'standard', 'node_modules'));
+  primeCopy(join(resolvedMain, 'reference-impl', 'node_modules'), join(worktreePath, 'reference-impl', 'node_modules'));
   primeCopy(join(resolvedMain, 'reference-impl', 'dist'), join(worktreePath, 'reference-impl', 'dist'));
+}
 
-  // Honor discovery_config.prep_copy_dirs: copy each listed gitignored directory
-  // (e.g., docs/superpowers) from mainRoot into the worktree. Walker briefs reference
-  // these paths but git checkouts of main don't carry gitignored content.
-  const discoveryConfig = loadDiscoveryConfig(resolvedMain);
-  for (const dir of discoveryConfig.prep_copy_dirs) {
-    const srcPath = join(resolvedMain, dir);
+/**
+ * Honor discovery_config.prep_copy_dirs: copy each listed gitignored directory from
+ * configRoot into the worktree. Missing entries warn and are skipped.
+ */
+function copyPrepDirs(configRoot: string, dirs: string[], worktreePath: string): void {
+  for (const dir of dirs) {
+    const srcPath = join(configRoot, dir);
     const dstPath = join(worktreePath, dir);
     if (!existsSync(srcPath)) {
       process.stderr.write(`prep-worktree: prep_copy_dirs entry '${dir}' not found at ${srcPath} — skipping.\n`);
@@ -144,11 +165,6 @@ export function prepWorktree(mainRoot: string, worktreePath: string): void {
     }
     primeCopy(srcPath, dstPath);
   }
-
-  execSync('npm run build', {
-    cwd: join(worktreePath, 'standard'),
-    stdio: 'pipe',
-  });
 }
 
 function primeCopy(src: string, dst: string): void {
