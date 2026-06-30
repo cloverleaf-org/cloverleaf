@@ -1,3 +1,6 @@
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname } from 'node:path';
+
 export interface QaRunResult {
   ruleId: string;
   command: string;
@@ -37,6 +40,18 @@ function renderRow(r: QaRunResult): string {
       </td>
     </tr>
   `;
+}
+
+/**
+ * Read a QA runs JSON file (array of QaRunResult), render the HTML report, and write it to
+ * outHtmlPath, creating the parent directory if needed. Lets QA write its report via the
+ * cloverleaf-cli bin instead of importing a monorepo dist path.
+ */
+export function writeQaReportFromFile(runsJsonPath: string, outHtmlPath: string): void {
+  const runs = JSON.parse(readFileSync(runsJsonPath, 'utf-8')) as QaRunResult[];
+  const html = renderQaReport(runs);
+  mkdirSync(dirname(outHtmlPath), { recursive: true });
+  writeFileSync(outHtmlPath, html, 'utf-8');
 }
 
 export function renderQaReport(runs: QaRunResult[]): string {

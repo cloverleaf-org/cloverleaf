@@ -1111,9 +1111,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.9.0', () => {
-    // v0.9.0: configurable review councils (Slice 1) — council.json, lib/aggregation.ts, lib/council-config.ts, lib/council.ts, council-plan + aggregate-verdicts CLI subcommands.
-    expect(pkg.version).toBe('0.9.0');
+  it('reports version 0.10.0', () => {
+    // v0.10.0: non-TS-consumer toolchain agnosticism
+    expect(pkg.version).toBe('0.10.0');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
@@ -1814,4 +1814,52 @@ describe('dispatching skills carry the foreground-mode convention (v0.8.3)', () 
       expect(content).toMatch(/foreground `sleep`/);
     });
   }
+});
+
+// ---------------------------------------------------------------------------
+// F2: test-runner agnosticism — implementer + reviewer honor qa-rules.json
+// ---------------------------------------------------------------------------
+
+describe('test-runner agnosticism (F2)', () => {
+  const read = (rel: string) =>
+    readFileSync(resolve(__dirname, '..', rel), 'utf-8');
+
+  it('implementer.md references {{test_rules}} and no longer hardcodes "npm test" as the test step', () => {
+    const md = read('prompts/implementer.md');
+    expect(md).toContain('{{test_rules}}');
+    expect(md).not.toContain('npm test');
+  });
+
+  it('reviewer.md references {{test_rules}}', () => {
+    const md = read('prompts/reviewer.md');
+    expect(md).toContain('{{test_rules}}');
+  });
+
+  it('the implement SKILL loads qa-rules.json for substitution', () => {
+    const md = read('skills/cloverleaf-implement/SKILL.md');
+    expect(md).toContain('qa-rules.json');
+    expect(md).toContain('{{test_rules}}');
+  });
+
+  it('the review SKILL loads qa-rules.json for substitution', () => {
+    const md = read('skills/cloverleaf-review/SKILL.md');
+    expect(md).toContain('qa-rules.json');
+    expect(md).toContain('{{test_rules}}');
+  });
+
+  it('qa.md generates its report via the qa-report CLI, not a monorepo dist path', () => {
+    const md = read('prompts/qa.md');
+    expect(md).toContain('cloverleaf-cli qa-report');
+    expect(md).not.toContain('reference-impl/dist/qa-report.mjs');
+  });
+
+  it('the npx tsx module-inspect hint is framed as TypeScript-only', () => {
+    for (const f of ['prompts/qa.md', 'prompts/reviewer.md']) {
+      const md = read(f);
+      if (md.includes('npx tsx')) {
+        // The hint must be guarded as TS-specific so a non-TS agent skips it.
+        expect(md.toLowerCase()).toContain('typescript');
+      }
+    }
+  });
 });

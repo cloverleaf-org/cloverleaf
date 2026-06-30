@@ -70,7 +70,7 @@ describe('config/discovery.json — package default shape', () => {
     expect(cfg.idStart).toBe(1);
   });
 
-  it('has exactly 3 fields', () => {
-    expect(Object.keys(cfg).sort()).toEqual(['docContextUri', 'idStart', 'projectId']);
+  it('has exactly 4 fields', () => {
+    expect(Object.keys(cfg).sort()).toEqual(['docContextUri', 'idStart', 'projectId', 'worktree_setup_command']);
   });
 });

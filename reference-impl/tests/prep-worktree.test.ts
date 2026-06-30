@@ -128,9 +128,67 @@ describe('prepWorktree', () => {
     expect(() => prepWorktree(main, wt)).toThrowError(/node_modules/);
   });
 
-  it('throws if worktree is missing required package.json files', () => {
-    rmSync(join(wt, 'standard', 'package.json'));
-    expect(() => prepWorktree(main, wt)).toThrowError(/standard\/package\.json/);
+  it('consumer mode: a worktree without standard/+reference-impl/ subdirs does not throw', () => {
+    const cmain = mkdtempSync(join(tmpdir(), 'cl-prep-cmain-'));
+    const cwt = mkdtempSync(join(tmpdir(), 'cl-prep-cwt-'));
+    try {
+      // A non-monorepo consumer worktree: just project files, no standard/ or reference-impl/.
+      writeFileSync(join(cwt, 'main.py'), 'print("hi")\n');
+      expect(() => prepWorktree(cmain, cwt)).not.toThrow();
+    } finally {
+      rmSync(cmain, { recursive: true, force: true });
+      rmSync(cwt, { recursive: true, force: true });
+    }
+  });
+
+  it('consumer mode: runs worktree_setup_command in the worktree', () => {
+    const cmain = mkdtempSync(join(tmpdir(), 'cl-prep-cmain-'));
+    const cwt = mkdtempSync(join(tmpdir(), 'cl-prep-cwt-'));
+    try {
+      mkdirSync(join(cmain, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(cmain, '.cloverleaf', 'config', 'discovery.json'),
+        JSON.stringify({ worktree_setup_command: 'touch .prepped' }),
+      );
+      writeFileSync(join(cwt, 'main.py'), 'print("hi")\n');
+      prepWorktree(cmain, cwt);
+      expect(existsSync(join(cwt, '.prepped'))).toBe(true);
+    } finally {
+      rmSync(cmain, { recursive: true, force: true });
+      rmSync(cwt, { recursive: true, force: true });
+    }
+  });
+
+  it('consumer mode: honors prep_copy_dirs from mainRoot', () => {
+    const cmain = mkdtempSync(join(tmpdir(), 'cl-prep-cmain-'));
+    const cwt = mkdtempSync(join(tmpdir(), 'cl-prep-cwt-'));
+    try {
+      mkdirSync(join(cmain, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(
+        join(cmain, '.cloverleaf', 'config', 'discovery.json'),
+        JSON.stringify({ prep_copy_dirs: ['fixtures'] }),
+      );
+      mkdirSync(join(cmain, 'fixtures'), { recursive: true });
+      writeFileSync(join(cmain, 'fixtures', 'data.json'), '{}\n');
+      writeFileSync(join(cwt, 'main.py'), 'print("hi")\n');
+      prepWorktree(cmain, cwt);
+      expect(existsSync(join(cwt, 'fixtures', 'data.json'))).toBe(true);
+    } finally {
+      rmSync(cmain, { recursive: true, force: true });
+      rmSync(cwt, { recursive: true, force: true });
+    }
+  });
+
+  it('embedded mode: runs worktree_setup_command after the TS prep when set', () => {
+    // main already has standard/ + reference-impl/ from beforeEach; add the config + an embedded setup cmd.
+    mkdirSync(join(main, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(
+      join(main, '.cloverleaf', 'config', 'discovery.json'),
+      JSON.stringify({ worktree_setup_command: 'touch .prepped' }),
+    );
+    prepWorktree(main, wt);
+    expect(existsSync(join(wt, '.prepped'))).toBe(true);          // setup ran
+    expect(existsSync(join(wt, 'standard', 'dist', 'marker.txt'))).toBe(true);  // TS dance still ran
   });
 
   it('is idempotent — running twice on the same worktree succeeds without EEXIST (v0.5.5 #E)', () => {

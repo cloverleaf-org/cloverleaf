@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.10.0 — 2026-06-29
+
+### Added
+- Test-runner & worktree-prep agnosticism for non-TypeScript consumers. The implementer and reviewer agents now honor the project's `qa-rules.json` test commands (previously only QA did), so a consumer defines its test commands once and all three test-running agents respect them.
+- `prep-worktree` is now topology-aware: a non-monorepo consumer project (no `standard/`/`reference-impl/` subdirs) is prepared via a configurable `worktree_setup_command` (new `discovery.json` field) instead of the TypeScript dependency dance. Monorepo projects are unaffected.
+- `cloverleaf-cli qa-report <runs.json> <out.html>` generates the QA HTML report, so QA no longer depends on a monorepo `dist/` path.
+
+### Changed
+- QA and reviewer prompts generalize their TypeScript-specific guidance (module inspection, output parsing, worktree prep) so non-TypeScript projects read cleanly.
+
 ## 0.9.0 — 2026-06-18
 
 ### Added

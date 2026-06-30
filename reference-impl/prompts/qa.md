@@ -25,11 +25,11 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 
    Run this as the first executable step before anything else. Session B sessions may inherit an arbitrary `cwd` from the walker harness; this anchors you at the repo root.
 
-1. Set up isolated worktree and prepare its node_modules + standard/dist. The `prep-worktree`
-   helper copies main's `standard/node_modules` and `reference-impl/node_modules` into the
-   worktree and runs the standard build script so the @cloverleaf/standard symlink resolves
-   correctly inside the worktree. (Without this, `tsc` fails with `Cannot find module
-   '@cloverleaf/standard/validators/index.js'` because git worktrees don't inherit node_modules.)
+1. Set up an isolated worktree and prime it so the project's tests can run. The
+   `prep-worktree` helper prepares the worktree's dependencies (for a TypeScript monorepo it
+   copies the built tooling; for other projects it runs the configured `worktree_setup_command`
+   and copies any `prep_copy_dirs`). Without it, a fresh worktree may lack the dependencies the
+   tests need.
    ```bash
    TMPDIR=$(mktemp -d)
    SHA=$(git rev-parse {{branch}})
@@ -50,8 +50,8 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
    - Run it in `"$TMPDIR/<cwd>"`
    - Capture stdout, stderr, exit code
    - Parse test output to extract `passed`, `failed`, `total`:
-     - Vitest: `Tests  N passed | M failed (T)` or similar
-     - npm build: treat exit 0 as `{passed: 1, failed: 0, total: 1}`, non-zero as `{passed: 0, failed: 1, total: 1}`
+     - Exit code is the universal signal: exit 0 = the command's checks passed; non-zero = failed.
+     - When the output format is recognized, also extract counts, e.g. Vitest (`Tests N passed | M failed`), pytest (`N passed, M failed`), or a plain build/lint (exit 0 → `{passed: 1, failed: 0, total: 1}`).
    - On failure, collect up to 10 failure names/messages as findings with `severity: "error"` and `rule: "qa.<suite>.<test-name>"`
 
 5. Aggregate results: sum `passed`, `failed`, `total` across all runs.
@@ -59,7 +59,7 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 6. Compute verdict:
    - `pass` — every command exited 0 AND aggregated `failed === 0`
    - `bounce` — any command exited non-zero OR `failed > 0`; findings list the first ~10 failures
-   - `escalate` — any command failed deterministically on 3 consecutive retries (attempt the rerun yourself), OR `npm ci` itself failed (infrastructure problem)
+   - `escalate` — any command failed deterministically on 3 consecutive retries (attempt the rerun yourself), OR the worktree setup itself failed (infrastructure problem)
 
 7. Teardown:
    ```bash
@@ -72,17 +72,25 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 - Read-only. Do NOT edit source files.
 - Use `git worktree`: do NOT `git checkout` in the main working directory.
 - Always teardown the worktree, even on error.
-- **Loading or running a module directly.** Do not improvise `node -e "import('./lib/x.js')"` to spot-check a module — sources are `.ts` and the build emits `.mjs`, so a bare `.js` import resolves to neither and fails with `ERR_MODULE_NOT_FOUND`. Use `npx tsx` instead (already in the worktree's `node_modules`): it resolves `.ts` sources **and** the project's `.js`-style import specifiers, so the natural import works. Run it from the worktree's `reference-impl/` directory; for anything the test suite already covers, prefer `npm test`.
+- **Loading or running a module directly (TypeScript projects).** If your project is TypeScript, do not improvise `node -e "import('./lib/x.js')"` to spot-check a module — sources are `.ts` and the build emits `.mjs`, so a bare `.js` import resolves to neither. Use `npx tsx` instead (resolves `.ts` sources and `.js`-style import specifiers):
 
   ```bash
   npx tsx -e "import('./lib/<module>.js').then(m => console.log(Object.keys(m)))"
   ```
 
+  For other ecosystems, use your language's module-load or REPL equivalent. For anything the test suite already covers, prefer running the tests.
+
 ## QA Report (v0.4)
 
 After executing all matched QA rules, write an HTML report summarizing each run to `<repoRoot>/.cloverleaf/runs/{taskId}/qa/report.html` (substitute `{taskId}` with the `id` field from the task input, e.g., `{{task.id}}`).
 
-Use `renderQaReport(runs)` from `lib/qa-report.ts` to produce the HTML. The compiled artifact is at `<repoRoot>/reference-impl/dist/qa-report.mjs` — invoke via `node --input-type=module` or import from there. Ensure the output directory exists first (`mkdir -p`).
+Write the runs array (one `{ruleId, command, cwd, durationMs, passed, stdoutTail, stderrTail}` object per executed command) to a temp JSON file, then generate the report via the CLI:
+
+```bash
+cloverleaf-cli qa-report /tmp/cl-qa-runs-{taskId}.json "<repoRoot>/.cloverleaf/runs/{taskId}/qa/report.html"
+```
+
+The CLI creates the output directory.
 
 In the feedback you emit, include the report as an attachment on a single info-level finding (or on whichever summary finding you already emit):
 

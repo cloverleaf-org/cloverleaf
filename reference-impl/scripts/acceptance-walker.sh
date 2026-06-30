@@ -34,6 +34,11 @@
 #                          drives a high-risk task to final-gate, and the council result
 #                          artifact is written.
 #
+#   non-ts-consumer      — Builds a synthetic non-monorepo consumer (no standard/ or
+#                          reference-impl/ subdirs) and asserts prep-worktree runs in
+#                          consumer mode: no throw, worktree_setup_command ran, and
+#                          prep_copy_dirs were copied. Validates F2.
+#
 # Run via `npm run acceptance:walker` from the reference-impl/ directory or
 # directly: `bash scripts/acceptance-walker.sh [scenario]`.
 set -euo pipefail
@@ -302,6 +307,62 @@ TASKEOF
 }
 
 # ---------------------------------------------------------------------------
+# scenario: non-ts-consumer
+#
+# Validates F2 (test-runner & worktree-prep agnosticism). Builds a synthetic
+# NON-monorepo consumer repo (no standard/ or reference-impl/ subdirs) with a
+# .cloverleaf/config/{qa-rules.json (non-npm command), discovery.json
+# (worktree_setup_command)} and asserts prep-worktree runs in consumer mode:
+# no throw, the setup command ran, and prep_copy_dirs were copied. Uses trivial
+# shell commands so no real Python toolchain is required.
+# ---------------------------------------------------------------------------
+run_non_ts_consumer() {
+  local REPO WT
+  REPO="$(mktemp -d -t cloverleaf-non-ts-consumer.XXXXXX)"
+  WT="$(mktemp -d -t cloverleaf-non-ts-wt.XXXXXX)"
+  trap 'rm -rf "$REPO" "$WT"' RETURN
+
+  mkdir -p "$REPO/.cloverleaf/config" "$REPO/fixtures"
+  # A non-monorepo consumer: project files only, NO standard/ or reference-impl/.
+  echo 'print("hi")' > "$REPO/app.py"
+  echo '{"seed": true}' > "$REPO/fixtures/seed.json"
+
+  cat > "$REPO/.cloverleaf/config/qa-rules.json" <<'EOF'
+{ "rules": [ { "cwd": ".", "match": ["**/*.py"], "command": "sh -c 'exit 0'" } ] }
+EOF
+  cat > "$REPO/.cloverleaf/config/discovery.json" <<'EOF'
+{ "worktree_setup_command": "sh -c 'touch .prepped'", "prep_copy_dirs": ["fixtures"] }
+EOF
+
+  # The "worktree" is a bare copy of the consumer's source files (no node_modules).
+  echo 'print("hi")' > "$WT/app.py"
+
+  echo "Non-TS consumer scratch repo: $REPO"
+  echo
+
+  # --- 1. prep-worktree runs in consumer mode without throwing ---
+  if ! cloverleaf-cli prep-worktree "$REPO" "$WT"; then
+    echo "FAIL: prep-worktree threw in consumer mode"; return 1
+  fi
+  echo "✓ 1. prep-worktree consumer mode: exit 0 (no monorepo subdirs required)"
+
+  # --- 2. worktree_setup_command ran inside the worktree ---
+  if [[ ! -f "$WT/.prepped" ]]; then
+    echo "FAIL: worktree_setup_command did not run (no .prepped marker)"; return 1
+  fi
+  echo "✓ 2. worktree_setup_command ran in the worktree"
+
+  # --- 3. prep_copy_dirs copied into the worktree ---
+  if [[ ! -f "$WT/fixtures/seed.json" ]]; then
+    echo "FAIL: prep_copy_dirs not honored in consumer mode"; return 1
+  fi
+  echo "✓ 3. prep_copy_dirs copied into the worktree"
+
+  echo
+  echo "non-ts-consumer scenario PASSED"
+}
+
+# ---------------------------------------------------------------------------
 # Scenario dispatch
 # ---------------------------------------------------------------------------
 case "${1:-default}" in
@@ -313,12 +374,16 @@ case "${1:-default}" in
     run_council_optin
     exit 0
     ;;
+  non-ts-consumer)
+    run_non_ts_consumer
+    exit 0
+    ;;
   default|"")
     : # fall through to default scenario below
     ;;
   *)
     echo "Unknown scenario: $1"
-    echo "Available scenarios: flow2-dogfood-repro, council-optin"
+    echo "Available scenarios: flow2-dogfood-repro, council-optin, non-ts-consumer"
     exit 2
     ;;
 esac

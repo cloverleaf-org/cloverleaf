@@ -10,6 +10,7 @@ export interface DiscoveryConfig {
   projectId: string;
   idStart: number;
   prep_copy_dirs: string[];
+  worktree_setup_command: string;
 }
 
 export function loadDiscoveryConfig(repoRoot: string): DiscoveryConfig {
@@ -22,6 +23,8 @@ export function loadDiscoveryConfig(repoRoot: string): DiscoveryConfig {
     prep_copy_dirs: Array.isArray(rawFallback.prep_copy_dirs)
       ? (rawFallback.prep_copy_dirs as unknown[]).filter((p): p is string => typeof p === 'string')
       : [],
+    worktree_setup_command:
+      typeof rawFallback.worktree_setup_command === 'string' ? rawFallback.worktree_setup_command : '',
   };
 
   if (existsSync(override)) {
@@ -43,5 +46,7 @@ function normalise(doc: Partial<DiscoveryConfig>, fallback: DiscoveryConfig): Di
     prep_copy_dirs: Array.isArray(doc.prep_copy_dirs)
       ? (doc.prep_copy_dirs as unknown[]).filter((p): p is string => typeof p === 'string')
       : fallback.prep_copy_dirs,
+    worktree_setup_command:
+      typeof doc.worktree_setup_command === 'string' ? doc.worktree_setup_command : fallback.worktree_setup_command,
   };
 }
