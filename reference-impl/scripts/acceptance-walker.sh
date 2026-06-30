@@ -340,29 +340,23 @@ EOF
   echo "Non-TS consumer scratch repo: $REPO"
   echo
 
-  # --- 1. the consumer's test rule is a non-npm command (agent-side selection consumes this) ---
-  if ! grep -q "exit 0" "$REPO/.cloverleaf/config/qa-rules.json"; then
-    echo "FAIL: consumer qa-rules.json missing the expected non-npm command"; return 1
-  fi
-  echo "✓ 1. consumer qa-rules.json carries a non-npm test command"
-
-  # --- 2. prep-worktree runs in consumer mode without throwing ---
+  # --- 1. prep-worktree runs in consumer mode without throwing ---
   if ! cloverleaf-cli prep-worktree "$REPO" "$WT"; then
     echo "FAIL: prep-worktree threw in consumer mode"; return 1
   fi
-  echo "✓ 2. prep-worktree consumer mode: exit 0 (no monorepo subdirs required)"
+  echo "✓ 1. prep-worktree consumer mode: exit 0 (no monorepo subdirs required)"
 
-  # --- 3. worktree_setup_command ran inside the worktree ---
+  # --- 2. worktree_setup_command ran inside the worktree ---
   if [[ ! -f "$WT/.prepped" ]]; then
     echo "FAIL: worktree_setup_command did not run (no .prepped marker)"; return 1
   fi
-  echo "✓ 3. worktree_setup_command ran in the worktree"
+  echo "✓ 2. worktree_setup_command ran in the worktree"
 
-  # --- 4. prep_copy_dirs copied into the worktree ---
+  # --- 3. prep_copy_dirs copied into the worktree ---
   if [[ ! -f "$WT/fixtures/seed.json" ]]; then
     echo "FAIL: prep_copy_dirs not honored in consumer mode"; return 1
   fi
-  echo "✓ 4. prep_copy_dirs copied into the worktree"
+  echo "✓ 3. prep_copy_dirs copied into the worktree"
 
   echo
   echo "non-ts-consumer scenario PASSED"

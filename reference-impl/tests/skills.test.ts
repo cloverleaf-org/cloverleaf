@@ -1827,6 +1827,7 @@ describe('test-runner agnosticism (F2)', () => {
   it('implementer.md references {{test_rules}} and no longer hardcodes "npm test" as the test step', () => {
     const md = read('prompts/implementer.md');
     expect(md).toContain('{{test_rules}}');
+    expect(md).not.toContain('npm test');
   });
 
   it('reviewer.md references {{test_rules}}', () => {
