@@ -6,8 +6,7 @@ import type { PlanDoc } from './plan.js';
 
 /**
  * A task is "standalone" (RFC-direct) iff it has no parent (absent or null)
- * AND it has a non-empty context.rfc.id. See
- * docs/superpowers/specs/2026-05-12-rfc-direct-tasks-design.md §"Discriminator".
+ * AND it has a non-empty context.rfc.id.
  */
 export function isStandaloneTask(task: TaskDoc): boolean {
   const parent = (task as Record<string, unknown>).parent;

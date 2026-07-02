@@ -6,8 +6,7 @@
 # the four `cloverleaf-cli` subcommands shipped in v0.6.0) against a synthetic
 # 3-peer Plan. The walker SKILL.md itself is a markdown body that runs inside
 # Session A's Claude when /cloverleaf-run-plan is invoked — that orchestration
-# loop is exercised separately by the manual dogfood (see the spec at
-# docs/superpowers/specs/2026-04-24-autonomous-dag-walk-design.md).
+# loop is exercised separately by the manual dogfood.
 #
 # Default scenario validates:
 #
@@ -697,6 +696,10 @@ mkdir -p "$PRIMARY_ROOT/reference-impl/node_modules/vitest"
 printf '{"name":"vitest"}' > "$PRIMARY_ROOT/reference-impl/node_modules/vitest/package.json"
 printf '{"name":"@cloverleaf/reference-impl","version":"0.0.0-acctest"}' \
   > "$PRIMARY_ROOT/reference-impl/package.json"
+# prep-worktree copies the primary's reference-impl/dist into the target (CLV-52);
+# the real primary always has a built dist, so the fixture must provide one.
+mkdir -p "$PRIMARY_ROOT/reference-impl/dist"
+printf '// acctest\n' > "$PRIMARY_ROOT/reference-impl/dist/index.mjs"
 
 # Walker worktree: source files but NO node_modules (the bug scenario).
 mkdir -p "$WALKER_WT/standard"
@@ -746,5 +749,4 @@ echo "walk-state semantics) against a synthetic Plan, and guards the v0.6"
 echo "walker dogfood bug fixes (CLV-39: bugs #1, #2, #4) via static grep +"
 echo "a live prep-worktree invocation. The walker's full Session-orchestration"
 echo "loop (claw-drive integration, final-gate Q&A, escalation surfacing) is"
-echo "exercised by the manual dogfood — see"
-echo "docs/superpowers/specs/2026-04-24-autonomous-dag-walk-design.md."
+echo "exercised by the manual dogfood."
