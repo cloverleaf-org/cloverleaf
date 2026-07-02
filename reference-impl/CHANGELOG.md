@@ -45,7 +45,7 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 - `lib/qa-report.ts` `escape()` now tolerates non-string inputs. Eliminates `TypeError: Cannot read properties of undefined (reading 'replace')` that fired on every QA invocation in the v0.8.1 walker run (CLV-101..108). Function signature changed from `(s: string)` to `(s: unknown)`; null/undefined produce `""`, non-strings get `String()`-coerced before escaping. Happy-path output for string inputs is byte-identical.
 
 ### Added
-- `DiscoveryConfig.prep_copy_dirs: string[]` (defaults to `[]`). `cloverleaf-cli prep-worktree` honors this field by copying each listed directory from `<mainRoot>` into the per-task worktree after the existing node_modules copies. Eliminates the manual `cp docs/superpowers` step the v0.8.1 walker required 8 times. Cloverleaf-the-project's own `.cloverleaf/config/discovery.json` opts in with `["docs/superpowers"]`; other consumers (claw-crypto, etc.) leave it empty and get current behavior.
+- `DiscoveryConfig.prep_copy_dirs: string[]` (defaults to `[]`). `cloverleaf-cli prep-worktree` honors this field by copying each listed directory from `<mainRoot>` into the per-task worktree after the existing node_modules copies. Eliminates the manual per-task copy of the gitignored design-docs directory the v0.8.1 walker required 8 times. Cloverleaf-the-project's own `.cloverleaf/config/discovery.json` opts in with its design-docs directory; other consumers (claw-crypto, etc.) leave it empty and get current behavior.
 - Missing source dirs are skipped silently with a stderr notice; existing `primeCopy` idempotency pattern applies (dest is wiped before copy).
 
 ### Notes

@@ -19,7 +19,7 @@ Machine-readable specification of the Cloverleaf methodology. Exists so any thir
 - Storage / persistence — implementations choose their own.
 - Wire transport for events — implementations may use HTTP webhooks, message queues, etc.
 - Authentication / authorization — implementations choose.
-- The methodology itself — see `../../docs/superpowers/specs/2026-04-16-cloverleaf-design.md`.
+- The methodology itself — see the [methodology site](https://cloverleaf-org.github.io/cloverleaf/).
 
 ## Conformance
 
