@@ -2012,3 +2012,17 @@ describe('council CLI stderr hygiene (F1)', () => {
   });
 });
 
+describe('cli — qa-report', () => {
+  it('exits 2 with usage when no args are given', () => {
+    const { exitCode, stderr } = run(['qa-report']);
+    expect(exitCode).toBe(2);
+    expect(stderr).toMatch(/qa-report requires <runs\.json> <out\.html>/);
+  });
+
+  it('exits 2 with usage when only one arg is given', () => {
+    const { exitCode, stderr } = run(['qa-report', 'only.json']);
+    expect(exitCode).toBe(2);
+    expect(stderr).toMatch(/qa-report requires <runs\.json> <out\.html>/);
+  });
+});
+

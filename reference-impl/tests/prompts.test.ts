@@ -309,6 +309,14 @@ describe('qa prompt', () => {
     expect(body).toContain('{{base_branch}}');
   });
 
+  it('describes {{qa_rules}} as a { rules: [...] } object, not a bare array', () => {
+    // The qa skill injects the raw qa-rules.json contents, whose shape is an object
+    // { rules: [...] } — the identical value implementer.md / reviewer.md describe for
+    // {{test_rules}}. qa.md must name that object shape, not a top-level "array of ... entries".
+    expect(body).toMatch(/a JSON object `\{ rules:/);
+    expect(body).not.toMatch(/\{\{qa_rules\}\} — array of/);
+  });
+
   it('has no stale placeholders', () => {
     expect(body).not.toMatch(/\{\{[^}]*TODO[^}]*\}\}/);
     expect(body).not.toMatch(/XXX|TBD/);
