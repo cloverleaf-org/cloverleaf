@@ -42,18 +42,6 @@ function renderRow(r: QaRunResult): string {
   `;
 }
 
-/**
- * Read a QA runs JSON file (array of QaRunResult), render the HTML report, and write it to
- * outHtmlPath, creating the parent directory if needed. Lets QA write its report via the
- * cloverleaf-cli bin instead of importing a monorepo dist path.
- */
-export function writeQaReportFromFile(runsJsonPath: string, outHtmlPath: string): void {
-  const runs = JSON.parse(readFileSync(runsJsonPath, 'utf-8')) as QaRunResult[];
-  const html = renderQaReport(runs);
-  mkdirSync(dirname(outHtmlPath), { recursive: true });
-  writeFileSync(outHtmlPath, html, 'utf-8');
-}
-
 export function renderQaReport(runs: QaRunResult[]): string {
   const empty = runs.length === 0
     ? `<p class="empty">No runs / results.</p>`
@@ -91,4 +79,16 @@ export function renderQaReport(runs: QaRunResult[]): string {
   ` : ''}
 </body>
 </html>`;
+}
+
+/**
+ * Read a QA runs JSON file (array of QaRunResult), render the HTML report, and write it to
+ * outHtmlPath, creating the parent directory if needed. Lets QA write its report via the
+ * cloverleaf-cli bin instead of importing a monorepo dist path.
+ */
+export function writeQaReportFromFile(runsJsonPath: string, outHtmlPath: string): void {
+  const runs = JSON.parse(readFileSync(runsJsonPath, 'utf-8')) as QaRunResult[];
+  const html = renderQaReport(runs);
+  mkdirSync(dirname(outHtmlPath), { recursive: true });
+  writeFileSync(outHtmlPath, html, 'utf-8');
 }
