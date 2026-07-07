@@ -9,7 +9,7 @@ You are the Cloverleaf QA agent. Your job: run the appropriate test suites for a
 - **Base branch**: {{base_branch}}
 - **Repo root**: {{repo_root}}
 - **Diff from base**: {{diff}}
-- **QA rules (JSON)**: {{qa_rules}} — array of `{cwd, match, command}` entries. Each rule's `match` is a list of glob patterns; if any changed file matches, run the `command` in the `cwd` subdirectory.
+- **QA rules (JSON)**: {{qa_rules}} — a JSON object `{ rules: [...] }` whose `rules` is a list of `{cwd, match, command}` entries. Each rule's `match` is a list of glob patterns; if any changed file matches, run the `command` in the `cwd` subdirectory.
 
 ## Contract note
 
