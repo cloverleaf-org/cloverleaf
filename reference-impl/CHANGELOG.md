@@ -2,6 +2,14 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.10.1 — 2026-07-07
+
+### Fixed
+- QA prompt now describes the injected test-rules payload accurately as a JSON object `{ rules: [...] }` (matching the implementer and reviewer prompts) rather than a bare array, so the QA agent reads the rules correctly.
+
+### Changed
+- Ordered the `qa-report` module functions top-down by dependency and added a CLI usage-error test for the `qa-report` subcommand.
+
 ## 0.10.0 — 2026-06-29
 
 ### Added
