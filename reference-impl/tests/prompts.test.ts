@@ -708,6 +708,7 @@ describe('chair.md — built-in council chair (Slice 2)', () => {
   it('documents the pass/bounce/escalate + forward output contract', () => {
     expect(body).toContain('"verdict"');
     expect(body).toContain('"forward"');
+    expect(body).toContain('"rationale"');
   });
   it('states the escalate invariant (may raise, never lower)', () => {
     expect(body).toMatch(/never lower|cannot lower|only raise|raise a bounce/i);
