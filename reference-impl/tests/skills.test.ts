@@ -260,6 +260,11 @@ describe('cloverleaf-run skill — council review path (§7) polish (0.9.0)', ()
     expect(body).toContain('chair-verdict');
     expect(body).toContain('plan.aggregation');
   });
+
+  it('§7.3 chair branch handles a member escalate first (never lowers escalate to pass)', () => {
+    expect(body).toContain('"verdict":"escalate","rule":"chair"');
+    expect(body).toContain('none escalated');
+  });
 });
 
 describe('cloverleaf-ui-review skill (v0.4)', () => {
