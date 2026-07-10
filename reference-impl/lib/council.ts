@@ -6,6 +6,7 @@ import type { CouncilMember } from './council-config.js';
 import type { ThresholdRule, CouncilVerdict } from './aggregation.js';
 import { loadTask, saveTask, advanceStatus } from './task.js';
 import { writeCouncilResult, type CouncilResult } from './council-result.js';
+import { resolveChairPrompt } from './chair.js';
 import { classifyTaskSecurity } from './security-classify.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
 import { getPluginRoot } from './plugin-path.js';
@@ -23,6 +24,7 @@ export interface CouncilPlan {
   mode: 'decisive' | 'advisory';
   rounds: ResolvedMember[][];
   aggregation: ThresholdRule | 'chair';
+  chair?: { promptPath: string }; // resolved iff aggregation === 'chair'
   on_round_bounce: 'stop' | 'continue';
   source: 'consumer' | 'default';
 }
@@ -147,7 +149,7 @@ export function resolveCouncilPlan(
     if (active.length > 0) rounds.push(active);
   }
 
-  return {
+  const plan: CouncilPlan = {
     gate: gateKey,
     profile: profileName,
     mode,
@@ -156,7 +158,12 @@ export function resolveCouncilPlan(
     on_round_bounce: profile.on_round_bounce ?? 'stop',
     source,
   };
+  if (profile.aggregation === 'chair') {
+    plan.chair = { promptPath: resolveChairPrompt(profile.chair, repoRoot) };
+  }
+  return plan;
 }
+
 
 /**
  * Drive the FSM transition implied by a council verdict (the runner's terminal step).

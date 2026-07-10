@@ -152,6 +152,38 @@ describe('resolveCouncilPlan — members carry a resolved promptPath', () => {
   });
 });
 
+describe('resolveCouncilPlan — chair aggregation threading', () => {
+  it('a chair profile emits aggregation=chair + built-in chair promptPath', () => {
+    const repoRoot = makeRepo();
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { cr: { rounds: [[{ member: 'reviewer' }, { member: 'qa' }]], aggregation: 'chair' } },
+      gates: { 'task.review': 'cr' },
+    }));
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.aggregation).toBe('chair');
+    expect(plan.chair?.promptPath.endsWith('/prompts/chair.md')).toBe(true);
+  });
+  it('a custom chair.prompt resolves under .cloverleaf/prompts', () => {
+    const repoRoot = makeRepo();
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'prompts'), { recursive: true });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'prompts', 'strict-chair.md'), '# strict');
+    writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { cr: { rounds: [[{ member: 'reviewer' }]], aggregation: 'chair', chair: { prompt: 'strict-chair.md' } } },
+      gates: { 'task.review': 'cr' },
+    }));
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.chair?.promptPath).toBe(join(repoRoot, '.cloverleaf', 'prompts', 'strict-chair.md'));
+  });
+  it('a non-chair profile has no chair field', () => {
+    const repoRoot = makeRepo();
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.aggregation).toBe('any-veto');
+    expect(plan.chair).toBeUndefined();
+  });
+});
+
 describe('resolveChangedFiles git path — hardened against spaces in repoRoot', () => {
   it('returns changed files via real git when repoRoot contains a space', () => {
     const base = mkdtempSync(join(tmpdir(), 'clv-rcf-'));
