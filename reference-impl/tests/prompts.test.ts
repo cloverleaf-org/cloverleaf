@@ -702,3 +702,21 @@ describe('followup #4 — tsx module-load recipe: reviewer + qa prompts', () => 
     });
   }
 });
+
+describe('chair.md — built-in council chair (Slice 2)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'prompts', 'chair.md'), 'utf-8');
+  it('documents the pass/bounce/escalate + forward output contract', () => {
+    expect(body).toContain('"verdict"');
+    expect(body).toContain('"forward"');
+  });
+  it('states the escalate invariant (may raise, never lower)', () => {
+    expect(body).toMatch(/never lower|cannot lower|only raise|raise a bounce/i);
+  });
+  it('substitutes the member verdicts + task', () => {
+    expect(body).toContain('{{member_verdicts}}');
+    expect(body).toContain('{{task}}');
+  });
+  it('reviews verdicts, not code', () => {
+    expect(body).toMatch(/verdicts,? not code/i);
+  });
+});
