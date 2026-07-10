@@ -130,19 +130,19 @@ Initialize `council_bounces = 0`.
 
 7.1 **Produce the branch.** Run the Implementer (`/cloverleaf-implement <TASK-ID>` steps); for `risk_class: "high"` also run the Documenter (`/cloverleaf-document <TASK-ID>` steps). The task reaches `review`.
 
-7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`. For each round **in order**, for each member in the round, dispatch the member's prompt as a **read-only** subagent and capture its `{verdict, summary, findings}` envelope — do **not** advance state:
-   - `reviewer` → `prompts/reviewer.md`, feedback prefix `r`
-   - `security` → `prompts/security-reviewer.md`, prefix `s`
-   - `ui` → `prompts/ui-reviewer.md`, prefix `u`
-   - `qa` → `prompts/qa.md`, prefix `q`
+7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`, and (for a chair profile) `plan.chair`. For each round **in order**, for each active member in the round, dispatch its prompt at `plan.rounds[<round>][<member>].promptPath` as a **read-only** subagent and capture its `{verdict, summary, findings}` envelope — do **not** advance state. (Built-in members resolve to the shipped `reviewer`/`security-reviewer`/`ui-reviewer`/`qa` prompts; a custom role resolves to `.cloverleaf/prompts/<file>.md`.)
 
    **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`).
 
-   Persist each member's envelope: `echo '<envelope>' > /tmp/clv-council-<member>.json && cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/clv-council-<member>.json --prefix=<r|s|u|q>`. Collect a members array `[{ "member": "<id>", "verdict": "<pass|bounce|escalate>", "blocking": <plan member blocking>, "weight": <plan member weight> }]`.
+   Persist each member's envelope: `echo '<envelope>' > /tmp/clv-council-<member>.json && cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/clv-council-<member>.json --prefix=<prefix>`, where `<prefix>` is `r`/`s`/`u`/`q` for the built-ins and the **member id** for a custom role. Collect a members array `[{ "member": "<id>", "verdict": "<pass|bounce|escalate>", "blocking": <plan member blocking>, "weight": <plan member weight> }]`.
 
    **Short-circuit:** if any member returns `escalate`, stop immediately. Otherwise, after each round, if `plan.on_round_bounce === "stop"` and any **blocking** member in that round returned `bounce`, stop before the next round. Always finish the members already running in the current round (batched).
 
-7.3 **Aggregate.** Map `plan.aggregation` to the CLI rule argument: a string passes through; `{ "quorum": k }` → `quorum:k`. Run `cloverleaf-cli aggregate-verdicts '<members-json>' <rule>` and capture the council verdict JSON.
+7.3 **Reach the council verdict.**
+   - **If `plan.aggregation === "chair"`:**
+     - If **no blocking member bounced** (all passed; any `escalate` already short-circuited in §7.2), the council verdict is `{"verdict":"pass","rule":"chair","rationale":"all members passed; chair not convened","members":[<members array>],"forward":[]}` — do **not** dispatch the chair.
+     - Otherwise **dispatch the chair.** Build enriched inputs `[{ "member", "verdict", "blocking", "weight", "envelope": <the member's /tmp/clv-council-<member>.json object> }]`; run `context=$(cloverleaf-cli chair-context '<enriched-inputs-json>')`. Dispatch the chair prompt at `plan.chair.promptPath` as a **read-only** foreground subagent, substituting `{{task}}`, `{{repo_root}}`, and `{{member_verdicts}}` = `$context`; capture its `{verdict, rationale, forward}` output. Then run `cloverleaf-cli chair-verdict '<chair-raw-json>' '<members-json>'` and capture the council verdict JSON.
+   - **Else (deterministic):** map `plan.aggregation` to the CLI rule (a string passes through; `{ "quorum": k }` → `quorum:k`) and run `cloverleaf-cli aggregate-verdicts '<members-json>' <rule>`; capture the council verdict JSON.
 
 7.4 **Apply.** Run `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.review '<council-verdict-json>'`. The FSM walk may self-commit some transitions (e.g. `security_class → high`, the rework verdict-reset), so the wrap-up commit can find nothing staged — that is expected. Commit the remainder: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> council review (<verdict>)")`.
 
@@ -151,7 +151,7 @@ Initialize `council_bounces = 0`.
    - `implementing` (bounce) → `council_bounces += 1`. If `council_bounces >= 3`, escalate (section 6). Else return to 7.1.
    - `escalated` → stop and surface to the user (review `.cloverleaf/feedback/` and `.cloverleaf/runs/<TASK-ID>/council/task.review.json`).
 
-The council result artifact at `.cloverleaf/runs/<TASK-ID>/council/task.review.json` records per-member verdicts, the aggregate, and the security basis (incl. an omitted or out-voted `security` member). On any member-dispatch failure or unparseable envelope, stop and report — never treat a failed member as a pass.
+On a chair **bounce**, the result artifact's `forward` array names the members whose feedback the Implementer should prioritize; the chair `rationale` frames them. The council result artifact at `.cloverleaf/runs/<TASK-ID>/council/task.review.json` records per-member verdicts, the aggregate (or chair) verdict, `forward` (for a chair bounce), and the security basis (incl. an omitted or out-voted `security` member). On any member-dispatch failure or unparseable envelope, stop and report — never treat a failed member as a pass.
 
 ## Rules
 

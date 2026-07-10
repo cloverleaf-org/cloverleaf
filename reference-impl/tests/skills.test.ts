@@ -250,6 +250,16 @@ describe('cloverleaf-run skill — council review path (§7) polish (0.9.0)', ()
     expect(body).toContain('git diff --cached --quiet || git commit');
     expect(body).toMatch(/self-commit/i);
   });
+
+  it('§7.2 dispatches each member by its resolved promptPath (Slice 2)', () => {
+    expect(body).toContain('plan.rounds');
+    expect(body).toContain('promptPath');
+  });
+
+  it('§7.3 dispatches the chair when aggregation is "chair" (Slice 2)', () => {
+    expect(body).toContain('chair-verdict');
+    expect(body).toContain('plan.aggregation');
+  });
 });
 
 describe('cloverleaf-ui-review skill (v0.4)', () => {
