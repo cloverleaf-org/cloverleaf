@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync as _git } from 'node:child_process';
-import { resolveCouncilPlan, resolveBinding, evaluateWhen, resolveChangedFiles } from '../lib/council.js';
+import { resolveCouncilPlan, resolveBinding, evaluateWhen, resolveChangedFiles, resolveMemberPrompt } from '../lib/council.js';
 
 function makeRepo(taskOverrides: Record<string, unknown> = {}): string {
   const repoRoot = mkdtempSync(join(tmpdir(), 'clv-council-'));
@@ -88,7 +88,7 @@ describe('resolveCouncilPlan — default council reproduces today (REGRESSION GU
   it('members carry resolved blocking/weight defaults', () => {
     repoRoot = makeRepo();
     const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
-    expect(plan.rounds[0][0]).toEqual({ member: 'reviewer', blocking: true, weight: 1 });
+    expect(plan.rounds[0][0]).toEqual(expect.objectContaining({ member: 'reviewer', blocking: true, weight: 1 }));
   });
 });
 
@@ -117,6 +117,38 @@ describe('resolveCouncilPlan — source + unknown profile', () => {
     expect(plan.source).toBe('consumer');
     expect(spy).toHaveBeenCalledWith(expect.stringContaining("profile 'ghost'"));
     spy.mockRestore();
+  });
+});
+
+describe('resolveMemberPrompt', () => {
+  it('built-in ids resolve to their shipped prompt files', () => {
+    expect(resolveMemberPrompt({ member: 'reviewer' }, '/x').endsWith('/prompts/reviewer.md')).toBe(true);
+    expect(resolveMemberPrompt({ member: 'security' }, '/x').endsWith('/prompts/security-reviewer.md')).toBe(true);
+    expect(resolveMemberPrompt({ member: 'ui' }, '/x').endsWith('/prompts/ui-reviewer.md')).toBe(true);
+    expect(resolveMemberPrompt({ member: 'qa' }, '/x').endsWith('/prompts/qa.md')).toBe(true);
+  });
+  it('a custom member resolves under .cloverleaf/prompts and exist-checks', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'clv-custom-'));
+    mkdirSync(join(repo, '.cloverleaf', 'prompts'), { recursive: true });
+    writeFileSync(join(repo, '.cloverleaf', 'prompts', 'perf-reviewer.md'), '# perf');
+    expect(resolveMemberPrompt({ member: 'perf', prompt: 'perf-reviewer.md' }, repo))
+      .toBe(join(repo, '.cloverleaf', 'prompts', 'perf-reviewer.md'));
+  });
+  it('throws when a custom prompt file is missing', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'clv-missing-'));
+    expect(() => resolveMemberPrompt({ member: 'perf', prompt: 'nope.md' }, repo)).toThrow(/not found/);
+  });
+  it('throws for an unknown id with no prompt', () => {
+    expect(() => resolveMemberPrompt({ member: 'mystery' }, '/x')).toThrow(/unknown member/);
+  });
+});
+
+describe('resolveCouncilPlan — members carry a resolved promptPath', () => {
+  it('default reviewer member has a built-in promptPath', () => {
+    const repoRoot = makeRepo();
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.rounds[0][0]).toEqual(expect.objectContaining({ member: 'reviewer', blocking: true, weight: 1 }));
+    expect(plan.rounds[0][0].promptPath.endsWith('/prompts/reviewer.md')).toBe(true);
   });
 });
 

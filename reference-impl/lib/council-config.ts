@@ -9,7 +9,8 @@ const DEFAULT_CONFIG = join(here, '..', 'config', 'council.json');
 export type WhenPredicate = 'always' | 'security_class:high' | 'ui_changes';
 
 export interface CouncilMember {
-  member: string; // built-in id: 'reviewer' | 'security' | 'ui' | 'qa'
+  member: string; // built-in id ('reviewer' | 'security' | 'ui' | 'qa') or a custom role id
+  prompt?: string; // custom-role prompt filename, resolved under .cloverleaf/prompts/
   when?: WhenPredicate; // default 'always'
   blocking?: boolean; // default true
   weight?: number; // default 1
