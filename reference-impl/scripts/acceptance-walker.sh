@@ -126,6 +126,65 @@ JSON
   echo "=== council-optin: all assertions passed ==="
 }
 
+# ---------------------------------------------------------------------------
+# Scenario: council-chair — chair aggregation + a custom reviewer role (Slice 2).
+#   Asserts: council-plan reports source=consumer + aggregation=chair + a chair
+#   promptPath; a custom member resolves a promptPath under .cloverleaf/prompts;
+#   chair-verdict normalizes a canned chair output to rule=chair; and
+#   apply-council-verdict walks a chair bounce to implementing with forward recorded.
+# ---------------------------------------------------------------------------
+run_council_chair() {
+  echo "=== Scenario: council-chair ==="
+  REPO="$(mktemp -d -t cloverleaf-council-chair.XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$REPO'" EXIT
+  mkdir -p "$REPO/.cloverleaf/tasks" "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/config" "$REPO/.cloverleaf/prompts"
+
+  cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'JSON'
+{ "id": "DEMO-001", "type": "task", "status": "review", "project": "DEMO", "title": "t",
+  "owner": { "kind": "agent", "id": "unassigned" }, "context": { "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" } },
+  "acceptance_criteria": ["a"], "definition_of_done": ["d"], "risk_class": "high" }
+JSON
+
+  echo "# perf reviewer" > "$REPO/.cloverleaf/prompts/perf-reviewer.md"
+
+  cat > "$REPO/.cloverleaf/config/council.json" <<'JSON'
+{ "profiles": { "chaired": { "rounds": [[{ "member": "reviewer" }, { "member": "qa" },
+      { "member": "perf", "prompt": "perf-reviewer.md" }]], "aggregation": "chair" } },
+  "gates": { "task.review": "chaired" } }
+JSON
+
+  PLAN="$(cloverleaf-cli council-plan "$REPO" DEMO-001 task.review --changed-files=)"
+  echo "$PLAN" | node -e '
+    const p = JSON.parse(require("fs").readFileSync(0, "utf-8"));
+    if (p.source !== "consumer") { console.error("FAIL: source", p.source); process.exit(1); }
+    if (p.aggregation !== "chair") { console.error("FAIL: aggregation", p.aggregation); process.exit(1); }
+    if (!p.chair || !p.chair.promptPath.endsWith("/prompts/chair.md")) { console.error("FAIL: chair.promptPath", p.chair); process.exit(1); }
+    const perf = p.rounds.flat().find(m => m.member === "perf");
+    if (!perf || !perf.promptPath.endsWith("/.cloverleaf/prompts/perf-reviewer.md")) { console.error("FAIL: custom promptPath", perf); process.exit(1); }
+  ' || exit 1
+  echo "✓ council-plan: source=consumer, aggregation=chair, custom-role + chair promptPaths resolved"
+
+  RAW='{"verdict":"bounce","rationale":"address the perf finding","forward":["perf"]}'
+  MEMBERS='[{"member":"reviewer","verdict":"pass"},{"member":"qa","verdict":"pass"},{"member":"perf","verdict":"bounce"}]'
+  VERDICT="$(cloverleaf-cli chair-verdict "$RAW" "$MEMBERS")"
+  echo "$VERDICT" | node -e '
+    const v = JSON.parse(require("fs").readFileSync(0, "utf-8"));
+    if (v.rule !== "chair") { console.error("FAIL: rule", v.rule); process.exit(1); }
+    if (JSON.stringify(v.forward) !== JSON.stringify(["perf"])) { console.error("FAIL: forward", v.forward); process.exit(1); }
+  ' || exit 1
+  echo "✓ chair-verdict normalized the chair output to rule=chair with forward=[perf]"
+
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review "$VERDICT" > /dev/null
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
+  [ "$STATUS" = "implementing" ] || { echo "FAIL: expected implementing, got '$STATUS'"; exit 1; }
+  FWD="$(node -e "process.stdout.write(JSON.stringify(require('$REPO/.cloverleaf/runs/DEMO-001/council/task.review.json').forward||null))")"
+  [ "$FWD" = '["perf"]' ] || { echo "FAIL: artifact forward, got '$FWD'"; exit 1; }
+  echo "✓ apply-council-verdict: chair bounce → implementing, forward=[perf] recorded in the artifact"
+
+  echo "=== council-chair: all assertions passed ==="
+}
+
 run_flow2_dogfood_repro() {
   echo "=== Scenario: flow2-dogfood-repro ==="
   echo "Reproducing Flow 2 (Under-classification at the door) end-to-end."
@@ -373,6 +432,10 @@ case "${1:-default}" in
     run_council_optin
     exit 0
     ;;
+  council-chair)
+    run_council_chair
+    exit 0
+    ;;
   non-ts-consumer)
     run_non_ts_consumer
     exit 0
@@ -382,7 +445,7 @@ case "${1:-default}" in
     ;;
   *)
     echo "Unknown scenario: $1"
-    echo "Available scenarios: flow2-dogfood-repro, council-optin, non-ts-consumer"
+    echo "Available scenarios: flow2-dogfood-repro, council-optin, council-chair, non-ts-consumer"
     exit 2
     ;;
 esac

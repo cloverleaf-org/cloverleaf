@@ -45,6 +45,8 @@
  *   council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]
  *   aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]
  *   apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>
+ *   chair-context <chairMemberInputsJson>
+ *   chair-verdict <chairRawJson> <membersJson>
  */
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -80,6 +82,7 @@ import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
 import { classifyTaskSecurity } from './security-classify.js';
 import { resolveCouncilPlan, applyCouncilVerdict } from './council.js';
 import { aggregate, type MemberVerdict, type ThresholdRule, type CouncilVerdict } from './aggregation.js';
+import { buildChairContext, finalizeChairVerdict, type ChairMemberInput, type ChairRawVerdict } from './chair.js';
 
 function die(msg: string, code = 1): never {
   process.stderr.write(msg + '\n');
@@ -130,6 +133,8 @@ function usage(msg?: string): never {
       '  council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]\n' +
       '  aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]\n' +
       '  apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>\n' +
+      '  chair-context <chairMemberInputsJson>\n' +
+      '  chair-verdict <chairRawJson> <membersJson>\n' +
       '  set-task-field <repoRoot> <taskId> <field> <value>\n'
   );
   process.exit(2);
@@ -881,6 +886,23 @@ try {
       const council = JSON.parse(verdictJson) as CouncilVerdict;
       const result = applyCouncilVerdict(repoRoot, taskId, gate, council);
       process.stdout.write(JSON.stringify(result) + '\n');
+      break;
+    }
+
+    case 'chair-context': {
+      const [inputsJson] = rest;
+      if (!inputsJson) usage('chair-context requires <chairMemberInputsJson>');
+      const inputs = JSON.parse(inputsJson) as ChairMemberInput[];
+      process.stdout.write(buildChairContext(inputs) + '\n');
+      break;
+    }
+
+    case 'chair-verdict': {
+      const [rawJson, membersJson] = rest;
+      if (!rawJson || !membersJson) usage('chair-verdict requires <chairRawJson> <membersJson>');
+      const raw = JSON.parse(rawJson) as ChairRawVerdict;
+      const members = JSON.parse(membersJson) as MemberVerdict[];
+      process.stdout.write(JSON.stringify(finalizeChairVerdict(raw, members)) + '\n');
       break;
     }
 

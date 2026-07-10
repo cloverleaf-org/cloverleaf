@@ -250,6 +250,21 @@ describe('cloverleaf-run skill — council review path (§7) polish (0.9.0)', ()
     expect(body).toContain('git diff --cached --quiet || git commit');
     expect(body).toMatch(/self-commit/i);
   });
+
+  it('§7.2 dispatches each member by its resolved promptPath (Slice 2)', () => {
+    expect(body).toContain('plan.rounds');
+    expect(body).toContain('promptPath');
+  });
+
+  it('§7.3 dispatches the chair when aggregation is "chair" (Slice 2)', () => {
+    expect(body).toContain('chair-verdict');
+    expect(body).toContain('plan.aggregation');
+  });
+
+  it('§7.3 chair branch handles a member escalate first (never lowers escalate to pass)', () => {
+    expect(body).toContain('"verdict":"escalate","rule":"chair"');
+    expect(body).toContain('none escalated');
+  });
 });
 
 describe('cloverleaf-ui-review skill (v0.4)', () => {
@@ -1111,9 +1126,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.10.1', () => {
-    // v0.10.1: F2 deferred-minors patch (qa.md wording, qa-report fn order + CLI test)
-    expect(pkg.version).toBe('0.10.1');
+  it('reports version 0.11.0', () => {
+    // v0.11.0: council chair engine + custom reviewer roles (Slice 2)
+    expect(pkg.version).toBe('0.11.0');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {

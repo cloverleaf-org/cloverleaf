@@ -14,11 +14,12 @@ export interface CouncilResultMember {
 export interface CouncilResult {
   gate: string;
   final_verdict: Verdict;
-  rule: ThresholdRule;
+  rule: ThresholdRule | 'chair';
   rationale: string;
   members: CouncilResultMember[];
   walk: string[]; // states walked, e.g. ["review","automated-gates","qa","final-gate"]
   walk_note?: string; // set when a state was traversed administratively (e.g. qa with no qa member)
+  forward?: string[]; // chair-curated forwarded member ids (bounce only)
   security: {
     member_verdict: Verdict | 'absent';
     gating_verdict_set: 'pass' | null; // security_review_verdict the council set, if any

@@ -95,7 +95,7 @@ describe('opt-in integration (council-plan → aggregate → apply)', () => {
     const plan = resolveCouncilPlan(r, 'DEMO-001', 'task.review', { changedFiles: [] });
     expect(plan.source).toBe('consumer');
     const members = plan.rounds.flat().map((m) => ({ member: m.member, verdict: 'pass' as const, blocking: m.blocking, weight: m.weight }));
-    const verdict = aggregate(members, plan.aggregation);
+    const verdict = aggregate(members, plan.aggregation as import('../lib/aggregation.js').ThresholdRule);
     expect(verdict.verdict).toBe('pass');
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', verdict);
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
@@ -120,5 +120,30 @@ describe('walk_note — administrative qa traversal (F5)', () => {
     const r = repoWithReviewTask('low');
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
     expect(res.walk_note).toBeUndefined();
+  });
+});
+
+describe('applyCouncilVerdict — chair verdicts (Slice 2)', () => {
+  it('records rule=chair and the forwarded members on a bounce', () => {
+    const r = repoWithReviewTask('high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', {
+      verdict: 'bounce', rule: 'chair', rationale: 'address security',
+      members: [{ member: 'reviewer', verdict: 'pass' }, { member: 'security', verdict: 'bounce' }],
+      forward: ['security'],
+    });
+    expect(loadTask(r, 'DEMO-001').status).toBe('implementing');
+    expect(res.rule).toBe('chair');
+    expect(res.forward).toEqual(['security']);
+    expect(readCouncilResult(r, 'DEMO-001', 'task.review')?.forward).toEqual(['security']);
+  });
+  it('a chair pass records rule=chair and no forward', () => {
+    const r = repoWithReviewTask('low');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', {
+      verdict: 'pass', rule: 'chair', rationale: 'all clear',
+      members: [{ member: 'reviewer', verdict: 'pass' }],
+    });
+    expect(res.rule).toBe('chair');
+    expect(res.forward).toBeUndefined();
+    expect(loadTask(r, 'DEMO-001').status).toBe('automated-gates');
   });
 });

@@ -16,9 +16,10 @@ export interface MemberVerdict {
 
 export interface CouncilVerdict {
   verdict: Verdict;
-  rule: ThresholdRule;
+  rule: ThresholdRule | 'chair';
   rationale: string;
   members: MemberVerdict[];
+  forward?: string[]; // chair-curated member ids to forward to the Implementer (bounce only)
 }
 
 export function aggregate(

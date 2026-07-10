@@ -1,15 +1,21 @@
 import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { loadCouncilConfigWithSource, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
+import type { CouncilMember } from './council-config.js';
 import type { ThresholdRule, CouncilVerdict } from './aggregation.js';
 import { loadTask, saveTask, advanceStatus } from './task.js';
 import { writeCouncilResult, type CouncilResult } from './council-result.js';
+import { resolveChairPrompt } from './chair.js';
 import { classifyTaskSecurity } from './security-classify.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
+import { getPluginRoot } from './plugin-path.js';
 
 export interface ResolvedMember {
   member: string;
   blocking: boolean;
   weight: number;
+  promptPath: string;
 }
 
 export interface CouncilPlan {
@@ -17,7 +23,8 @@ export interface CouncilPlan {
   profile: string | null; // null → no council bound (today's behavior)
   mode: 'decisive' | 'advisory';
   rounds: ResolvedMember[][];
-  aggregation: ThresholdRule;
+  aggregation: ThresholdRule | 'chair';
+  chair?: { promptPath: string }; // resolved iff aggregation === 'chair'
   on_round_bounce: 'stop' | 'continue';
   source: 'consumer' | 'default';
 }
@@ -70,6 +77,33 @@ export function resolveChangedFiles(repoRoot: string, taskId: string, opts: { ch
   }
 }
 
+const BUILTIN_PROMPTS: Record<string, string> = {
+  reviewer: 'reviewer.md',
+  security: 'security-reviewer.md',
+  ui: 'ui-reviewer.md',
+  qa: 'qa.md',
+};
+
+/**
+ * Resolve a council member to the absolute path of its prompt. A member with a
+ * `prompt` field is a custom role → <repoRoot>/.cloverleaf/prompts/<file> (exist-checked);
+ * a bare built-in id → the shipped prompt under the plugin root.
+ */
+export function resolveMemberPrompt(member: CouncilMember, repoRoot: string): string {
+  if (member.prompt !== undefined) {
+    const p = join(repoRoot, '.cloverleaf', 'prompts', member.prompt);
+    if (!existsSync(p)) {
+      throw new Error(`council: custom member '${member.member}' prompt not found at ${p}`);
+    }
+    return p;
+  }
+  const builtin = BUILTIN_PROMPTS[member.member];
+  if (builtin === undefined) {
+    throw new Error(`council: unknown member '${member.member}' (no built-in prompt and no 'prompt' field)`);
+  }
+  return join(getPluginRoot(), 'prompts', builtin);
+}
+
 export function resolveCouncilPlan(
   repoRoot: string,
   taskId: string,
@@ -106,11 +140,16 @@ export function resolveCouncilPlan(
   for (const round of profile.rounds) {
     const active = round
       .filter((member) => evaluateWhen(member.when, ctx))
-      .map((member) => ({ member: member.member, blocking: member.blocking !== false, weight: member.weight ?? 1 }));
+      .map((member) => ({
+        member: member.member,
+        blocking: member.blocking !== false,
+        weight: member.weight ?? 1,
+        promptPath: resolveMemberPrompt(member, repoRoot),
+      }));
     if (active.length > 0) rounds.push(active);
   }
 
-  return {
+  const plan: CouncilPlan = {
     gate: gateKey,
     profile: profileName,
     mode,
@@ -119,7 +158,12 @@ export function resolveCouncilPlan(
     on_round_bounce: profile.on_round_bounce ?? 'stop',
     source,
   };
+  if (profile.aggregation === 'chair') {
+    plan.chair = { promptPath: resolveChairPrompt(profile.chair, repoRoot) };
+  }
+  return plan;
 }
+
 
 /**
  * Drive the FSM transition implied by a council verdict (the runner's terminal step).
@@ -188,6 +232,7 @@ export function applyCouncilVerdict(
     ...(qaTraversedAdministratively
       ? { walk_note: 'qa state traversed administratively; no qa member ran' }
       : {}),
+    ...(council.forward !== undefined ? { forward: council.forward } : {}),
     security: {
       member_verdict: securityMember ? securityMember.verdict : 'absent',
       gating_verdict_set: council.verdict === 'pass' ? 'pass' : null,
