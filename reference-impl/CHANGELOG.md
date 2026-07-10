@@ -2,6 +2,11 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.11.0 — 2026-07-10
+
+### Added
+- **Council chair engine + custom reviewer roles (Slice 2).** A council profile may set `aggregation: "chair"` — a deliberative agent (the built-in `prompts/chair.md`, or a custom `chair.prompt` under `.cloverleaf/prompts/`) reads all member verdicts + feedback, renders the council verdict + rationale, and curates which member feedback is forwarded to the Implementer on a bounce. A council member may be a **custom role** whose prompt lives at `.cloverleaf/prompts/<file>.md`, alongside the four built-ins. `council-plan` now emits a resolved `promptPath` per member; new `lib/chair.ts` with CLI subcommands `chair-context` and `chair-verdict`. Additive and back-compatible — a repo with no `council.json` (and the shipped default profile) is unaffected.
+
 ## 0.10.1 — 2026-07-07
 
 ### Fixed
