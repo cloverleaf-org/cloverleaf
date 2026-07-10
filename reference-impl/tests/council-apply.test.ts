@@ -122,3 +122,28 @@ describe('walk_note — administrative qa traversal (F5)', () => {
     expect(res.walk_note).toBeUndefined();
   });
 });
+
+describe('applyCouncilVerdict — chair verdicts (Slice 2)', () => {
+  it('records rule=chair and the forwarded members on a bounce', () => {
+    const r = repoWithReviewTask('high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', {
+      verdict: 'bounce', rule: 'chair', rationale: 'address security',
+      members: [{ member: 'reviewer', verdict: 'pass' }, { member: 'security', verdict: 'bounce' }],
+      forward: ['security'],
+    });
+    expect(loadTask(r, 'DEMO-001').status).toBe('implementing');
+    expect(res.rule).toBe('chair');
+    expect(res.forward).toEqual(['security']);
+    expect(readCouncilResult(r, 'DEMO-001', 'task.review')?.forward).toEqual(['security']);
+  });
+  it('a chair pass records rule=chair and no forward', () => {
+    const r = repoWithReviewTask('low');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', {
+      verdict: 'pass', rule: 'chair', rationale: 'all clear',
+      members: [{ member: 'reviewer', verdict: 'pass' }],
+    });
+    expect(res.rule).toBe('chair');
+    expect(res.forward).toBeUndefined();
+    expect(loadTask(r, 'DEMO-001').status).toBe('automated-gates');
+  });
+});

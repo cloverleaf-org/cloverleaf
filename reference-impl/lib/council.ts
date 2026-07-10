@@ -232,6 +232,7 @@ export function applyCouncilVerdict(
     ...(qaTraversedAdministratively
       ? { walk_note: 'qa state traversed administratively; no qa member ran' }
       : {}),
+    ...(council.forward !== undefined ? { forward: council.forward } : {}),
     security: {
       member_verdict: securityMember ? securityMember.verdict : 'absent',
       gating_verdict_set: council.verdict === 'pass' ? 'pass' : null,
