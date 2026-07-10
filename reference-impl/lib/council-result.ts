@@ -14,7 +14,7 @@ export interface CouncilResultMember {
 export interface CouncilResult {
   gate: string;
   final_verdict: Verdict;
-  rule: ThresholdRule;
+  rule: ThresholdRule | 'chair';
   rationale: string;
   members: CouncilResultMember[];
   walk: string[]; // states walked, e.g. ["review","automated-gates","qa","final-gate"]

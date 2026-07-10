@@ -22,7 +22,7 @@ export interface CouncilPlan {
   profile: string | null; // null → no council bound (today's behavior)
   mode: 'decisive' | 'advisory';
   rounds: ResolvedMember[][];
-  aggregation: ThresholdRule;
+  aggregation: ThresholdRule | 'chair';
   on_round_bounce: 'stop' | 'continue';
   source: 'consumer' | 'default';
 }

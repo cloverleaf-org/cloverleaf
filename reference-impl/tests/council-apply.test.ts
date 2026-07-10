@@ -95,7 +95,7 @@ describe('opt-in integration (council-plan → aggregate → apply)', () => {
     const plan = resolveCouncilPlan(r, 'DEMO-001', 'task.review', { changedFiles: [] });
     expect(plan.source).toBe('consumer');
     const members = plan.rounds.flat().map((m) => ({ member: m.member, verdict: 'pass' as const, blocking: m.blocking, weight: m.weight }));
-    const verdict = aggregate(members, plan.aggregation);
+    const verdict = aggregate(members, plan.aggregation as import('../lib/aggregation.js').ThresholdRule);
     expect(verdict.verdict).toBe('pass');
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', verdict);
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');

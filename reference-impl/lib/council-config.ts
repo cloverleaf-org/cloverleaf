@@ -18,7 +18,8 @@ export interface CouncilMember {
 
 export interface CouncilProfile {
   rounds: CouncilMember[][];
-  aggregation: ThresholdRule;
+  aggregation: ThresholdRule | 'chair';
+  chair?: { prompt?: string }; // only when aggregation === 'chair'; omit prompt → built-in chair.md
   on_round_bounce?: 'stop' | 'continue'; // default 'stop'
 }
 

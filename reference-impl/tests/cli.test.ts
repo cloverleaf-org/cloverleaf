@@ -355,6 +355,27 @@ describe('cli', () => {
     expect(exitCode).toBe(2);
   });
 
+  it('chair-context renders a deliberation packet', () => {
+    const inputs = JSON.stringify([
+      { member: 'security', verdict: 'bounce', envelope: { summary: 'leaked key', findings: [{ severity: 'blocker', message: 'key in code' }] } },
+      { member: 'qa', verdict: 'pass' },
+    ]);
+    const { stdout, exitCode } = run(['chair-context', inputs]);
+    expect(exitCode).toBe(0);
+    expect(stdout).toContain('security — bounce');
+    expect(stdout).toContain('key in code');
+  });
+
+  it('chair-verdict normalizes chair output to rule=chair', () => {
+    const raw = JSON.stringify({ verdict: 'bounce', rationale: 'fix it', forward: ['security'] });
+    const members = JSON.stringify([{ member: 'reviewer', verdict: 'pass' }, { member: 'security', verdict: 'bounce' }]);
+    const { stdout, exitCode } = run(['chair-verdict', raw, members]);
+    expect(exitCode).toBe(0);
+    const v = JSON.parse(stdout);
+    expect(v.rule).toBe('chair');
+    expect(v.forward).toEqual(['security']);
+  });
+
   it('council-plan reports source=default with no consumer config', () => {
     writeFileSync(
       join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
