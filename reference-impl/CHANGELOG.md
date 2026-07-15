@@ -2,6 +2,11 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.11.1 — 2026-07-15
+
+### Changed
+- Test-hygiene and coverage polish for the council chair + custom-role engine (no functional change): cover `finalizeChairVerdict`'s malformed-input and non-string-rationale branches and `buildChairContext`'s member tagging; assert `chair.md` enumerates its `pass`/`bounce`/`escalate` verdicts; document why built-in member prompts are not exist-checked; consolidate a duplicate import and a stray blank line in `lib/council.ts`; clean up temp-dir leaks in the council/chair resolution tests; and add `local` scoping plus an explicit exit check to the council-chair acceptance scenario.
+
 ## 0.11.0 — 2026-07-10
 
 ### Added

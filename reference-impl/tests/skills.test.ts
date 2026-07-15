@@ -1126,9 +1126,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.11.0', () => {
-    // v0.11.0: council chair engine + custom reviewer roles (Slice 2)
-    expect(pkg.version).toBe('0.11.0');
+  it('reports version 0.11.1', () => {
+    // v0.11.1: Slice 2 deferred-Minors polish (test-hygiene/coverage/cosmetic; no functional change)
+    expect(pkg.version).toBe('0.11.1');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
