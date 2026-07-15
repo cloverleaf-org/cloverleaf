@@ -709,6 +709,7 @@ describe('chair.md — built-in council chair (Slice 2)', () => {
     expect(body).toContain('"verdict"');
     expect(body).toContain('"forward"');
     expect(body).toContain('"rationale"');
+    expect(body).toMatch(/verdict[\s\S]*pass[\s\S]*bounce[\s\S]*escalate/i);
   });
   it('states the escalate invariant (may raise, never lower)', () => {
     expect(body).toMatch(/never lower|cannot lower|only raise|raise a bounce/i);
