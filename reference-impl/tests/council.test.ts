@@ -129,14 +129,22 @@ describe('resolveMemberPrompt', () => {
   });
   it('a custom member resolves under .cloverleaf/prompts and exist-checks', () => {
     const repo = mkdtempSync(join(tmpdir(), 'clv-custom-'));
-    mkdirSync(join(repo, '.cloverleaf', 'prompts'), { recursive: true });
-    writeFileSync(join(repo, '.cloverleaf', 'prompts', 'perf-reviewer.md'), '# perf');
-    expect(resolveMemberPrompt({ member: 'perf', prompt: 'perf-reviewer.md' }, repo))
-      .toBe(join(repo, '.cloverleaf', 'prompts', 'perf-reviewer.md'));
+    try {
+      mkdirSync(join(repo, '.cloverleaf', 'prompts'), { recursive: true });
+      writeFileSync(join(repo, '.cloverleaf', 'prompts', 'perf-reviewer.md'), '# perf');
+      expect(resolveMemberPrompt({ member: 'perf', prompt: 'perf-reviewer.md' }, repo))
+        .toBe(join(repo, '.cloverleaf', 'prompts', 'perf-reviewer.md'));
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
   it('throws when a custom prompt file is missing', () => {
     const repo = mkdtempSync(join(tmpdir(), 'clv-missing-'));
-    expect(() => resolveMemberPrompt({ member: 'perf', prompt: 'nope.md' }, repo)).toThrow(/not found/);
+    try {
+      expect(() => resolveMemberPrompt({ member: 'perf', prompt: 'nope.md' }, repo)).toThrow(/not found/);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
   it('throws for an unknown id with no prompt', () => {
     expect(() => resolveMemberPrompt({ member: 'mystery' }, '/x')).toThrow(/unknown member/);
