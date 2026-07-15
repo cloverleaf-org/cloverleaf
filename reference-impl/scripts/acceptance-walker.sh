@@ -135,6 +135,7 @@ JSON
 # ---------------------------------------------------------------------------
 run_council_chair() {
   echo "=== Scenario: council-chair ==="
+  local REPO PLAN RAW MEMBERS VERDICT STATUS FWD
   REPO="$(mktemp -d -t cloverleaf-council-chair.XXXXXX)"
   # shellcheck disable=SC2064
   trap "rm -rf '$REPO'" EXIT
@@ -175,7 +176,8 @@ JSON
   ' || exit 1
   echo "✓ chair-verdict normalized the chair output to rule=chair with forward=[perf]"
 
-  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review "$VERDICT" > /dev/null
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review "$VERDICT" > /dev/null \
+    || { echo "FAIL: apply-council-verdict exited nonzero"; exit 1; }
   STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
   [ "$STATUS" = "implementing" ] || { echo "FAIL: expected implementing, got '$STATUS'"; exit 1; }
   FWD="$(node -e "process.stdout.write(JSON.stringify(require('$REPO/.cloverleaf/runs/DEMO-001/council/task.review.json').forward||null))")"
