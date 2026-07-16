@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveChairPrompt, buildChairContext, finalizeChairVerdict } from '../lib/chair.js';
@@ -12,13 +12,21 @@ describe('resolveChairPrompt', () => {
   });
   it('custom chair.prompt resolves under .cloverleaf/prompts and exist-checks', () => {
     const repo = mkdtempSync(join(tmpdir(), 'clv-chair-'));
-    mkdirSync(join(repo, '.cloverleaf', 'prompts'), { recursive: true });
-    writeFileSync(join(repo, '.cloverleaf', 'prompts', 'my-chair.md'), '# chair');
-    expect(resolveChairPrompt({ prompt: 'my-chair.md' }, repo)).toBe(join(repo, '.cloverleaf', 'prompts', 'my-chair.md'));
+    try {
+      mkdirSync(join(repo, '.cloverleaf', 'prompts'), { recursive: true });
+      writeFileSync(join(repo, '.cloverleaf', 'prompts', 'my-chair.md'), '# chair');
+      expect(resolveChairPrompt({ prompt: 'my-chair.md' }, repo)).toBe(join(repo, '.cloverleaf', 'prompts', 'my-chair.md'));
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
   it('throws when a custom chair prompt is missing', () => {
     const repo = mkdtempSync(join(tmpdir(), 'clv-chair-miss-'));
-    expect(() => resolveChairPrompt({ prompt: 'ghost.md' }, repo)).toThrow(/chair prompt not found/);
+    try {
+      expect(() => resolveChairPrompt({ prompt: 'ghost.md' }, repo)).toThrow(/chair prompt not found/);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });
 
@@ -33,6 +41,15 @@ describe('buildChairContext', () => {
     expect(out).toContain('leaked key');
     expect(out).toContain('(blocker) API key in code [a.ts:3]');
     expect(out).toContain('qa — pass');
+  });
+
+  it('tags each member as blocking/advisory with its weight', () => {
+    const out = buildChairContext([
+      { member: 'security', verdict: 'bounce', blocking: true, weight: 1 },
+      { member: 'perf', verdict: 'pass', blocking: false, weight: 2 },
+    ]);
+    expect(out).toContain('security — bounce (blocking, weight 1)');
+    expect(out).toContain('perf — pass (advisory, weight 2)');
   });
 });
 
@@ -62,5 +79,12 @@ describe('finalizeChairVerdict', () => {
   });
   it('throws when forward names a non-member', () => {
     expect(() => finalizeChairVerdict({ verdict: 'bounce', rationale: 'x', forward: ['ghost'] }, members)).toThrow(/unknown member/);
+  });
+  it('throws when the raw chair output is not an object', () => {
+    expect(() => finalizeChairVerdict(null as never, members)).toThrow(/not an object/);
+  });
+  it('falls back to an empty rationale when raw.rationale is not a string', () => {
+    const v = finalizeChairVerdict({ verdict: 'pass', rationale: 123 as never }, members);
+    expect(v.rationale).toBe('');
   });
 });

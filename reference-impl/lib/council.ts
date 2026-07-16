@@ -1,8 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadCouncilConfigWithSource, type CouncilConfig, type GateBinding, type WhenPredicate } from './council-config.js';
-import type { CouncilMember } from './council-config.js';
+import { loadCouncilConfigWithSource, type CouncilConfig, type GateBinding, type WhenPredicate, type CouncilMember } from './council-config.js';
 import type { ThresholdRule, CouncilVerdict } from './aggregation.js';
 import { loadTask, saveTask, advanceStatus } from './task.js';
 import { writeCouncilResult, type CouncilResult } from './council-result.js';
@@ -86,8 +85,10 @@ const BUILTIN_PROMPTS: Record<string, string> = {
 
 /**
  * Resolve a council member to the absolute path of its prompt. A member with a
- * `prompt` field is a custom role → <repoRoot>/.cloverleaf/prompts/<file> (exist-checked);
- * a bare built-in id → the shipped prompt under the plugin root.
+ * `prompt` field is a custom role → <repoRoot>/.cloverleaf/prompts/<file> (exist-checked,
+ * since it is user-authored and easily mistyped); a bare built-in id → the shipped prompt
+ * under the plugin root, deliberately NOT exist-checked (built-ins ship with the plugin, so
+ * a missing one is a broken install that surfaces at prompt read-time, not user error).
  */
 export function resolveMemberPrompt(member: CouncilMember, repoRoot: string): string {
   if (member.prompt !== undefined) {
@@ -163,7 +164,6 @@ export function resolveCouncilPlan(
   }
   return plan;
 }
-
 
 /**
  * Drive the FSM transition implied by a council verdict (the runner's terminal step).
