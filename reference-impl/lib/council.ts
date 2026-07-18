@@ -84,6 +84,24 @@ const BUILTIN_PROMPTS: Record<string, string> = {
   qa: 'qa.md',
 };
 
+interface GateDescriptor {
+  state: string; // the task status a gate's council runs at
+  advisoryOnly: boolean; // true when the gate's only legal transitions are human-driven
+}
+
+/**
+ * Council gate → FSM binding (parent-spec §8). The declarative binding layer,
+ * NOT an FSM interpreter: the one decisive gate's transitions remain the lane
+ * logic in applyCouncilVerdict. `advisoryOnly` gates (plan_review's reject,
+ * final_gate's merge/reject are human-only) are forced to advisory regardless
+ * of the binding — a fail-safe honoring "human gates are always advisory".
+ */
+export const GATE_DESCRIPTORS: Record<string, GateDescriptor> = {
+  'task.review': { state: 'review', advisoryOnly: false },
+  'task.plan_review': { state: 'tactical-plan', advisoryOnly: true },
+  'task.final_gate': { state: 'final-gate', advisoryOnly: true },
+};
+
 /**
  * Resolve a council member to the absolute path of its prompt. A member with a
  * `prompt` field is a custom role → <repoRoot>/.cloverleaf/prompts/<file> (exist-checked,
@@ -115,7 +133,10 @@ export function resolveCouncilPlan(
   const { config, source } = loadCouncilConfigWithSource(repoRoot);
   const task = loadTask(repoRoot, taskId) as unknown as Record<string, unknown>;
 
-  const { profile: profileName, mode } = resolveBinding(config.gates[gateKey], task);
+  const binding = resolveBinding(config.gates[gateKey], task);
+  const profileName = binding.profile;
+  const mode: 'decisive' | 'advisory' =
+    GATE_DESCRIPTORS[gateKey]?.advisoryOnly ? 'advisory' : binding.mode;
   const empty: CouncilPlan = {
     gate: gateKey, profile: null, mode, rounds: [],
     aggregation: 'any-veto', on_round_bounce: 'stop', source,
@@ -179,12 +200,16 @@ export function applyCouncilVerdict(
   gate: string,
   council: CouncilVerdict,
 ): CouncilResult {
-  if (gate !== 'task.review') {
+  const desc = GATE_DESCRIPTORS[gate];
+  if (!desc) {
     throw new Error(
-      `apply-council-verdict: gate '${gate}' is not supported yet — the FSM walk is hardcoded for the ` +
-      `task.review → merge lane. Binding other gates needs a gate-aware walk (council Slice 3).`,
+      `apply-council-verdict: gate '${gate}' is not supported; supported gates: ${Object.keys(GATE_DESCRIPTORS).join(', ')}.`,
     );
   }
+  if (desc.advisoryOnly) {
+    return postAdvisoryVerdict(repoRoot, taskId, gate, desc.state, council);
+  }
+  // Decisive gate (task.review) — the existing lane logic below is unchanged.
   const task = loadTask(repoRoot, taskId);
   if (task.status !== 'review') {
     throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'review'`);

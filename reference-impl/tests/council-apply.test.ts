@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { applyCouncilVerdict, resolveCouncilPlan } from '../lib/council.js';
+import { applyCouncilVerdict, resolveCouncilPlan, GATE_DESCRIPTORS } from '../lib/council.js';
 import { loadTask } from '../lib/task.js';
 import { aggregate } from '../lib/aggregation.js';
 import { readCouncilResult } from '../lib/council-result.js';
@@ -72,11 +72,11 @@ describe('applyCouncilVerdict', () => {
     writeFileSync(join(r, '.cloverleaf', 'tasks', 'DEMO-001.json'), JSON.stringify(t));
     expect(() => applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]))).toThrow(/expected 'review'/);
   });
-  it('throws for a gate other than task.review (Minor 1 — gate guard)', () => {
+  it('throws for an unknown gate, listing the supported gates', () => {
     const r = repoWithReviewTask('high');
     expect(() =>
       applyCouncilVerdict(r, 'DEMO-001', 'plan.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }])),
-    ).toThrow(/not supported yet|task\.review/);
+    ).toThrow(/not supported; supported gates: task\.review/);
   });
 });
 
@@ -145,5 +145,37 @@ describe('applyCouncilVerdict — chair verdicts (Slice 2)', () => {
     expect(res.rule).toBe('chair');
     expect(res.forward).toBeUndefined();
     expect(loadTask(r, 'DEMO-001').status).toBe('automated-gates');
+  });
+});
+
+describe('applyCouncilVerdict — gate-aware routing (Slice 3)', () => {
+  it('exposes descriptors for the three supported gates', () => {
+    expect(Object.keys(GATE_DESCRIPTORS).sort()).toEqual(['task.final_gate', 'task.plan_review', 'task.review']);
+    expect(GATE_DESCRIPTORS['task.final_gate']).toEqual({ state: 'final-gate', advisoryOnly: true });
+  });
+  it('unknown gate throws listing the supported gates', () => {
+    const r = repoWithReviewTask('high');
+    expect(() => applyCouncilVerdict(r, 'DEMO-001', 'plan.strategy', V('pass', [{ member: 'reviewer', verdict: 'pass' }])))
+      .toThrow(/not supported; supported gates: task\.review, task\.plan_review, task\.final_gate/);
+  });
+  it('task.final_gate routes to advisory posting (no transition)', () => {
+    const r = repoWithReviewTask('high');
+    const t = loadTask(r, 'DEMO-001'); t.status = 'final-gate';
+    writeFileSync(join(r, '.cloverleaf', 'tasks', 'DEMO-001.json'), JSON.stringify(t));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.final_gate', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
+    expect(res.mode).toBe('advisory');
+    expect(res.security).toBeUndefined();
+    expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
+  });
+  it('resolveCouncilPlan forces advisory mode for an advisory-only gate bound decisive (D4)', () => {
+    const r = repoWithReviewTask('high');
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { fg: { rounds: [[{ member: 'reviewer' }, { member: 'qa' }]], aggregation: 'any-veto' } },
+      gates: { 'task.final_gate': { profile: 'fg', mode: 'decisive' } },
+    }));
+    const plan = resolveCouncilPlan(r, 'DEMO-001', 'task.final_gate', { changedFiles: [] });
+    expect(plan.mode).toBe('advisory');
+    expect(plan.profile).toBe('fg');
   });
 });
