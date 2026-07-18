@@ -7,6 +7,7 @@ import { loadTask, saveTask, advanceStatus } from './task.js';
 import { writeCouncilResult, type CouncilResult } from './council-result.js';
 import { resolveChairPrompt } from './chair.js';
 import { classifyTaskSecurity } from './security-classify.js';
+import { writeFeedback } from './feedback.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
 import { getPluginRoot } from './plugin-path.js';
 
@@ -242,6 +243,56 @@ export function applyCouncilVerdict(
           ? 'security member passed'
           : `security member returned '${securityMember.verdict}'; council ${council.verdict} by rule ${JSON.stringify(council.rule)}`,
     },
+  };
+  writeCouncilResult(repoRoot, taskId, result);
+  return result;
+}
+
+/**
+ * Advisory-gate terminal step (Slice 3): record the council verdict + post a
+ * feedback envelope, and drive NO transition — the human owns every transition
+ * at an advisory gate. The verdict (including an escalate) is recorded verbatim;
+ * because nothing is transitioned, the un-lowerable-escalate invariant holds
+ * trivially. Used for task.plan_review (at tactical-plan) and task.final_gate
+ * (at final-gate) — both advisory-only in the current FSM.
+ */
+export function postAdvisoryVerdict(
+  repoRoot: string,
+  taskId: string,
+  gate: string,
+  expectedState: string,
+  council: CouncilVerdict,
+): CouncilResult {
+  const task = loadTask(repoRoot, taskId);
+  if (task.status !== expectedState) {
+    throw new Error(
+      `apply-council-verdict: task ${taskId} is '${task.status}', expected '${expectedState}' for advisory gate '${gate}'`,
+    );
+  }
+  const m = taskId.match(/^(.+)-(\d+)$/);
+  if (!m) throw new Error(`apply-council-verdict: invalid taskId '${taskId}'`);
+  const project = m[1];
+  writeFeedback(repoRoot, {
+    project,
+    taskId,
+    prefix: 'c',
+    envelope: { verdict: council.verdict, summary: council.rationale, findings: [] },
+  });
+  const result: CouncilResult = {
+    gate,
+    mode: 'advisory',
+    final_verdict: council.verdict,
+    rule: council.rule,
+    rationale: council.rationale,
+    members: council.members.map((mm) => ({
+      member: mm.member,
+      verdict: mm.verdict,
+      blocking: mm.blocking !== false,
+      weight: mm.weight ?? 1,
+    })),
+    walk: [expectedState],
+    walk_note: 'advisory: verdict posted; human drives the transition',
+    ...(council.forward !== undefined ? { forward: council.forward } : {}),
   };
   writeCouncilResult(repoRoot, taskId, result);
   return result;

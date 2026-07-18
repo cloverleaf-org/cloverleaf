@@ -45,8 +45,8 @@ describe('applyCouncilVerdict', () => {
     applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }, { member: 'qa', verdict: 'pass' }]));
     const res = readCouncilResult(r, 'DEMO-001', 'task.review');
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
-    expect(res?.security.member_verdict).toBe('absent');
-    expect(res?.security.basis).toContain('no security member');
+    expect(res?.security?.member_verdict).toBe('absent');
+    expect(res?.security?.basis).toContain('no security member');
   });
   it('full pipeline pass with security OUT-VOTED records the override', () => {
     const r = repoWithReviewTask('high', 'high'); // security-HIGH task: gate satisfied by council authority
@@ -54,7 +54,7 @@ describe('applyCouncilVerdict', () => {
       { verdict: 'pass', rule: 'majority', rationale: 'majority', members: [
         { member: 'reviewer', verdict: 'pass' }, { member: 'qa', verdict: 'pass' }, { member: 'security', verdict: 'bounce' }] });
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
-    expect(readCouncilResult(r, 'DEMO-001', 'task.review')?.security.member_verdict).toBe('bounce');
+    expect(readCouncilResult(r, 'DEMO-001', 'task.review')?.security?.member_verdict).toBe('bounce');
   });
   it('bounce → implementing', () => {
     const r = repoWithReviewTask('high');
@@ -99,7 +99,7 @@ describe('opt-in integration (council-plan → aggregate → apply)', () => {
     expect(verdict.verdict).toBe('pass');
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', verdict);
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
-    expect(res.security.member_verdict).toBe('absent'); // security deliberately dropped — topology-B
+    expect(res.security?.member_verdict).toBe('absent'); // security deliberately dropped — topology-B
   });
 });
 
