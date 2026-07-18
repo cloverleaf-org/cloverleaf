@@ -187,6 +187,62 @@ JSON
   echo "=== council-chair: all assertions passed ==="
 }
 
+# ---------------------------------------------------------------------------
+# Scenario: council-advisory — advisory final_gate + parallel round (Slice 3).
+#   Asserts: council-plan task.final_gate reports source=consumer, mode=advisory,
+#   and a multi-member (parallel) round; apply-council-verdict task.final_gate
+#   POSTS an advisory artifact and drives NO transition (task stays final-gate);
+#   and plan_review posts-and-stays at tactical-plan.
+# ---------------------------------------------------------------------------
+run_council_advisory() {
+  echo "=== Scenario: council-advisory ==="
+  local REPO PLAN VERDICT STATUS MODE
+  REPO="$(mktemp -d -t cloverleaf-council-advisory.XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$REPO'" EXIT
+  mkdir -p "$REPO/.cloverleaf/tasks" "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/config"
+
+  cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'JSON'
+{ "id": "DEMO-001", "type": "task", "status": "final-gate", "project": "DEMO", "title": "t",
+  "owner": { "kind": "agent", "id": "unassigned" }, "context": { "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" } },
+  "acceptance_criteria": ["a"], "definition_of_done": ["d"], "risk_class": "high" }
+JSON
+
+  cat > "$REPO/.cloverleaf/config/council.json" <<'JSON'
+{ "profiles": { "fg": { "rounds": [[{ "member": "reviewer" }, { "member": "qa" }]], "aggregation": "any-veto" } },
+  "gates": { "task.final_gate": { "profile": "fg", "mode": "advisory" } } }
+JSON
+
+  PLAN="$(cloverleaf-cli council-plan "$REPO" DEMO-001 task.final_gate --changed-files=)"
+  echo "$PLAN" | node -e '
+    const p = JSON.parse(require("fs").readFileSync(0, "utf-8"));
+    if (p.source !== "consumer") { console.error("FAIL: source", p.source); process.exit(1); }
+    if (p.mode !== "advisory") { console.error("FAIL: mode", p.mode); process.exit(1); }
+    if (p.rounds.flat().length < 2) { console.error("FAIL: expected a parallel (>=2) round", p.rounds); process.exit(1); }
+  ' || exit 1
+  echo "✓ council-plan task.final_gate: source=consumer, mode=advisory, parallel round"
+
+  VERDICT='{"verdict":"pass","rule":"any-veto","rationale":"looks good","members":[{"member":"reviewer","verdict":"pass"},{"member":"qa","verdict":"pass"}]}'
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.final_gate "$VERDICT" > /dev/null \
+    || { echo "FAIL: apply-council-verdict task.final_gate exited nonzero"; exit 1; }
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
+  [ "$STATUS" = "final-gate" ] || { echo "FAIL: expected task to STAY at final-gate, got '$STATUS'"; exit 1; }
+  MODE="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/runs/DEMO-001/council/task.final_gate.json').mode||'')")"
+  [ "$MODE" = "advisory" ] || { echo "FAIL: artifact mode, got '$MODE'"; exit 1; }
+  echo "✓ apply-council-verdict task.final_gate: posted advisory artifact, no transition"
+
+  # plan_review advisory posts-and-stays at tactical-plan
+  node -e "const f='$REPO/.cloverleaf/tasks/DEMO-001.json'; const t=require(f); t.status='tactical-plan'; require('fs').writeFileSync(f, JSON.stringify(t));"
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.plan_review \
+    '{"verdict":"bounce","rule":"any-veto","rationale":"reshape the plan","members":[{"member":"reviewer","verdict":"bounce"}]}' > /dev/null \
+    || { echo "FAIL: apply-council-verdict task.plan_review exited nonzero"; exit 1; }
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
+  [ "$STATUS" = "tactical-plan" ] || { echo "FAIL: plan_review should stay at tactical-plan, got '$STATUS'"; exit 1; }
+  echo "✓ apply-council-verdict task.plan_review: posted advisory, no transition"
+
+  echo "=== council-advisory: all assertions passed ==="
+}
+
 run_flow2_dogfood_repro() {
   echo "=== Scenario: flow2-dogfood-repro ==="
   echo "Reproducing Flow 2 (Under-classification at the door) end-to-end."
@@ -438,6 +494,10 @@ case "${1:-default}" in
     run_council_chair
     exit 0
     ;;
+  council-advisory)
+    run_council_advisory
+    exit 0
+    ;;
   non-ts-consumer)
     run_non_ts_consumer
     exit 0
@@ -447,7 +507,7 @@ case "${1:-default}" in
     ;;
   *)
     echo "Unknown scenario: $1"
-    echo "Available scenarios: flow2-dogfood-repro, council-optin, council-chair, non-ts-consumer"
+    echo "Available scenarios: flow2-dogfood-repro, council-optin, council-chair, council-advisory, non-ts-consumer"
     exit 2
     ;;
 esac

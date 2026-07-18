@@ -116,7 +116,7 @@ Loop:
   c. If `status === "implementing"`: QA bounced. `qa_bounces += 1`. If `qa_bounces >= MAX_QA_BOUNCES`, escalate. Else return to section 5.1.
   d. Else: unexpected. Report and stop.
 
-5.4. **Final merge:** Inline `/cloverleaf-merge <TASK-ID>` steps (branches to full-pipeline gate per state).
+5.4. **Final merge:** First run the **Advisory `final_gate` council** (§7.6) if a consumer has bound `task.final_gate`. Inline `/cloverleaf-merge <TASK-ID>` steps (branches to full-pipeline gate per state).
 
 ### 6. Escalation
 
@@ -130,7 +130,7 @@ Initialize `council_bounces = 0`.
 
 7.1 **Produce the branch.** Run the Implementer (`/cloverleaf-implement <TASK-ID>` steps); for `risk_class: "high"` also run the Documenter (`/cloverleaf-document <TASK-ID>` steps). The task reaches `review`.
 
-7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`, and (for a chair profile) `plan.chair`. For each round **in order**, for each active member in the round, dispatch its prompt at `plan.rounds[<round>][<member>].promptPath` as a **read-only** subagent and capture its `{verdict, summary, findings}` envelope — do **not** advance state. (Built-in members resolve to the shipped `reviewer`/`security-reviewer`/`ui-reviewer`/`qa` prompts; a custom role resolves to `.cloverleaf/prompts/<file>.md`.)
+7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`, and (for a chair profile) `plan.chair`. For each round **in order**: dispatch **all active members in the round concurrently** — issue their Task-tool calls **in a single message** so the harness runs them in parallel — and capture each member's `{verdict, summary, findings}` envelope. Do **not** advance state. Rounds still run in sequence; only members *within* a round are concurrent. (Built-in members resolve to the shipped `reviewer`/`security-reviewer`/`ui-reviewer`/`qa` prompts; a custom role resolves to `.cloverleaf/prompts/<file>.md`.)
 
    **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`).
 
@@ -153,6 +153,17 @@ Initialize `council_bounces = 0`.
    - `escalated` → stop and surface to the user (review `.cloverleaf/feedback/` and `.cloverleaf/runs/<TASK-ID>/council/task.review.json`).
 
 On a chair **bounce**, the result artifact's `forward` array names the members whose feedback the Implementer should prioritize; the chair `rationale` frames them. The council result artifact at `.cloverleaf/runs/<TASK-ID>/council/task.review.json` records per-member verdicts, the aggregate (or chair) verdict, `forward` (for a chair bounce), and the security basis (incl. an omitted or out-voted `security` member). On any member-dispatch failure or unparseable envelope, stop and report — never treat a failed member as a pass.
+
+### 7.6 Advisory `final_gate` council (opt-in; full pipeline only)
+
+`final-gate` is reached only in the full pipeline and is already the human merge pause. Before inlining `/cloverleaf-merge <TASK-ID>` at a full-pipeline final gate (both here at 7.5 and at §5.4), check for an advisory council:
+
+1. `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.final_gate`.
+2. If `plan.source !== "consumer"` or `plan.profile === null`, skip — proceed to the plain human merge (today's behavior).
+3. Otherwise dispatch `plan.rounds` per §7.2 (parallel within a round), reviewing `{{diff}}` = `git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`, and reach a verdict per §7.3 (chair) or §7.4-style `aggregate-verdicts` (deterministic). Then `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.final_gate '<council-verdict-json>'`. This **posts** the advisory result to `.cloverleaf/runs/<TASK-ID>/council/task.final_gate.json` + a feedback envelope and **drives no transition** (the task stays at `final-gate`). Commit: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> advisory final_gate council (<verdict>)")`.
+4. Surface the council verdict + rationale to the human at the merge confirmation. The human still drives `/cloverleaf-merge` (merge) or reject; the advisory council never merges.
+
+The **fast lane's** `human_merge` (`automated-gates → merged`) is not a council gate. `task.plan_review` (advisory, at `tactical-plan`) is supported at the CLI/library level (`council-plan task.plan_review`, `apply-council-verdict task.plan_review`) for a consumer with a human checkpoint at `tactical-plan`; it is not auto-inserted into this autonomous runner.
 
 ## Rules
 

@@ -2,6 +2,11 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.12.0 — 2026-07-18
+
+### Added
+- **Council parallel rounds, advisory mode, and two more delivery gates (Slice 3).** `apply-council-verdict` is now gate-aware: beyond `task.review` it drives `task.plan_review` (at `tactical-plan`) and `task.final_gate` (at `final-gate`) as **advisory** gates — the council records its verdict + posts a feedback envelope and a human drives the transition. Members *within* a review round are now dispatched concurrently (rounds still run in sequence; bounces stay batched). `cloverleaf-run` auto-runs an opt-in advisory council at `final-gate` before the human merge; `task.plan_review` is available at the CLI/library level for consumers with a tactical-plan checkpoint. Additive and back-compatible — a repo with no `council.json` is unaffected.
+
 ## 0.11.1 — 2026-07-15
 
 ### Changed
