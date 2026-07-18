@@ -97,3 +97,22 @@ describe('aggregate — unknown rule fails loud', () => {
     expect(() => aggregate([m('a', 'pass')], 'any_veto')).toThrow(/unknown aggregation rule/);
   });
 });
+
+describe('aggregate — order independence (parallel-round safety)', () => {
+  const a = [
+    { member: 'reviewer', verdict: 'pass' as const },
+    { member: 'qa', verdict: 'bounce' as const },
+    { member: 'ui', verdict: 'pass' as const },
+  ];
+  const b = [
+    { member: 'ui', verdict: 'pass' as const },
+    { member: 'qa', verdict: 'bounce' as const },
+    { member: 'reviewer', verdict: 'pass' as const },
+  ];
+  it('yields the same verdict regardless of member order', () => {
+    for (const rule of ['any-veto', 'unanimous', 'majority'] as const) {
+      expect(aggregate(a, rule).verdict).toBe(aggregate(b, rule).verdict);
+    }
+    expect(aggregate(a, { quorum: 2 }).verdict).toBe(aggregate(b, { quorum: 2 }).verdict);
+  });
+});
