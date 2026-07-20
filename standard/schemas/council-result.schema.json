@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.example/schemas/council-result.schema.json",
+  "title": "CouncilResult",
+  "description": "The council audit artifact written at .cloverleaf/runs/<taskId>/council/<gate>.json: per-member verdicts, the aggregate/chair verdict, the walked states, and the security basis.",
+  "type": "object",
+  "required": ["gate", "final_verdict", "rule", "rationale", "members", "walk"],
+  "properties": {
+    "gate": { "type": "string", "minLength": 1 },
+    "mode": { "type": "string", "enum": ["decisive", "advisory"], "description": "Omitted implies decisive (back-compat)." },
+    "final_verdict": { "$ref": "https://cloverleaf.example/schemas/feedback.schema.json#/$defs/verdict" },
+    "rule": {
+      "oneOf": [
+        { "type": "string", "enum": ["any-veto", "unanimous", "majority", "weighted"] },
+        { "type": "object", "required": ["quorum"], "properties": { "quorum": { "type": "integer", "minimum": 1 } }, "additionalProperties": false },
+        { "const": "chair" }
+      ]
+    },
+    "rationale": { "type": "string" },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["member", "verdict", "blocking", "weight"],
+        "properties": {
+          "member": { "type": "string", "minLength": 1 },
+          "verdict": { "$ref": "https://cloverleaf.example/schemas/feedback.schema.json#/$defs/verdict" },
+          "blocking": { "type": "boolean" },
+          "weight": { "type": "number" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "walk": { "type": "array", "items": { "type": "string" } },
+    "walk_note": { "type": "string" },
+    "forward": { "type": "array", "items": { "type": "string" } },
+    "security": {
+      "type": "object",
+      "required": ["member_verdict", "gating_verdict_set", "basis"],
+      "properties": {
+        "member_verdict": { "type": "string", "enum": ["pass", "bounce", "escalate", "absent"] },
+        "gating_verdict_set": { "type": ["string", "null"], "enum": ["pass", null] },
+        "basis": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

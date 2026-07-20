@@ -31,6 +31,8 @@ export const SCHEMA_LEVEL: Readonly<Record<string, Level>> = {
   'status-transitions': 'L2',
   'dependency-dag': 'L2',
   // L3 — Host
+  'council-config': 'L3',
+  'council-result': 'L3',
   'gate-decision-event': 'L3',
   extensions: 'L3',
   'path-rules': 'L3',

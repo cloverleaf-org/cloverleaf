@@ -1,0 +1,9 @@
+{
+  "gate": "task.review",
+  "final_verdict": "pass",
+  "rule": "any-veto",
+  "rationale": "all blocking members passed",
+  "members": [ { "member": "reviewer", "verdict": "pass", "blocking": true, "weight": 1 } ],
+  "walk": ["council", "final-gate"],
+  "security": { "member_verdict": "absent", "gating_verdict_set": "pass", "basis": "no security member configured; advanced under council authority" }
+}
