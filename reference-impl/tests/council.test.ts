@@ -13,7 +13,7 @@ function makeRepo(taskOverrides: Record<string, unknown> = {}): string {
     JSON.stringify({
       id: 'DEMO-001',
       type: 'task',
-      status: 'review',
+      status: 'council',
       owner: { kind: 'agent', id: 'unassigned' },
       project: 'DEMO',
       title: 'demo',

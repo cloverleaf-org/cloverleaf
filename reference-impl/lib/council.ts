@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { loadCouncilConfigWithSource, type CouncilConfig, type GateBinding, type WhenPredicate, type CouncilMember } from './council-config.js';
 import type { ThresholdRule, CouncilVerdict } from './aggregation.js';
 import { loadTask, saveTask, advanceStatus } from './task.js';
+import { loadPlan } from './plan.js';
+import { loadRfc } from './rfc.js';
 import { writeCouncilResult, type CouncilResult } from './council-result.js';
 import { resolveChairPrompt } from './chair.js';
 import { classifyTaskSecurity } from './security-classify.js';
@@ -85,22 +87,36 @@ const BUILTIN_PROMPTS: Record<string, string> = {
 };
 
 interface GateDescriptor {
-  state: string; // the task status a gate's council runs at
+  state: string; // the work-item status a gate's council runs at
   advisoryOnly: boolean; // true when the gate's only legal transitions are human-driven
+  kind?: 'code' | 'rfc' | 'plan'; // artifact kind the gate reviews; default 'code'
 }
 
 /**
- * Council gate → FSM binding (parent-spec §8). The declarative binding layer,
- * NOT an FSM interpreter: the one decisive gate's transitions remain the lane
- * logic in applyCouncilVerdict. `advisoryOnly` gates (plan_review's reject,
- * final_gate's merge/reject are human-only) are forced to advisory regardless
- * of the binding — a fail-safe honoring "human gates are always advisory".
+ * Council gate → FSM binding. `task.review` is the collapsed delivery council
+ * (decisive); `task.plan_review` is decisive-capable (agent bounce to pending);
+ * `task.final_gate` and the two discovery gates are advisory (post-only, human
+ * drives the transition). Advisory-only gates route to postAdvisoryVerdict.
  */
 export const GATE_DESCRIPTORS: Record<string, GateDescriptor> = {
-  'task.review': { state: 'review', advisoryOnly: false },
-  'task.plan_review': { state: 'tactical-plan', advisoryOnly: true },
+  'task.review': { state: 'council', advisoryOnly: false },
+  'task.plan_review': { state: 'tactical-plan', advisoryOnly: false },
   'task.final_gate': { state: 'final-gate', advisoryOnly: true },
+  'plan.task_batch': { state: 'task_batch_gate', advisoryOnly: true, kind: 'plan' },
+  'rfc.strategy_gate': { state: 'rfc_strategy_gate', advisoryOnly: true, kind: 'rfc' },
 };
+
+// Load any work item's status/doc by the gate's "type." prefix (task | plan | rfc).
+function workItemTypeOf(gate: string): 'task' | 'plan' | 'rfc' {
+  const t = gate.split('.')[0];
+  if (t === 'task' || t === 'plan' || t === 'rfc') return t;
+  throw new Error(`council: gate '${gate}' has no task/plan/rfc type prefix`);
+}
+function loadWorkItemDoc(repoRoot: string, type: 'task' | 'plan' | 'rfc', id: string): Record<string, unknown> {
+  if (type === 'plan') return loadPlan(repoRoot, id) as unknown as Record<string, unknown>;
+  if (type === 'rfc') return loadRfc(repoRoot, id) as unknown as Record<string, unknown>;
+  return loadTask(repoRoot, id) as unknown as Record<string, unknown>;
+}
 
 /**
  * Resolve a council member to the absolute path of its prompt. A member with a
@@ -126,14 +142,15 @@ export function resolveMemberPrompt(member: CouncilMember, repoRoot: string): st
 
 export function resolveCouncilPlan(
   repoRoot: string,
-  taskId: string,
+  workItemId: string,
   gateKey = 'task.review',
   opts: { changedFiles?: string[] } = {},
 ): CouncilPlan {
   const { config, source } = loadCouncilConfigWithSource(repoRoot);
-  const task = loadTask(repoRoot, taskId) as unknown as Record<string, unknown>;
+  const type = workItemTypeOf(gateKey);
+  const doc = loadWorkItemDoc(repoRoot, type, workItemId);
 
-  const binding = resolveBinding(config.gates[gateKey], task);
+  const binding = resolveBinding(config.gates[gateKey], doc);
   const profileName = binding.profile;
   const mode: 'decisive' | 'advisory' =
     GATE_DESCRIPTORS[gateKey]?.advisoryOnly ? 'advisory' : binding.mode;
@@ -153,11 +170,14 @@ export function resolveCouncilPlan(
     return empty; // unknown profile → fail toward today's behavior
   }
 
-  const changed = resolveChangedFiles(repoRoot, taskId, opts);
-  const securityHigh = classifyTaskSecurity(repoRoot, taskId, { changedFiles: changed }).effective === 'high';
-  const affected = computeAffectedRoutes(changed, loadAffectedRoutesConfig(repoRoot));
-  const uiChanges = affected === 'all' || affected.length > 0;
-  const ctx: WhenContext = { securityHigh, uiChanges };
+  // The when-context (security/ui) is a code-kind (task delivery) concern only.
+  let ctx: WhenContext = { securityHigh: false, uiChanges: false };
+  if (type === 'task') {
+    const changed = resolveChangedFiles(repoRoot, workItemId, opts);
+    const securityHigh = classifyTaskSecurity(repoRoot, workItemId, { changedFiles: changed }).effective === 'high';
+    const affected = computeAffectedRoutes(changed, loadAffectedRoutesConfig(repoRoot));
+    ctx = { securityHigh, uiChanges: affected === 'all' || affected.length > 0 };
+  }
 
   const rounds: ResolvedMember[][] = [];
   for (const round of profile.rounds) {
@@ -189,14 +209,14 @@ export function resolveCouncilPlan(
 
 /**
  * Drive the FSM transition implied by a council verdict (the runner's terminal step).
- * Council-authoritative: on a pass it records the council's gating verdict so the
- * v0.8.1 security precondition is satisfied for any high-security gated transition;
- * the per-member basis (incl. an omitted or out-voted `security` member) is written
- * to the result artifact. Walks the minimal legal path to the lane's pre-merge state.
+ * Routes by gate: `task.review` → the collapsed decisive delivery council; the
+ * decisive `task.plan_review` → the plan-review council; advisory-only gates
+ * (task.final_gate and the two discovery gates) → postAdvisoryVerdict, which
+ * records the verdict and drives no transition.
  */
 export function applyCouncilVerdict(
   repoRoot: string,
-  taskId: string,
+  workItemId: string,
   gate: string,
   council: CouncilVerdict,
 ): CouncilResult {
@@ -207,16 +227,23 @@ export function applyCouncilVerdict(
     );
   }
   if (desc.advisoryOnly) {
-    return postAdvisoryVerdict(repoRoot, taskId, gate, desc.state, council);
+    return postAdvisoryVerdict(repoRoot, workItemId, gate, desc.state, council);
   }
-  // Decisive gate (task.review) — the existing lane logic below is unchanged.
+  if (gate === 'task.plan_review') {
+    return applyDecisivePlanReview(repoRoot, workItemId, gate, council);
+  }
+  return applyDeliveryCouncil(repoRoot, workItemId, gate, council); // task.review — collapsed council phase
+}
+
+/** Decisive delivery council (task.review at the collapsed `council` state). */
+function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, council: CouncilVerdict): CouncilResult {
   const task = loadTask(repoRoot, taskId);
-  if (task.status !== 'review') {
-    throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'review'`);
+  if (task.status !== 'council') {
+    throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'council'`);
   }
-  const lane: 'fast' | 'full' = task.risk_class === 'high' ? 'full' : 'fast';
   const securityMember = council.members.find((m) => m.member === 'security');
-  const walk: string[] = ['review'];
+  const highSecurity = task.security_class === 'high';
+  const walk: string[] = ['council'];
 
   if (council.verdict === 'escalate') {
     advanceStatus(repoRoot, taskId, 'escalated', 'agent');
@@ -225,43 +252,28 @@ export function applyCouncilVerdict(
     advanceStatus(repoRoot, taskId, 'implementing', 'agent');
     walk.push('implementing');
   } else {
-    // pass — minimal legal walk; review→automated-gates resets the security verdict,
-    // so set the council's gating verdict AFTER that transition.
-    advanceStatus(repoRoot, taskId, 'automated-gates', 'agent');
-    walk.push('automated-gates');
-    const atGates = loadTask(repoRoot, taskId);
-    atGates.security_review_verdict = 'pass';
-    saveTask(repoRoot, atGates);
-    if (lane === 'full') {
-      advanceStatus(repoRoot, taskId, 'qa', 'agent', { path: 'full_pipeline' });
-      walk.push('qa');
-      advanceStatus(repoRoot, taskId, 'final-gate', 'agent', { path: 'full_pipeline' });
-      walk.push('final-gate');
+    // pass → council → final-gate; record the council's authoritative security verdict for high tasks
+    // (the v0.8.1 guarantee's backstop, now that the FSM no longer enforces it mechanically).
+    advanceStatus(repoRoot, taskId, 'final-gate', 'agent');
+    walk.push('final-gate');
+    if (highSecurity) {
+      const atGate = loadTask(repoRoot, taskId);
+      atGate.security_review_verdict = 'pass';
+      saveTask(repoRoot, atGate);
     }
   }
-
-  const qaTraversedAdministratively =
-    lane === 'full' && walk.includes('qa') && !council.members.some((m) => m.member === 'qa');
 
   const result: CouncilResult = {
     gate,
     final_verdict: council.verdict,
     rule: council.rule,
     rationale: council.rationale,
-    members: council.members.map((m) => ({
-      member: m.member,
-      verdict: m.verdict,
-      blocking: m.blocking !== false,
-      weight: m.weight ?? 1,
-    })),
+    members: council.members.map((m) => ({ member: m.member, verdict: m.verdict, blocking: m.blocking !== false, weight: m.weight ?? 1 })),
     walk,
-    ...(qaTraversedAdministratively
-      ? { walk_note: 'qa state traversed administratively; no qa member ran' }
-      : {}),
     ...(council.forward !== undefined ? { forward: council.forward } : {}),
     security: {
       member_verdict: securityMember ? securityMember.verdict : 'absent',
-      gating_verdict_set: council.verdict === 'pass' ? 'pass' : null,
+      gating_verdict_set: council.verdict === 'pass' && highSecurity ? 'pass' : null,
       basis: !securityMember
         ? 'no security member configured; advanced under council authority'
         : securityMember.verdict === 'pass'
@@ -273,33 +285,65 @@ export function applyCouncilVerdict(
   return result;
 }
 
+/** Decisive plan-review council (task.plan_review at tactical-plan). */
+function applyDecisivePlanReview(repoRoot: string, taskId: string, gate: string, council: CouncilVerdict): CouncilResult {
+  const task = loadTask(repoRoot, taskId);
+  if (task.status !== 'tactical-plan') {
+    throw new Error(`apply-council-verdict: task ${taskId} is '${task.status}', expected 'tactical-plan' for gate '${gate}'`);
+  }
+  const walk: string[] = ['tactical-plan'];
+  if (council.verdict === 'escalate') {
+    advanceStatus(repoRoot, taskId, 'escalated', 'agent');
+    walk.push('escalated');
+  } else if (council.verdict === 'bounce') {
+    advanceStatus(repoRoot, taskId, 'pending', 'agent', { gate: 'per_task_plan_review' });
+    walk.push('pending');
+  } else {
+    advanceStatus(repoRoot, taskId, 'implementing', 'agent');
+    walk.push('implementing');
+  }
+  const result: CouncilResult = {
+    gate,
+    final_verdict: council.verdict,
+    rule: council.rule,
+    rationale: council.rationale,
+    members: council.members.map((m) => ({ member: m.member, verdict: m.verdict, blocking: m.blocking !== false, weight: m.weight ?? 1 })),
+    walk,
+    ...(council.forward !== undefined ? { forward: council.forward } : {}),
+  };
+  writeCouncilResult(repoRoot, taskId, result);
+  return result;
+}
+
 /**
- * Advisory-gate terminal step (Slice 3): record the council verdict + post a
- * feedback envelope, and drive NO transition — the human owns every transition
- * at an advisory gate. The verdict (including an escalate) is recorded verbatim;
+ * Advisory-gate terminal step: record the council verdict + post a feedback
+ * envelope, and drive NO transition — the human owns every transition at an
+ * advisory gate. The verdict (including an escalate) is recorded verbatim;
  * because nothing is transitioned, the un-lowerable-escalate invariant holds
- * trivially. Used for task.plan_review (at tactical-plan) and task.final_gate
- * (at final-gate) — both advisory-only in the current FSM.
+ * trivially. Generalized over work-item kind: the gate's `type.` prefix selects
+ * task | plan | rfc. Used for task.final_gate (final-gate) and the discovery
+ * gates plan.task_batch (task_batch_gate) / rfc.strategy_gate (rfc_strategy_gate).
  */
 export function postAdvisoryVerdict(
   repoRoot: string,
-  taskId: string,
+  workItemId: string,
   gate: string,
   expectedState: string,
   council: CouncilVerdict,
 ): CouncilResult {
-  const task = loadTask(repoRoot, taskId);
-  if (task.status !== expectedState) {
+  const type = workItemTypeOf(gate);
+  const status = String(loadWorkItemDoc(repoRoot, type, workItemId).status ?? '');
+  if (status !== expectedState) {
     throw new Error(
-      `apply-council-verdict: task ${taskId} is '${task.status}', expected '${expectedState}' for advisory gate '${gate}'`,
+      `apply-council-verdict: ${type} ${workItemId} is '${status}', expected '${expectedState}' for advisory gate '${gate}'`,
     );
   }
-  const m = taskId.match(/^(.+)-(\d+)$/);
-  if (!m) throw new Error(`apply-council-verdict: invalid taskId '${taskId}'`);
+  const m = workItemId.match(/^(.+)-(\d+)$/);
+  if (!m) throw new Error(`apply-council-verdict: invalid work-item id '${workItemId}'`);
   const project = m[1];
   writeFeedback(repoRoot, {
     project,
-    taskId,
+    taskId: workItemId,
     prefix: 'c',
     envelope: { verdict: council.verdict, summary: council.rationale, findings: [] },
   });
@@ -319,6 +363,6 @@ export function postAdvisoryVerdict(
     walk_note: 'advisory: verdict posted; human drives the transition',
     ...(council.forward !== undefined ? { forward: council.forward } : {}),
   };
-  writeCouncilResult(repoRoot, taskId, result);
+  writeCouncilResult(repoRoot, workItemId, result);
   return result;
 }
