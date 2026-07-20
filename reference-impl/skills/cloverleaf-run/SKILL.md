@@ -1,6 +1,6 @@
 ---
 name: cloverleaf-run
-description: End-to-end orchestrator. Reads task.risk_class to dispatch fast lane (implement → review → merge) or full pipeline (implement → document → review → [ui-review?] → qa → final-merge). Per-agent bounce counters (max 3 each). Usage — /cloverleaf-run <TASK-ID>.
+description: End-to-end orchestrator. Drives every task through one universal delivery council — implement (+ optional decisive plan-review) → documenting → council → final-gate/implementing/escalated. The lane is a risk_class profile selector (delivery-fast / delivery-full); security, UI, and QA are council members. Usage — /cloverleaf-run <TASK-ID>.
 ---
 
 # Cloverleaf — run (orchestrator)
@@ -11,126 +11,59 @@ description: End-to-end orchestrator. Reads task.risk_class to dispatch fast lan
 
 Do NOT `git checkout main` from a walker worktree — main is held by the primary repo. To compare against main, use `git diff main..HEAD` or `git show main:<path>`. Sub-skills run from the worktree's current branch and stay on it; the walker (in the primary repo) does the final merge to main itself after all tasks reach final-gate.
 
-## Per-agent bounce budget
+## Bounce budget
 
-```
-MAX_REVIEWER_BOUNCES    = 3
-MAX_UI_REVIEWER_BOUNCES = 3
-MAX_QA_BOUNCES          = 3
-MAX_SECURITY_BOUNCES    = 3
-```
+The delivery council owns the loop. `council_bounces` (max 3) counts council bounces back to the Implementer; `plan_review_bounces` (max 3) counts decisive plan-review bounces. On either cap, escalate (section 6). Security, UI, and QA are **council members**, not separate gates — there is no per-agent counter.
 
 These counters live in-session (not persisted). Rerunning `/cloverleaf-run` resets.
 
-## Security gate (both lanes)
-
-Run this immediately after the task reaches `automated-gates` (Reviewer passed) and BEFORE the lane's next move (fast lane: merge; full pipeline: detect-ui-paths). Initialize `security_bounces = 0` at orchestrator start (alongside the other bounce counters).
-
-```bash
-cloverleaf-cli classify-security <repo_root> <TASK-ID> --branch cloverleaf/<TASK-ID>
-```
-
-Parse the JSON. If `classify-security` exits non-zero or emits unparseable output, do NOT silently skip security review (fail-open is unsafe for a security gate). Warn to the user and treat the task as `effective: "high"` — i.e. proceed into security-review anyway (fail toward more scrutiny). If `/cloverleaf-security-review` then cannot run either (e.g. branch/tooling broken), surface the failure and stop rather than merging unreviewed.
-
-If `effective == "low"` → skip the gate, proceed with the lane.
-
-If `effective == "high"`:
-- If `declared == "low"` (under-classification: `diff_detected` true), you may proactively run `classify-security` to confirm, but the writeback to `security_class: "high"` is now mechanical — the CLI handles it automatically when `advance-status` moves the task to `security-review`. No manual scripting of the writeback is required.
-- `cloverleaf-cli advance-status <repo_root> <TASK-ID> security-review agent`; commit.
-- Inline `/cloverleaf-security-review <TASK-ID>` steps. Reload the task:
-  - `status == "automated-gates"` → security review passed; proceed with the lane.
-  - `status == "implementing"` → bounced. `security_bounces += 1`. If `security_bounces >= MAX_SECURITY_BOUNCES`, escalate (section 6). Else re-enter the implement→review loop (fast lane section 4 / full pipeline section 5.1), which re-runs the security gate on its next pass.
-  - `status == "escalated"` → the security reviewer found a blocker; stop and surface to the user (a human must review `.cloverleaf/feedback/`). This is the security reviewer's own escalation, distinct from a bounce-budget exhaustion.
-
-### Refusal and recover
-
-In v0.8.1, `advance-status` from `automated-gates` to any post-gate state (`ui-review`, `qa`, `merged`) may exit with **exit code 2** when the task is high-security and has no pass verdict recorded (`security_review_verdict` is absent or not `"pass"`). This is a **security-gate refusal** — the CLI is enforcing that high-security tasks must pass security review before proceeding.
-
-Recovery sequence:
-1. Advance the task to `security-review` first: `cloverleaf-cli advance-status <repo_root> <TASK-ID> security-review agent`; commit.
-2. Run `/cloverleaf-security-review <TASK-ID>` to execute the security review.
-3. Retry the original `advance-status` call. If the review passed, the CLI will now allow the transition.
-
 ## Steps
 
-1. Capture TASK-ID.
+1. Capture TASK-ID. Initialize `council_bounces = 0`, `plan_review_bounces = 0`.
 
 2. Load task: `cloverleaf-cli load-task <repo_root> <TASK-ID>`. Verify `status === "pending"`. If not, report and stop.
 
-3. **Council gate detection (opt-in).** Run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` and parse the JSON plan. If `plan.source === "consumer"` **and** `plan.profile !== null`, the project has opted into a configured review council — drive the review phase via **section 7 (Council review path)** instead of the hardcoded reviewer/security/ui/qa steps in sections 4/5. Otherwise (`source: "default"`, or no `task.review` binding) proceed exactly as today:
-   - `task.risk_class === "low"` → section 4 (Fast Lane)
-   - `task.risk_class === "high"` → section 5 (Full Pipeline)
+3. **Tactical plan (+ optional decisive plan-review).**
+   a. Inline `/cloverleaf-implement <TASK-ID>` to the tactical-plan checkpoint (task reaches `tactical-plan`).
+   b. `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.plan_review`. If `plan.profile !== null` and `plan.mode === "decisive"`: run `plan.rounds` per section 7.2 (reviewing the tactical plan), reach a verdict per 7.3 (chair) / 7.4 (deterministic), then `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.plan_review '<verdict>'`. Reload:
+      - `implementing` (pass) → continue to 3c.
+      - `pending` (bounce) → `plan_review_bounces += 1`; if `>= 3` escalate (section 6); else return to 3a.
+      - `escalated` → stop and surface.
+      Otherwise (no decisive plan-review bound) skip.
+   c. Finish the Implementer, and for `risk_class: "high"` run `/cloverleaf-document <TASK-ID>`. The task reaches `documenting`.
 
-   When the council path is active it still uses the Implementer (and, for the full pipeline, the Documenter) to produce the branch; only the review→merge portion is council-driven.
+4. **Delivery council.**
+   a. Enter the phase: `cloverleaf-cli advance-status <repo_root> <TASK-ID> council agent`. Commit. (Council entry classifies security — a sensitive diff upgrades `security_class` to `high` so the blocking security member runs.)
+   b. `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review`. The plan always carries a profile: the shipped default binds `task.review` to `delivery-fast` (`risk_class: low`) / `delivery-full` (`risk_class: high`); a consumer `.cloverleaf/config/council.json` overrides.
+   c. Run the council members (section 7.2), reach the verdict (7.3 chair / 7.4 deterministic), and — **before** applying it — run the **baselines-hold check (section 4.1)**. Then, once cleared, `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.review '<verdict>'`. Commit the remainder: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> council review (<verdict>)")`.
 
-### 4. Fast Lane
+### 4.1 Baselines hold (before applying a council pass)
 
-Initialize `reviewer_bounces = 0`, `security_bounces = 0`.
-
-Loop:
-  a. Inline `/cloverleaf-implement <TASK-ID>` steps.
-  b. Inline `/cloverleaf-review <TASK-ID>` steps.
-  c. Reload task. If `status === "automated-gates"`: pass! Break loop.
-  d. If `status === "implementing"`: Reviewer bounced. `reviewer_bounces += 1`. If `reviewer_bounces >= MAX_REVIEWER_BOUNCES`, escalate (section 6). Else continue loop.
-  e. Else: unexpected state. Report and stop.
-
-After loop (status `automated-gates`): run the **Security gate (both lanes)** (above). Then inline `/cloverleaf-merge <TASK-ID>`.
-
-### 5. Full Pipeline
-
-Initialize `reviewer_bounces = 0`, `ui_reviewer_bounces = 0`, `qa_bounces = 0`, `security_bounces = 0`.
-
-5.1. **Implementer → Documenter → Reviewer loop:**
-
-Loop:
-  a. Inline `/cloverleaf-implement <TASK-ID>` steps.
-  b. Inline `/cloverleaf-document <TASK-ID>` steps.
-  c. Inline `/cloverleaf-review <TASK-ID>` steps.
-  d. Reload task. If `status === "automated-gates"`: pass! Exit this loop.
-  e. If `status === "implementing"`: Reviewer bounced. `reviewer_bounces += 1`. If `reviewer_bounces >= MAX_REVIEWER_BOUNCES`, escalate. Else continue loop.
-  f. Else: unexpected. Report and stop.
-
-**Security gate.** Run the **Security gate (both lanes)** (above) now, before UI-path detection. Then continue to 5.2.
-
-5.2. **UI-path detection and conditional UI Review:**
+The collapse removed the old `ui-review → qa` hold that `baselines_pending` guarded; the hold moves to **council pass**. After the members run (the `ui` member captures baselines and, on new/resized baselines, sets `baselines_pending=true` via `write-ui-review-state` — that mechanism is unchanged), and **before** applying a council `pass` that would advance `council → final-gate`, read the ui-review state:
 
 ```bash
-cloverleaf-cli detect-ui-paths <repo_root> <TASK-ID>
+cloverleaf-cli read-ui-review-state <repo_root> <TASK-ID>
 ```
 
-If output is `true`:
-  - Advance: `cloverleaf-cli advance-status <repo_root> <TASK-ID> ui-review agent --path=full_pipeline`. Commit.
-  - UI-review loop:
-    a. Inline `/cloverleaf-ui-review <TASK-ID>` steps.
-    b. Reload task. If `status === "qa"`: pass! Exit UI-review loop.
-    c. If `status === "implementing"`: UI Reviewer bounced. `ui_reviewer_bounces += 1`. If `>= MAX_UI_REVIEWER_BOUNCES`, escalate. Else return to section 5.1 (Implementer re-runs, which then re-documents, re-reviews).
-    d. Else: unexpected. Report and stop.
+- If the council verdict is `pass` **and** `baselines_pending` is `true`: do **NOT** apply the verdict. Surface to the human: "⏸ `<TASK-ID>` — new visual baselines need approval. Inspect the captured baseline images, then run `/cloverleaf-approve-baselines <TASK-ID>` (which clears `baselines_pending`) and re-run `/cloverleaf-run <TASK-ID>` — the `ui` member now passes and the council pass applies." Stop here (leave the task at `council`); the re-run re-dispatches the council with `baselines_pending=false`.
+- Otherwise (`baselines_pending` is `false`, or the verdict is `bounce` / `escalate`): proceed to apply the verdict (step 4c). This is a runner **convention** — no FSM change, exactly as the old `ui-review → qa` hold was a convention. `/cloverleaf-approve-baselines` and the `write-baseline` guard are unchanged.
 
-If output is `false`: skip UI review. Advance: `cloverleaf-cli advance-status <repo_root> <TASK-ID> qa agent --path=full_pipeline`. Commit.
-
-5.3. **QA loop:**
-
-Loop:
-  a. Inline `/cloverleaf-qa <TASK-ID>` steps.
-  b. Reload task. If `status === "final-gate"`: pass! Exit loop.
-  c. If `status === "implementing"`: QA bounced. `qa_bounces += 1`. If `qa_bounces >= MAX_QA_BOUNCES`, escalate. Else return to section 5.1.
-  d. Else: unexpected. Report and stop.
-
-5.4. **Final merge:** First run the **Advisory `final_gate` council** (§7.6) if a consumer has bound `task.final_gate`. Inline `/cloverleaf-merge <TASK-ID>` steps (branches to full-pipeline gate per state).
+5. **Branch on the task's new status** (reload with `load-task`):
+   - `final-gate` (pass) → run the advisory `final_gate` council (section 7.6) if bound, then inline `/cloverleaf-merge <TASK-ID>`.
+   - `implementing` (bounce) → `council_bounces += 1`. If `>= 3`, escalate (section 6). Else return to 3c (re-implement; the batched council feedback is in `.cloverleaf/feedback/`).
+   - `escalated` → stop and surface (`.cloverleaf/feedback/` + `.cloverleaf/runs/<TASK-ID>/council/task.review.json`).
 
 ### 6. Escalation
 
 - `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`
 - Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> escalated (bounce budget exhausted)"`.
-- Report: "✗ Escalated `<TASK-ID>`. Review `.cloverleaf/feedback/` and either refine the task or take over manually. Counters: reviewer=<N>, ui_reviewer=<N>, qa=<N>, security=<N>."
+- Report: "✗ Escalated `<TASK-ID>`. Review `.cloverleaf/feedback/` and either refine the task or take over manually. Counters: council_bounces=<N>, plan_review_bounces=<N>."
 
-### 7. Council review path (opt-in; active when council-plan source is "consumer")
+## 7. Delivery council mechanics
 
-Initialize `council_bounces = 0`.
+The council member-dispatch, verdict, and apply steps referenced by steps 3b / 4c / 5.
 
-7.1 **Produce the branch.** Run the Implementer (`/cloverleaf-implement <TASK-ID>` steps); for `risk_class: "high"` also run the Documenter (`/cloverleaf-document <TASK-ID>` steps). The task reaches `review`.
-
-7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`, and (for a chair profile) `plan.chair`. For each round **in order**: dispatch **all active members in the round concurrently** — issue their Task-tool calls **in a single message** so the harness runs them in parallel — and capture each member's `{verdict, summary, findings}` envelope. Do **not** advance state. Rounds still run in sequence; only members *within* a round are concurrent. (Built-in members resolve to the shipped `reviewer`/`security-reviewer`/`ui-reviewer`/`qa` prompts; a custom role resolves to `.cloverleaf/prompts/<file>.md`.)
+7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`, and (for a chair profile) `plan.chair`. For each round **in order**: dispatch **all active members in the round concurrently** — issue their Task-tool calls **in a single message** so the harness runs them in parallel — and capture each member's `{verdict, summary, findings}` envelope. Do **not** advance state (the task stays at `council` until you apply the verdict at step 4c). Rounds still run in sequence; only members *within* a round are concurrent. (Built-in members resolve to the shipped `reviewer`/`security-reviewer`/`ui-reviewer`/`qa` prompts by their `promptPath`; a custom role resolves to `.cloverleaf/prompts/<file>.md`.)
 
    **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`).
 
@@ -145,28 +78,24 @@ Initialize `council_bounces = 0`.
      - Otherwise (a blocking member bounced; no member escalated) **dispatch the chair.** Build enriched inputs `[{ "member", "verdict", "blocking", "weight", "envelope": <the member's /tmp/clv-council-<member>.json object> }]`; run `context=$(cloverleaf-cli chair-context '<enriched-inputs-json>')`. Dispatch the chair prompt at `plan.chair.promptPath` as a **read-only** foreground subagent, substituting `{{task}}`, `{{repo_root}}`, and `{{member_verdicts}}` = `$context`; capture its `{verdict, rationale, forward}` output. Then run `cloverleaf-cli chair-verdict '<chair-raw-json>' '<members-json>'` and capture the council verdict JSON.
    - **Else (deterministic):** map `plan.aggregation` to the CLI rule (a string passes through; `{ "quorum": k }` → `quorum:k`) and run `cloverleaf-cli aggregate-verdicts '<members-json>' <rule>`; capture the council verdict JSON.
 
-7.4 **Apply.** Run `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.review '<council-verdict-json>'`. The FSM walk may self-commit some transitions (e.g. `security_class → high`, the rework verdict-reset), so the wrap-up commit can find nothing staged — that is expected. Commit the remainder: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> council review (<verdict>)")`.
-
-7.5 **Branch on the task's new status (reload with `load-task`):**
-   - `automated-gates` (fast lane pass) or `final-gate` (full pipeline pass) → proceed to the merge: inline `/cloverleaf-merge <TASK-ID>`.
-   - `implementing` (bounce) → `council_bounces += 1`. If `council_bounces >= 3`, escalate (section 6). Else return to 7.1.
-   - `escalated` → stop and surface to the user (review `.cloverleaf/feedback/` and `.cloverleaf/runs/<TASK-ID>/council/task.review.json`).
+7.4 **Apply.** After the baselines-hold check (section 4.1) clears, run `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.review '<council-verdict-json>'`. The FSM walk may self-commit some transitions (e.g. `security_class → high`, the rework verdict-reset), so the wrap-up commit can find nothing staged — that is expected. Commit the remainder: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> council review (<verdict>)")`. The verdict drives the FSM: `pass` → `council → final-gate`; `bounce` → `council → implementing`; `escalate` → `council → escalated` (branch per step 5).
 
 On a chair **bounce**, the result artifact's `forward` array names the members whose feedback the Implementer should prioritize; the chair `rationale` frames them. The council result artifact at `.cloverleaf/runs/<TASK-ID>/council/task.review.json` records per-member verdicts, the aggregate (or chair) verdict, `forward` (for a chair bounce), and the security basis (incl. an omitted or out-voted `security` member). On any member-dispatch failure or unparseable envelope, stop and report — never treat a failed member as a pass.
 
-### 7.6 Advisory `final_gate` council (opt-in; full pipeline only)
+### 7.6 Advisory `final_gate` council (opt-in)
 
-`final-gate` is reached only in the full pipeline and is already the human merge pause. Before inlining `/cloverleaf-merge <TASK-ID>` at a full-pipeline final gate (both here at 7.5 and at §5.4), check for an advisory council:
+`final-gate` is the human merge pause. Before inlining `/cloverleaf-merge <TASK-ID>` at the final gate (step 5), check for an advisory council:
 
 1. `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.final_gate`.
 2. If `plan.source !== "consumer"` or `plan.profile === null`, skip — proceed to the plain human merge (today's behavior).
 3. Otherwise dispatch `plan.rounds` per §7.2 (parallel within a round), reviewing `{{diff}}` = `git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`, and reach a verdict per §7.3 (chair) or §7.4-style `aggregate-verdicts` (deterministic). Then `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.final_gate '<council-verdict-json>'`. This **posts** the advisory result to `.cloverleaf/runs/<TASK-ID>/council/task.final_gate.json` + a feedback envelope and **drives no transition** (the task stays at `final-gate`). Commit: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> advisory final_gate council (<verdict>)")`.
 4. Surface the council verdict + rationale to the human at the merge confirmation. The human still drives `/cloverleaf-merge` (merge) or reject; the advisory council never merges.
 
-The **fast lane's** `human_merge` (`automated-gates → merged`) is not a council gate. `task.plan_review` (advisory, at `tactical-plan`) is supported at the CLI/library level (`council-plan task.plan_review`, `apply-council-verdict task.plan_review`) for a consumer with a human checkpoint at `tactical-plan`; it is not auto-inserted into this autonomous runner.
+`task.plan_review` (decisive, at `tactical-plan`) is driven automatically at step 3b when a profile is bound; `task.final_gate` is advisory-only and post-only.
 
 ## Rules
 
-- Each agent has its own 3-bounce budget. Bounces from different agents do NOT share counters.
-- On any sub-skill error or escalation, orchestrator stops with clear message.
+- The delivery council owns the bounce loop: `council_bounces` (max 3) and `plan_review_bounces` (max 3). There is no per-agent counter — security, UI, and QA are members.
+- On any sub-skill error or escalation, the orchestrator stops with a clear message.
 - Human merge gate is NOT skipped; confirmation is still required at merge time.
+- The baselines-hold is a convention: a council `pass` is held at `baselines_pending` until `/cloverleaf-approve-baselines <TASK-ID>` clears it and the council is re-run.

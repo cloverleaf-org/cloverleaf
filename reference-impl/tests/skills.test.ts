@@ -205,37 +205,42 @@ describe('cloverleaf-merge skill (v0.2 state-aware)', () => {
   });
 });
 
-describe('cloverleaf-run skill (v0.2 path-aware)', () => {
+describe('cloverleaf-run skill — universal council delivery (Slice 4)', () => {
   const body = readSkill('cloverleaf-run');
 
-  it('reads risk_class to select path', () => {
+  it('drives every task through the council phase via the CLI', () => {
+    expect(body).toContain('council-plan');
+    expect(body).toContain('apply-council-verdict');
+    expect(body).toMatch(/advance-status\s+\S+\s+\S+\s+council|documenting.{0,6}council/);
+  });
+
+  it('selects the lane profile by risk_class (the shipped two-lane default)', () => {
     expect(body).toContain('risk_class');
-    expect(body).toMatch(/fast.lane|full.pipeline/);
+    expect(body).toMatch(/delivery-fast|delivery-full/);
   });
 
-  it('fast lane calls implement → review → merge', () => {
-    expect(body).toMatch(/cloverleaf-implement[\s\S]*cloverleaf-review[\s\S]*cloverleaf-merge/);
+  it('uses a single council_bounces counter capped at 3', () => {
+    expect(body).toContain('council_bounces');
+    expect(body).toMatch(/>=\s*3|max.*3/i);
   });
 
-  it('full pipeline calls implement → document → review → [ui-review?] → qa → merge', () => {
-    expect(body).toContain('cloverleaf-document');
-    expect(body).toContain('cloverleaf-qa');
-    expect(body).toContain('cloverleaf-ui-review');
+  it('auto-runs a decisive plan_review when bound', () => {
+    expect(body).toContain('task.plan_review');
+    expect(body).toContain('plan_review_bounces');
   });
 
-  it('has per-agent bounce counters with max 3 each', () => {
-    expect(body).toContain('reviewer_bounces');
-    expect(body).toContain('ui_reviewer_bounces');
-    expect(body).toContain('qa_bounces');
-    expect(body).toMatch(/MAX.*3|max.*3|= 3/);
-  });
-
-  it('uses detect-ui-paths to decide ui-review conditional', () => {
-    expect(body).toContain('detect-ui-paths');
-  });
-
-  it('escalates when any per-agent counter hits cap', () => {
+  it('no longer references the collapsed-away lane states or the standalone gate steps', () => {
+    expect(body).not.toContain('automated-gates');
+    expect(body).not.toContain('detect-ui-paths');
     expect(body).toMatch(/escalate/i);
+  });
+
+  it('holds a council pass at baselines_pending until /cloverleaf-approve-baselines re-runs the council', () => {
+    // The collapse removed the ui-review → qa hold that baselines_pending guarded.
+    // The runner convention now holds BEFORE applying a council pass (council → final-gate):
+    // if the ui member set baselines_pending, surface /cloverleaf-approve-baselines and re-run.
+    expect(body).toContain('baselines_pending');
+    expect(body).toContain('approve-baselines');
   });
 });
 
@@ -1025,7 +1030,7 @@ describe('cloverleaf-run skill (CLV-53 — Branch discipline section)', () => {
 
   it('Branch discipline section defines <repo_root> as $(git rev-parse --show-toplevel)', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     expect(branchDisciplineIdx).toBeGreaterThan(-1);
     expect(perAgentIdx).toBeGreaterThan(-1);
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
@@ -1034,7 +1039,7 @@ describe('cloverleaf-run skill (CLV-53 — Branch discipline section)', () => {
 
   it('Branch discipline section notes that in walker context this is the worktree NOT the primary repo', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
     expect(branchSection.toLowerCase()).toMatch(/worktree/);
     expect(branchSection.toLowerCase()).toMatch(/not.*primary|primary.*not/);
@@ -1042,14 +1047,14 @@ describe('cloverleaf-run skill (CLV-53 — Branch discipline section)', () => {
 
   it('Branch discipline section forbids git checkout main from walker worktrees', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
     expect(branchSection).toMatch(/do NOT `git checkout main`|Do NOT `git checkout main`/i);
   });
 
   it('Branch discipline section points to git diff main..HEAD and git show main:<path>', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
     expect(branchSection).toContain('git diff main..HEAD');
     expect(branchSection).toMatch(/git show main:<path>/);
@@ -1643,26 +1648,6 @@ describe('cloverleaf-new-task — security_class inference (v0.8.0)', () => {
   });
 });
 
-describe('cloverleaf-run — security gate (v0.8.0)', () => {
-  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'), 'utf-8');
-  it('declares a MAX_SECURITY_BOUNCES budget', () => {
-    expect(body).toMatch(/MAX_SECURITY_BOUNCES\s*=\s*3/);
-  });
-  it('runs classify-security with the task branch', () => {
-    expect(body).toMatch(/cloverleaf-cli classify-security <repo_root> <TASK-ID> --branch/);
-  });
-  it('advances to security-review and invokes the skill on effective high', () => {
-    expect(body).toMatch(/advance-status <repo_root> <TASK-ID> security-review agent/);
-    expect(body).toMatch(/cloverleaf-security-review/);
-  });
-  it('writes back security_class on under-classification', () => {
-    expect(body.toLowerCase()).toMatch(/under-classif|write.?back|diff_detected/);
-  });
-  it('has a Security gate section applied in both lanes', () => {
-    expect(body).toMatch(/Security gate/);
-  });
-});
-
 describe('cloverleaf-run-plan — security escalation note (v0.8.0)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'), 'utf-8');
   it('Notes mention security-review escalations are expected', () => {
@@ -1701,7 +1686,10 @@ describe('Site guide — security reviewer (v0.8.0)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// CLV-106: security-review verdict writes + cloverleaf-run refusal-and-recover
+// CLV-106: security-review verdict writes.
+// (The former cloverleaf-run "refusal-and-recover" half was retired in Council
+// Slice 4 — the standalone security gate collapsed into a council member, so the
+// automated-gates → post-gate refusal path no longer exists.)
 // ---------------------------------------------------------------------------
 
 describe('cloverleaf-security-review skill (CLV-106 — verdict writes in terminal branches)', () => {
@@ -1773,37 +1761,6 @@ describe('cloverleaf-security-review skill (CLV-106 — verdict writes in termin
 
   it('escalate branch: commit message between set-task-field and advance-status references security_review_verdict → escalate', () => {
     expect(body).toMatch(/security_review_verdict → escalate/);
-  });
-});
-
-describe('cloverleaf-run skill (CLV-106 — refusal-and-recover prose)', () => {
-  const body = readFileSync(
-    resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'),
-    'utf-8',
-  );
-
-  it('retains the "Security gate (both lanes)" section header', () => {
-    expect(body).toContain('Security gate (both lanes)');
-  });
-
-  it('retains the cloverleaf-security-review reference (belt-and-suspenders happy path)', () => {
-    expect(body).toContain('cloverleaf-security-review');
-  });
-
-  it('contains "Refusal and recover" subsection', () => {
-    expect(body).toMatch(/Refusal and recover/);
-  });
-
-  it('describes exit code 2 as the security-gate refusal signal', () => {
-    expect(body).toMatch(/exit(s)? code 2/i);
-  });
-
-  it('names the behavior a "security-gate refusal"', () => {
-    expect(body).toMatch(/security-gate refusal/i);
-  });
-
-  it('recovery sequence directs to advance to security-review first', () => {
-    expect(body).toMatch(/advance to.*security-review.*first|advance-status.*security-review/i);
   });
 });
 
