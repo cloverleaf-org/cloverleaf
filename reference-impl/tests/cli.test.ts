@@ -2047,3 +2047,43 @@ describe('cli — qa-report', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// B2: validate-council subcommand
+// ---------------------------------------------------------------------------
+
+describe('cli — validate-council', () => {
+  it('exits 0 for a kind-homogeneous code profile bound to task.review', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'clv-vc-ok-'));
+    mkdirSync(join(repo, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(repo, '.cloverleaf', 'config', 'council.json'), JSON.stringify(
+      { profiles: { p: { rounds: [[{ member: 'reviewer' }]], aggregation: 'any-veto' } }, gates: { 'task.review': 'p' } }));
+    try {
+      const { status, stdout } = (() => {
+        const r = run(['validate-council', repo]);
+        return { status: r.exitCode, stdout: r.stdout };
+      })();
+      expect(status).toBe(0);
+      expect(stdout).toMatch(/OK/);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('exits 1 when a plan gate is bound to a code-kind profile', () => {
+    const repo = mkdtempSync(join(tmpdir(), 'clv-vc-fail-'));
+    mkdirSync(join(repo, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(repo, '.cloverleaf', 'config', 'council.json'), JSON.stringify(
+      { profiles: { p: { rounds: [[{ member: 'reviewer' }]], aggregation: 'any-veto' } }, gates: { 'plan.task_batch': 'p' } }));
+    try {
+      const { status, stderr } = (() => {
+        const r = run(['validate-council', repo]);
+        return { status: r.exitCode, stderr: r.stderr };
+      })();
+      expect(status).toBe(1);
+      expect(stderr).toMatch(/council-config/);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+});
+
