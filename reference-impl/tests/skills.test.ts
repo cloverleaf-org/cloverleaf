@@ -1652,6 +1652,43 @@ describe('cloverleaf-run-plan — security escalation note (v0.8.0)', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// C3: run-plan drain-queue + merge unified at final_approval_gate (Slice 4)
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan — drain-queue merges at final_approval_gate (C3 / Slice 4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'), 'utf-8');
+
+  it('merges drained tasks under final_approval_gate only', () => {
+    expect(body).toContain('final_approval_gate');
+    expect(body).not.toContain('human_merge');
+    expect(body).not.toContain('automated-gates');
+  });
+
+  it('push condition is final-gate only (not automated-gates alternative)', () => {
+    // The turn_completed branch must push onto the final-gate queue only when
+    // the on-disk status is "final-gate" — "automated-gates" was dropped in Slice 4.
+    expect(body).toMatch(/final-gate[^\n]*push|push[^\n]*final-gate/);
+    expect(body).not.toMatch(/automated-gates[^\n]*push|push[^\n]*automated-gates/);
+  });
+
+  it('advance-status merged line has no path argument (fast_lane / full_pipeline)', () => {
+    // The unified gate emits: advance-status <repo_root> <TASK-ID> merged human final_approval_gate
+    // No trailing fast_lane or full_pipeline token on the same line.
+    expect(body).toMatch(/advance-status[^\n]*merged human final_approval_gate[ \t]*$/m);
+    expect(body).not.toContain('fast_lane');
+    expect(body).not.toContain('full_pipeline');
+  });
+
+  it('session brief says delivery lands at final-gate (not automated-gates)', () => {
+    const briefSection = body.match(/## Session brief template\n([\s\S]*?)(?:\n## |$)/);
+    expect(briefSection).not.toBeNull();
+    const brief = briefSection![1];
+    expect(brief).toMatch(/final-gate/);
+    expect(brief).not.toMatch(/automated-gates/);
+  });
+});
+
 describe('README — Security review section (v0.8.0)', () => {
   const readme = readFileSync(resolve(__dirname, '..', 'README.md'), 'utf-8');
   it('has a Security review section', () => {
