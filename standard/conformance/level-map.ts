@@ -53,6 +53,7 @@ export const VALIDATOR_LEVEL: Readonly<Record<string, Level>> = {
   'security-gate': 'L2',
   // L3
   'gate-decision-validity': 'L3',
+  'council-config': 'L3',
 };
 
 // Agent contract file name (sans `.openapi.yaml`) → level.

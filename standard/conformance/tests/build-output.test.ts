@@ -19,6 +19,7 @@ describe('build output', () => {
 
   it('emits per-module .js files for each validator', () => {
     const expected = [
+      'council-config.js',
       'cross-project-ref.js',
       'dag-acyclic.js',
       'gate-decision-validity.js',
