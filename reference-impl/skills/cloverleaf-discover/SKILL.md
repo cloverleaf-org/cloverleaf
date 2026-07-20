@@ -68,6 +68,8 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
    cloverleaf-cli advance-rfc <repo_root> $RFC_ID gate-pending agent rfc_strategy_gate
    ```
 
+   **Advisory council (opt-in).** Run `cloverleaf-cli council-plan <repo_root> $RFC_ID rfc.strategy_gate`. If `plan.source === "consumer"` and `plan.profile !== null`, dispatch `plan.rounds` (each member reviews the RFC per its custom-role prompt), reach a verdict, then `cloverleaf-cli apply-council-verdict <repo_root> $RFC_ID rfc.strategy_gate '<verdict>'`. This **posts** the advisory verdict + a feedback envelope and drives NO transition (the RFC stays at `gate-pending`). Surface the verdict + rationale to the human below. The human still decides approve/reject/revise — the council never auto-approves. A repo with no such binding sees `plan.profile === null` → the pre-step is skipped and today's behavior is unchanged.
+
    Prompt human (blocking readline):
    ```
    RFC $RFC_ID at rfc_strategy_gate: approve / reject / revise [reason]? > _
@@ -80,7 +82,11 @@ Each sub-skill runs from `main`. Between steps, confirm branch is `main` before 
 
 7. **Plan breakdown** — invoke `/cloverleaf-breakdown $RFC_ID`. Per-invocation bounce budget (3 bounces inside breakdown). Capture `$PLAN_ID`. On bounce exhaustion: dump state and halt.
 
-8. **Gate: task_batch_gate** — Plan is already in `gate-pending` (set by breakdown). Prompt:
+8. **Gate: task_batch_gate** — Plan is already in `gate-pending` (set by breakdown).
+
+   **Advisory council (opt-in).** Run `cloverleaf-cli council-plan <repo_root> $PLAN_ID plan.task_batch`. If `plan.source === "consumer"` and `plan.profile !== null`, dispatch `plan.rounds` (each member reviews the Plan per its custom-role prompt), reach a verdict, then `cloverleaf-cli apply-council-verdict <repo_root> $PLAN_ID plan.task_batch '<verdict>'`. This **posts** the advisory verdict + a feedback envelope and drives NO transition (the Plan stays at `gate-pending`). Surface the verdict + rationale to the human below. The human still decides approve/reject — the council never auto-approves. A repo with no such binding sees `plan.profile === null` → the pre-step is skipped and today's behavior is unchanged.
+
+   Prompt:
    ```
    PLN $PLAN_ID at task_batch_gate: approve / reject [reason]? > _
    ```

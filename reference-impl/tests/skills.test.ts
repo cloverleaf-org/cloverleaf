@@ -597,6 +597,24 @@ describe('cloverleaf-discover skill', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Slice 4: advisory discovery-gate councils in cloverleaf-discover
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-discover skill — advisory discovery councils (Slice 4)', () => {
+  const body = readSkill('cloverleaf-discover');
+  it('runs an advisory council at rfc.strategy_gate before the human prompt', () => {
+    expect(body).toContain('rfc.strategy_gate');
+  });
+  it('runs an advisory council at plan.task_batch before the human prompt', () => {
+    expect(body).toContain('plan.task_batch');
+  });
+  it('the human still drives the gate (council never auto-approves)', () => {
+    expect(body).toMatch(/advisory/i);
+    expect(body).toContain('council-plan');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CLV-19: baseline-approval sidecar gate in cloverleaf-ui-review skill
 // ---------------------------------------------------------------------------
 
