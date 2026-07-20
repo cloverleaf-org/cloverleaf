@@ -1,6 +1,14 @@
 {
   "profiles": {
-    "default": {
+    "delivery-fast": {
+      "rounds": [
+        [ { "member": "reviewer" } ],
+        [ { "member": "security", "when": "security_class:high" } ]
+      ],
+      "aggregation": "any-veto",
+      "on_round_bounce": "stop"
+    },
+    "delivery-full": {
       "rounds": [
         [ { "member": "reviewer" } ],
         [
@@ -14,6 +22,6 @@
     }
   },
   "gates": {
-    "task.review": "default"
+    "task.review": { "by": "risk_class", "map": { "low": "delivery-fast", "high": "delivery-full" } }
   }
 }

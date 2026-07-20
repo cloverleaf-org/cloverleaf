@@ -313,12 +313,13 @@ describe('cli', () => {
     });
   });
 
-  it('council-plan returns the default plan for task.review', () => {
+  it('council-plan returns the fast-lane plan for a low-risk task.review', () => {
+    // DEMO-001 is risk_class:'low' → the shipped two-lane default routes it to delivery-fast.
     const { stdout, exitCode } = run(['council-plan', repoRoot, 'DEMO-001', 'task.review', '--changed-files=']);
     expect(exitCode).toBe(0);
     const plan = JSON.parse(stdout);
-    expect(plan.profile).toBe('default');
-    expect(plan.rounds.map((r: { member: string }[]) => r.map((x) => x.member))).toEqual([['reviewer'], ['qa']]);
+    expect(plan.profile).toBe('delivery-fast');
+    expect(plan.rounds.map((r: { member: string }[]) => r.map((x) => x.member))).toEqual([['reviewer']]);
   });
 
   it('council-plan activates security for a declared-high task', () => {
