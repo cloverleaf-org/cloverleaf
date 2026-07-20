@@ -21,22 +21,29 @@
 # Named scenarios (pass as first argument):
 #
 #   flow2-dogfood-repro  — Reproduces the Flow 2 (Under-classification at the door)
-#                          sequence from the CLV-107 integration test. Exercises the
-#                          advance-status security-gate refusal (exit code 2), writeback,
-#                          and recovery sequence against a real git repo + CLI. Matches
-#                          the load-bearing dogfood trail captured in
-#                          tests/integration.security-gate.test.ts (Flow 2 describe block).
+#                          sequence from the CLV-107 dogfood in the collapsed FSM.
+#                          A low-declared task whose diff touches a sensitive path gets
+#                          its security_class upgraded at documenting→council; the
+#                          delivery council runs with a blocking security member; a
+#                          security bounce returns the task to implementing.
 #
 #   council-optin        — Exercises the opt-in council end-to-end against a real temp
 #                          repo with a consumer .cloverleaf/config/council.json. Asserts
 #                          council-plan reports source=consumer, apply-council-verdict
-#                          drives a high-risk task to final-gate, and the council result
+#                          drives a council task to final-gate, and the council result
 #                          artifact is written.
 #
 #   non-ts-consumer      — Builds a synthetic non-monorepo consumer (no standard/ or
 #                          reference-impl/ subdirs) and asserts prep-worktree runs in
 #                          consumer mode: no throw, worktree_setup_command ran, and
 #                          prep_copy_dirs were copied. Validates F2.
+#
+#   council-collapse     — Slice-4 collapsed council FSM end-to-end. Asserts the shipped
+#                          two-lane default (low→delivery-fast reviewer-only,
+#                          high→delivery-full with a blocking security member); a council
+#                          pass advances council→final-gate (fast lane unified); a security
+#                          bounce returns to implementing (the v0.8.1 guarantee); and
+#                          validate-council enforces kind-homogeneity.
 #
 # Run via `npm run acceptance:walker` from the reference-impl/ directory or
 # directly: `bash scripts/acceptance-walker.sh [scenario]`.
@@ -47,46 +54,33 @@ set -euo pipefail
 #
 # Description
 # -----------
-# Reproduces the "Under-classification at the door" scenario that surfaced
-# during the 2026-05-25 claw-crypto dogfood and is captured as the load-bearing
-# Flow 2 integration test in reference-impl/tests/integration.security-gate.test.ts.
+# Reproduces the "Under-classification at the door" scenario in the Slice-4
+# collapsed FSM. A task declared as security_class="low" has a diff that touches
+# a sensitive path (scripts/deploy.sh). The collapsed FSM's security guarantee
+# is: advance-status documenting→council classifies the diff, detects the
+# sensitive path, writes back security_class="high", and the delivery council
+# (council-plan) then runs with a blocking security member. A security-member
+# bounce returns the task to implementing (the v0.8.1 guarantee preserved through
+# the collapse).
 #
-# What it demonstrates
-# --------------------
-# A task that was created with security_class="low" has a diff that touches a
-# sensitive path (scripts/deploy.sh). The orchestrator attempts to advance the
-# task directly to `merged` (fast-lane), bypassing the security-review state.
-# The `advance-status` CLI:
-#   1. Re-runs classify-security against the real git diff.
-#   2. Detects the sensitive path → writes back security_class="high" (writeback).
-#   3. Validates: security_class=high but security_review_verdict=null → refuses.
-#   4. Exits with code 2 and a canonical error message naming the recovery action.
-#
-# Recovery sequence:
-#   1. Orchestrator reads exit-2 → advances to security-review.
-#   2. Security Reviewer runs, sets verdict=pass via set-task-field.
-#   3. Advance security-review → automated-gates.
-#   4. Retry: advance automated-gates → merged. Verdict=pass → guard allows.
-#   5. Task reaches status=merged.
-#
-# Mirrors CLV-107 Flow 2 integration test
-# ----------------------------------------
-# This scenario exercises the exact same sequence as the "dogfood: low-declared
-# task with sensitive diff is refused, upgraded, then recovers to merged" test
-# case in tests/integration.security-gate.test.ts. The key difference: the
-# integration test uses __setMockChangedFiles (an in-process testing seam),
-# while this scenario uses a real git repo and a real committed sensitive file.
+# What it demonstrates (collapsed FSM)
+# -------------------------------------
+#   1. advance-status documenting→council upgrades security_class to "high"
+#      when the diff touches a sensitive path (classify-security writeback).
+#   2. council-plan for the upgraded task selects delivery-full and includes
+#      a blocking security member.
+#   3. apply-council-verdict with a security bounce returns task to implementing.
+#   4. apply-council-verdict with a security pass advances task to final-gate.
 #
 # Assertions (all must pass for exit 0)
 # --------------------------------------
-#   A1. advance-status automated-gates→merged exits non-zero (refusal).
-#   A2. Exit code of the refused advance is 2.
-#   A3. Refusal stderr contains "SECURITY_GATE" or "security_review_verdict".
-#   A4. Task security_class was written back to "high" after refusal.
-#   A5. Recovery set-task-field exits 0.
-#   A6. Final advance-status automated-gates→merged exits 0 (pass).
-#   A7. Task status is "merged" at end.
-#   A8. Task security_review_verdict is "pass" at end.
+#   A1. advance-status documenting→council exits 0 (reclassification is
+#       transparent to the caller in the collapsed FSM).
+#   A2. Task security_class is "high" after the documenting→council transition.
+#   A3. council-plan selects delivery-full for the high task.
+#   A4. council-plan includes a blocking security member.
+#   A5. apply-council-verdict (security bounce) returns task to implementing.
+#   A6. A second task with pass verdict reaches final-gate.
 # ---------------------------------------------------------------------------
 run_council_optin() {
   echo "=== Scenario: council-optin ==="
@@ -96,7 +90,7 @@ run_council_optin() {
   mkdir -p "$REPO/.cloverleaf/tasks" "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/config"
 
   cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'JSON'
-{ "id": "DEMO-001", "type": "task", "status": "review", "project": "DEMO", "title": "t",
+{ "id": "DEMO-001", "type": "task", "status": "council", "project": "DEMO", "title": "t",
   "owner": { "kind": "agent", "id": "unassigned" }, "context": { "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" } },
   "acceptance_criteria": ["a"], "definition_of_done": ["d"], "risk_class": "high" }
 JSON
@@ -142,7 +136,7 @@ run_council_chair() {
   mkdir -p "$REPO/.cloverleaf/tasks" "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/config" "$REPO/.cloverleaf/prompts"
 
   cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'JSON'
-{ "id": "DEMO-001", "type": "task", "status": "review", "project": "DEMO", "title": "t",
+{ "id": "DEMO-001", "type": "task", "status": "council", "project": "DEMO", "title": "t",
   "owner": { "kind": "agent", "id": "unassigned" }, "context": { "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" } },
   "acceptance_criteria": ["a"], "definition_of_done": ["d"], "risk_class": "high" }
 JSON
@@ -192,7 +186,7 @@ JSON
 #   Asserts: council-plan task.final_gate reports source=consumer, mode=advisory,
 #   and a multi-member (parallel) round; apply-council-verdict task.final_gate
 #   POSTS an advisory artifact and drives NO transition (task stays final-gate);
-#   and plan_review posts-and-stays at tactical-plan.
+#   and plan_review bounce is DECISIVE: transitions tactical-plan → pending.
 # ---------------------------------------------------------------------------
 run_council_advisory() {
   echo "=== Scenario: council-advisory ==="
@@ -231,26 +225,26 @@ JSON
   [ "$MODE" = "advisory" ] || { echo "FAIL: artifact mode, got '$MODE'"; exit 1; }
   echo "✓ apply-council-verdict task.final_gate: posted advisory artifact, no transition"
 
-  # plan_review advisory posts-and-stays at tactical-plan
+  # plan_review bounce is decisive: transitions tactical-plan → pending
   node -e "const f='$REPO/.cloverleaf/tasks/DEMO-001.json'; const t=require(f); t.status='tactical-plan'; require('fs').writeFileSync(f, JSON.stringify(t));"
   cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.plan_review \
     '{"verdict":"bounce","rule":"any-veto","rationale":"reshape the plan","members":[{"member":"reviewer","verdict":"bounce"}]}' > /dev/null \
     || { echo "FAIL: apply-council-verdict task.plan_review exited nonzero"; exit 1; }
   STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
-  [ "$STATUS" = "tactical-plan" ] || { echo "FAIL: plan_review should stay at tactical-plan, got '$STATUS'"; exit 1; }
-  echo "✓ apply-council-verdict task.plan_review: posted advisory, no transition"
+  [ "$STATUS" = "pending" ] || { echo "FAIL: plan_review bounce should transition to pending, got '$STATUS'"; exit 1; }
+  echo "✓ apply-council-verdict task.plan_review: decisive bounce → pending (tactical-plan → pending)"
 
   echo "=== council-advisory: all assertions passed ==="
 }
 
+
 run_flow2_dogfood_repro() {
   echo "=== Scenario: flow2-dogfood-repro ==="
-  echo "Reproducing Flow 2 (Under-classification at the door) end-to-end."
-  echo "Mirrors: tests/integration.security-gate.test.ts 'Flow 2' describe block."
+  echo "Reproducing Flow 2 (Under-classification at the door) in the collapsed FSM."
   echo
 
   # ---- Setup: create a minimal git repo ----
-  local REPO
+  local REPO STATUS SECURITY_CLASS PLAN_OUT BOUNCE_EXIT PASS_EXIT
   REPO="$(mktemp -d -t cloverleaf-flow2-repro.XXXXXX)"
   # Expand REPO now so the trap string carries the literal path, not the
   # variable name (local variables are not in scope when EXIT fires).
@@ -273,20 +267,20 @@ run_flow2_dogfood_repro() {
   mkdir -p "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/feedback"
   printf '{"key":"DEMO","name":"Demo Project"}' > "$REPO/.cloverleaf/projects/DEMO.json"
 
-  # Seed task: low-classified at automated-gates (simulating the dogfood state).
-  # security_class="low" declared, security_review_verdict absent (null equivalent).
+  # Seed task: low-classified at documenting (collapsed FSM: documenting → council
+  # is where the security classification writeback now happens).
   cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'TASKEOF'
 {
   "id": "DEMO-001",
   "type": "task",
-  "status": "automated-gates",
+  "status": "documenting",
   "owner": {"kind": "agent", "id": "unassigned"},
   "project": "DEMO",
   "title": "Dogfood reproduction task",
   "context": {"rfc": {"project": "DEMO", "id": "DEMO-RFC-001"}},
   "acceptance_criteria": ["Flow 2 recovery succeeds"],
-  "definition_of_done": ["Task reaches merged"],
-  "risk_class": "low",
+  "definition_of_done": ["Task reaches final-gate"],
+  "risk_class": "high",
   "security_class": "low",
   "security_review_verdict": null
 }
@@ -309,117 +303,96 @@ TASKEOF
 
   echo "Temp repo: $REPO"
   echo "Feature branch 'cloverleaf/DEMO-001' contains: scripts/deploy.sh"
-  echo "Task starts at status=automated-gates, security_class=low, verdict=null"
+  echo "Task starts at status=documenting, security_class=low (declared)"
   echo
 
-  # ---- Step 1: Attempt advance automated-gates → merged (fast-lane) ----
-  # Expected: exit 2 (SECURITY_GATE refusal). The advance-status CLI re-runs
-  # classify-security, detects scripts/deploy.sh → upgrades to high → refuses.
-  echo "Step 1: attempting advance-status automated-gates → merged (fast-lane)..."
-  REFUSAL_STDERR=""
-  REFUSAL_EXIT=0
-  REFUSAL_STDERR_FILE="$(mktemp)"
-  cloverleaf-cli advance-status "$REPO" DEMO-001 merged human human_merge fast_lane \
-    2>"$REFUSAL_STDERR_FILE" || REFUSAL_EXIT=$?
-  REFUSAL_STDERR="$(cat "$REFUSAL_STDERR_FILE")"
-  rm -f "$REFUSAL_STDERR_FILE"
+  # ---- Step 1: advance documenting → council (triggers classify-security writeback) ----
+  # The collapsed FSM: advance-status documenting→council classifies the diff
+  # transparently (no refusal), but writes back security_class="high" when the
+  # diff touches a sensitive path. The security guarantee is now council-enforced.
+  echo "Step 1: advancing documenting → council (classify-security runs here)..."
+  ADVANCE_EXIT=0
+  cloverleaf-cli advance-status "$REPO" DEMO-001 council agent || ADVANCE_EXIT=$?
 
-  # A1: must exit non-zero.
-  if [[ "$REFUSAL_EXIT" -eq 0 ]]; then
-    echo "FAIL [A1]: advance-status should have been refused but exited 0"
+  # A1: advance must exit 0 (reclassification is transparent in the collapsed FSM).
+  if [[ "$ADVANCE_EXIT" -ne 0 ]]; then
+    echo "FAIL [A1]: advance-status documenting→council exited $ADVANCE_EXIT, expected 0"
     exit 1
   fi
-  echo "✓ A1. advance-status refused (non-zero exit)"
+  echo "✓ A1. advance-status documenting→council exits 0 (transparent reclassification)"
 
-  # A2: must exit with code 2.
-  if [[ "$REFUSAL_EXIT" -ne 2 ]]; then
-    echo "FAIL [A2]: expected exit code 2 (SECURITY_GATE), got $REFUSAL_EXIT"
-    exit 1
-  fi
-  echo "✓ A2. exit code is 2 (SECURITY_GATE)"
-  echo "  [refusal evidence] stderr: $REFUSAL_STDERR"
-
-  # A3: stderr must mention security_gate or security_review_verdict.
-  if ! echo "$REFUSAL_STDERR" | grep -qiE 'security_review_verdict|security.?gate|security-gate'; then
-    echo "FAIL [A3]: refusal stderr does not mention security_review_verdict or security-gate"
-    echo "  got: $REFUSAL_STDERR"
-    exit 1
-  fi
-  echo "✓ A3. refusal stderr contains security-gate evidence"
-
-  # A4: security_class must have been written back to "high".
-  SECURITY_CLASS="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('security_class',''))" 2>/dev/null || \
-    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(d.security_class||'')")"
+  # A2: security_class must have been written back to "high".
+  SECURITY_CLASS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').security_class||'')")"
   if [[ "$SECURITY_CLASS" != "high" ]]; then
-    echo "FAIL [A4]: expected security_class=high after writeback, got: $SECURITY_CLASS"
+    echo "FAIL [A2]: expected security_class=high after writeback, got: $SECURITY_CLASS"
     exit 1
   fi
-  echo "✓ A4. security_class written back to 'high' (classify-security diff-detected scripts/deploy.sh)"
+  echo "✓ A2. security_class written back to 'high' (classify-security diff-detected scripts/deploy.sh)"
 
-  # ---- Recovery sequence ----
+  # A3: council-plan selects delivery-full for the upgraded high task.
+  PLAN_OUT="$(cloverleaf-cli council-plan "$REPO" DEMO-001 task.review --changed-files=scripts/deploy.sh)"
+  PROFILE="$(node -e "process.stdout.write(JSON.parse(process.argv[1]).profile||'')" "$PLAN_OUT")"
+  if [[ "$PROFILE" != "delivery-full" ]]; then
+    echo "FAIL [A3]: expected profile=delivery-full for high task, got: $PROFILE"
+    exit 1
+  fi
+  echo "✓ A3. council-plan selects delivery-full for the upgraded high task"
+
+  # A4: delivery-full includes a blocking security member.
+  node -e '
+    const p = JSON.parse(process.argv[1]);
+    const sec = p.rounds.flat().find(x => x.member === "security");
+    if (!sec || sec.blocking !== true) { console.error("FAIL [A4]: security not a blocking member", JSON.stringify(p.rounds)); process.exit(1); }
+  ' "$PLAN_OUT" || exit 1
+  echo "✓ A4. delivery-full profile includes a blocking security member"
+
+  # ---- Bounce: security member vetoes ----
   echo
-  echo "Recovery sequence:"
-
-  # Recovery step 1: advance to security-review (unconditional edge — no security_gate).
-  echo "  Recovery 1: advance automated-gates → security-review..."
-  cloverleaf-cli advance-status "$REPO" DEMO-001 security-review agent
-  echo "  ✓ advanced to security-review"
-
-  # Recovery step 2: Security Reviewer writes verdict=pass.
-  echo "  Recovery 2: set-task-field security_review_verdict=pass..."
-  SET_EXIT=0
-  cloverleaf-cli set-task-field "$REPO" DEMO-001 security_review_verdict pass || SET_EXIT=$?
-
-  # A5: set-task-field must exit 0.
-  if [[ "$SET_EXIT" -ne 0 ]]; then
-    echo "FAIL [A5]: set-task-field exited $SET_EXIT, expected 0"
+  echo "Bounce path: security member returns 'bounce'..."
+  BOUNCE_EXIT=0
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review \
+    '{"verdict":"bounce","rule":"any-veto","rationale":"sec issue","members":[{"member":"reviewer","verdict":"pass"},{"member":"security","verdict":"bounce"}]}' \
+    > /dev/null || BOUNCE_EXIT=$?
+  if [[ "$BOUNCE_EXIT" -ne 0 ]]; then
+    echo "FAIL [A5]: apply-council-verdict (bounce) exited $BOUNCE_EXIT, expected 0"
     exit 1
   fi
-  echo "  ✓ A5. set-task-field exited 0"
-
-  # Recovery step 3: advance security-review → automated-gates.
-  echo "  Recovery 3: advance security-review → automated-gates..."
-  cloverleaf-cli advance-status "$REPO" DEMO-001 automated-gates agent
-  echo "  ✓ advanced to automated-gates"
-
-  # Recovery step 4: retry advance automated-gates → merged (fast-lane).
-  # Verdict=pass, security_class=high → guard allows.
-  echo "  Recovery 4: retry advance automated-gates → merged (fast-lane)..."
-  RETRY_EXIT=0
-  cloverleaf-cli advance-status "$REPO" DEMO-001 merged human human_merge fast_lane || RETRY_EXIT=$?
-
-  # A6: retry must exit 0.
-  if [[ "$RETRY_EXIT" -ne 0 ]]; then
-    echo "FAIL [A6]: retry advance-status exited $RETRY_EXIT, expected 0"
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
+  if [[ "$STATUS" != "implementing" ]]; then
+    echo "FAIL [A5]: expected implementing after security bounce, got: $STATUS"
     exit 1
   fi
-  echo "✓ A6. retry advance-status exited 0 (guard passed: verdict=pass)"
+  echo "✓ A5. security bounce → implementing (v0.8.1 guarantee preserved through the collapse)"
 
-  # ---- Final assertions ----
-  FINAL_STATUS="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('status',''))" 2>/dev/null || \
-    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(d.status||'')")"
-  FINAL_VERDICT="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('security_review_verdict',''))" 2>/dev/null || \
-    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(String(d.security_review_verdict)||'')")"
-
-  # A7: status must be merged.
-  if [[ "$FINAL_STATUS" != "merged" ]]; then
-    echo "FAIL [A7]: expected status=merged, got: $FINAL_STATUS"
+  # ---- Pass path: reset task to council, security passes ----
+  echo
+  echo "Pass path: reset task to council, security passes..."
+  node -e "
+    const f='$REPO/.cloverleaf/tasks/DEMO-001.json';
+    const t=require(f); t.status='council';
+    require('fs').writeFileSync(f, JSON.stringify(t, null, 2) + '\n');
+  "
+  PASS_EXIT=0
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review \
+    '{"verdict":"pass","rule":"any-veto","rationale":"all good","members":[{"member":"reviewer","verdict":"pass"},{"member":"security","verdict":"pass"}]}' \
+    > /dev/null || PASS_EXIT=$?
+  if [[ "$PASS_EXIT" -ne 0 ]]; then
+    echo "FAIL [A6]: apply-council-verdict (pass) exited $PASS_EXIT, expected 0"
     exit 1
   fi
-  echo "✓ A7. task status is 'merged'"
-
-  # A8: verdict must be pass.
-  if [[ "$FINAL_VERDICT" != "pass" ]]; then
-    echo "FAIL [A8]: expected security_review_verdict=pass, got: $FINAL_VERDICT"
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
+  if [[ "$STATUS" != "final-gate" ]]; then
+    echo "FAIL [A6]: expected final-gate after council pass, got: $STATUS"
     exit 1
   fi
-  echo "✓ A8. security_review_verdict is 'pass'"
+  echo "✓ A6. council pass → final-gate (unified fast-lane under final_approval_gate)"
 
   echo
-  echo "=== flow2-dogfood-repro: all 8 assertions passed ==="
-  echo "  [refusal observed]  exit code 2 + security-gate stderr (A1–A3)"
-  echo "  [writeback observed] security_class upgraded to 'high' (A4)"
-  echo "  [recovery succeeded] task reached status='merged' with verdict='pass' (A5–A8)"
+  echo "=== flow2-dogfood-repro: all 6 assertions passed ==="
+  echo "  [writeback observed] security_class upgraded to 'high' at documenting→council (A1–A2)"
+  echo "  [security guarantee] delivery-full with blocking security member selected (A3–A4)"
+  echo "  [bounce → implementing] v0.8.1 guarantee preserved through the collapse (A5)"
+  echo "  [pass → final-gate]   council pass advances under final_approval_gate (A6)"
 }
 
 # ---------------------------------------------------------------------------
@@ -479,6 +452,74 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Scenario: council-collapse — the Slice-4 collapsed council FSM end-to-end.
+#   Asserts: the shipped two-lane default reproduces today (low→delivery-fast reviewer-only,
+#   high→delivery-full with a blocking security member); a council pass advances council→final-gate
+#   (fast lane unified); a security bounce returns to implementing (the v0.8.1 guarantee); and
+#   validate-council enforces kind-homogeneity.
+# ---------------------------------------------------------------------------
+run_council_collapse() {
+  echo "=== Scenario: council-collapse ==="
+  local REPO PLAN STATUS
+  REPO="$(mktemp -d -t cloverleaf-council-collapse.XXXXXX)"
+  # shellcheck disable=SC2064
+  trap "rm -rf '$REPO'" EXIT
+  mkdir -p "$REPO/.cloverleaf/tasks" "$REPO/.cloverleaf/events" "$REPO/.cloverleaf/config"
+
+  cat > "$REPO/.cloverleaf/tasks/DEMO-001.json" <<'JSON'
+{ "id": "DEMO-001", "type": "task", "status": "council", "project": "DEMO", "title": "t",
+  "owner": { "kind": "agent", "id": "unassigned" }, "context": { "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" } },
+  "acceptance_criteria": ["a"], "definition_of_done": ["d"], "risk_class": "low", "security_class": "low" }
+JSON
+  PLAN="$(cloverleaf-cli council-plan "$REPO" DEMO-001 task.review --changed-files=src/x.ts)"
+  echo "$PLAN" | node -e '
+    const p = JSON.parse(require("fs").readFileSync(0, "utf-8"));
+    if (p.source !== "default") { console.error("FAIL: source", p.source); process.exit(1); }
+    if (p.profile !== "delivery-fast") { console.error("FAIL: profile", p.profile); process.exit(1); }
+    const m = p.rounds.flat().map(x => x.member);
+    if (JSON.stringify(m) !== JSON.stringify(["reviewer"])) { console.error("FAIL: members", m); process.exit(1); }
+  ' || exit 1
+  echo "✓ low task → delivery-fast (reviewer only) from the shipped default"
+
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review \
+    '{"verdict":"pass","rule":"any-veto","rationale":"ok","members":[{"member":"reviewer","verdict":"pass"}]}' > /dev/null || exit 1
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
+  [ "$STATUS" = "final-gate" ] || { echo "FAIL: expected final-gate, got '$STATUS'"; exit 1; }
+  echo "✓ council pass → final-gate (fast lane unified under final_approval_gate)"
+
+  cat > "$REPO/.cloverleaf/tasks/DEMO-002.json" <<'JSON'
+{ "id": "DEMO-002", "type": "task", "status": "council", "project": "DEMO", "title": "t",
+  "owner": { "kind": "agent", "id": "unassigned" }, "context": { "rfc": { "project": "DEMO", "id": "DEMO-RFC-001" } },
+  "acceptance_criteria": ["a"], "definition_of_done": ["d"], "risk_class": "high", "security_class": "high" }
+JSON
+  cloverleaf-cli council-plan "$REPO" DEMO-002 task.review --changed-files=src/x.ts | node -e '
+    const p = JSON.parse(require("fs").readFileSync(0, "utf-8"));
+    if (p.profile !== "delivery-full") { console.error("FAIL: profile", p.profile); process.exit(1); }
+    const sec = p.rounds.flat().find(x => x.member === "security");
+    if (!sec || sec.blocking !== true) { console.error("FAIL: security not a blocking member", JSON.stringify(p.rounds)); process.exit(1); }
+  ' || exit 1
+  echo "✓ high+security task → delivery-full with a blocking security member"
+
+  cloverleaf-cli apply-council-verdict "$REPO" DEMO-002 task.review \
+    '{"verdict":"bounce","rule":"any-veto","rationale":"sec","members":[{"member":"reviewer","verdict":"pass"},{"member":"security","verdict":"bounce"}]}' > /dev/null || exit 1
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-002.json').status||'')")"
+  [ "$STATUS" = "implementing" ] || { echo "FAIL: security bounce should return to implementing, got '$STATUS'"; exit 1; }
+  echo "✓ security bounce → implementing (v0.8.1 guarantee preserved through the collapse)"
+
+  # validate-council enforces kind-homogeneity: a plan gate bound to a code profile is rejected.
+  cat > "$REPO/.cloverleaf/config/council.json" <<'JSON'
+{ "profiles": { "p": { "rounds": [[{ "member": "reviewer" }]], "aggregation": "any-veto" } },
+  "gates": { "plan.task_batch": "p" } }
+JSON
+  if cloverleaf-cli validate-council "$REPO" > /dev/null 2>&1; then
+    echo "FAIL: validate-council accepted a plan gate bound to a code-kind profile"; exit 1
+  fi
+  echo "✓ validate-council rejects a kind-mismatched binding"
+
+  echo "=== council-collapse: all assertions passed ==="
+}
+
+# ---------------------------------------------------------------------------
 # Scenario dispatch
 # ---------------------------------------------------------------------------
 case "${1:-default}" in
@@ -498,6 +539,10 @@ case "${1:-default}" in
     run_council_advisory
     exit 0
     ;;
+  council-collapse)
+    run_council_collapse
+    exit 0
+    ;;
   non-ts-consumer)
     run_non_ts_consumer
     exit 0
@@ -507,7 +552,7 @@ case "${1:-default}" in
     ;;
   *)
     echo "Unknown scenario: $1"
-    echo "Available scenarios: flow2-dogfood-repro, council-optin, council-chair, council-advisory, non-ts-consumer"
+    echo "Available scenarios: flow2-dogfood-repro, council-optin, council-chair, council-advisory, council-collapse, non-ts-consumer"
     exit 2
     ;;
 esac
