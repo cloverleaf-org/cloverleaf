@@ -1,224 +1,57 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
 import { validateSecurityGate } from '../../validators/security-gate.js';
-import type { StatusTransitionEvent, StatusTransitions, Task } from '../../validators/types.js';
+import type { StatusTransitions, Task, StatusTransitionEvent } from '../../validators/types.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const taskMachine = JSON.parse(
-  readFileSync(resolve(__dirname, '..', '..', 'state-machines', 'task.json'), 'utf-8')
-) as StatusTransitions;
+const TASK_SM = resolve(__dirname, '..', '..', 'state-machines', 'task.json');
 
-// ────────────────────────────────────────────────────────────────────────────
-// Helpers
-
-function evt(
-  from: string,
-  to: string,
-  actor: 'human' | 'agent' | 'system' = 'agent'
-): StatusTransitionEvent {
+function evt(from: string, to: string, actor: 'agent' | 'human' = 'agent'): StatusTransitionEvent {
   return {
-    event_id: 'e-sg-1',
-    event_type: 'status_transition',
-    occurred_at: '2026-05-26T10:00:00Z',
-    work_item_id: { project: 'CLV', id: 'CLV-999' },
-    work_item_type: 'task',
-    from_status: from,
-    to_status: to,
-    actor: { kind: actor, id: 'orchestrator' }
+    event_id: 'e-sg', event_type: 'status_transition', occurred_at: '2026-07-20T00:00:00Z',
+    work_item_id: { project: 'CLV', id: 'CLV-1' }, work_item_type: 'task',
+    from_status: from, to_status: to, actor: { kind: actor, id: actor },
   };
 }
-
-function makeTask(
-  securityClass: 'low' | 'high' | undefined,
-  verdict: 'pass' | 'bounce' | 'escalate' | null | undefined
-): Task {
-  const t: Task = {
-    id: 'CLV-999',
-    type: 'task',
-    status: 'automated-gates',
-    project: 'CLV',
+function task(security_class: 'low' | 'high', verdict: 'pass' | 'bounce' | 'escalate' | null): Task {
+  return {
+    id: 'CLV-1', type: 'task', status: 'council', project: 'CLV', title: 't',
+    owner: { kind: 'agent', id: 'unassigned' },
     context: { rfc: { project: 'CLV', id: 'CLV-1' } },
-    definition_of_done: ['x'],
-    acceptance_criteria: ['y'],
-    risk_class: 'low'
-  };
-  if (securityClass !== undefined) t.security_class = securityClass;
-  if (verdict !== undefined) t.security_review_verdict = verdict;
-  return t;
+    definition_of_done: ['x'], acceptance_criteria: ['y'],
+    risk_class: 'high', security_class, security_review_verdict: verdict,
+  } as unknown as Task;
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Flagged transitions (the three edges with security_gate: true)
+describe('validator: security-gate — retired from the default FSM (0.8.0)', () => {
+  const sm = JSON.parse(readFileSync(TASK_SM, 'utf-8')) as StatusTransitions;
 
-const FLAGGED_TRANSITIONS: Array<{ from: string; to: string; actor: 'human' | 'agent' }> = [
-  { from: 'automated-gates', to: 'ui-review', actor: 'agent' },
-  { from: 'automated-gates', to: 'qa', actor: 'agent' },
-  { from: 'automated-gates', to: 'merged', actor: 'human' }
-];
+  it('the collapsed task.json carries zero security_gate transitions', () => {
+    expect(sm.transitions.filter((t) => (t as { security_gate?: boolean }).security_gate === true)).toHaveLength(0);
+  });
 
-describe('validator: security-gate — flagged transitions', () => {
-  for (const { from, to, actor } of FLAGGED_TRANSITIONS) {
-    const transition = `${from} → ${to}`;
-
-    describe(`${transition}`, () => {
-      // 2×4 matrix: security_class × verdict
-
-      // low × * → always legal (rule does not apply to low-security tasks)
-      it(`[low × null] ${transition} is legal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('low', null));
-        expect(result.ok).toBe(true);
-      });
-
-      it(`[low × pass] ${transition} is legal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('low', 'pass'));
-        expect(result.ok).toBe(true);
-      });
-
-      it(`[low × bounce] ${transition} is legal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('low', 'bounce'));
-        expect(result.ok).toBe(true);
-      });
-
-      it(`[low × escalate] ${transition} is legal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('low', 'escalate'));
-        expect(result.ok).toBe(true);
-      });
-
-      // high × null → illegal
-      it(`[high × null] ${transition} is illegal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('high', null));
-        expect(result.ok).toBe(false);
-        if (!result.ok) {
-          expect(result.violations).toHaveLength(1);
-          expect(result.violations[0].rule).toBe('security-gate');
-          expect(result.violations[0].severity).toBe('error');
-          expect(result.violations[0].message).toMatch(/security_review_verdict.*pass/);
-          expect(result.violations[0].message).toMatch(/security_class.*high/);
-          expect(result.violations[0].message).toMatch(/Advance to security-review first/);
-        }
-      });
-
-      // high × pass → legal
-      it(`[high × pass] ${transition} is legal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('high', 'pass'));
-        expect(result.ok).toBe(true);
-      });
-
-      // high × bounce → illegal
-      it(`[high × bounce] ${transition} is illegal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('high', 'bounce'));
-        expect(result.ok).toBe(false);
-        if (!result.ok) {
-          expect(result.violations[0].rule).toBe('security-gate');
-          expect(result.violations[0].message).toMatch(/security_review_verdict.*pass/);
-          expect(result.violations[0].message).toMatch(/security_class.*high/);
-          expect(result.violations[0].message).toMatch(/Advance to security-review first/);
-        }
-      });
-
-      // high × escalate → illegal
-      it(`[high × escalate] ${transition} is illegal`, () => {
-        const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('high', 'escalate'));
-        expect(result.ok).toBe(false);
-        if (!result.ok) {
-          expect(result.violations[0].rule).toBe('security-gate');
-          expect(result.violations[0].message).toMatch(/security_review_verdict.*pass/);
-          expect(result.violations[0].message).toMatch(/security_class.*high/);
-          expect(result.violations[0].message).toMatch(/Advance to security-review first/);
-        }
-      });
-    });
-  }
+  it('is a no-op (ok) on the real council → final-gate transition even for high + null', () => {
+    // The guarantee moved to a blocking security council member + the applyCouncilVerdict backstop.
+    expect(validateSecurityGate(evt('council', 'final-gate'), sm, task('high', null)).ok).toBe(true);
+  });
 });
 
-// ────────────────────────────────────────────────────────────────────────────
-// Control: non-flagged transitions — guard must not fire regardless of verdict
+describe('validator: security-gate — the primitive still enforces a synthetic flagged transition', () => {
+  const synthetic = {
+    type: 'task',
+    states: { initial: ['council'], terminal: ['merged'], all: ['council', 'merged'] },
+    transitions: [{ from: 'council', to: 'merged', security_gate: true, allowed_actors: ['human'] }],
+  } as unknown as StatusTransitions;
 
-describe('validator: security-gate — non-flagged transitions (control)', () => {
-  const NON_FLAGGED: Array<{ from: string; to: string; actor: 'human' | 'agent' }> = [
-    { from: 'automated-gates', to: 'implementing', actor: 'agent' },
-    { from: 'automated-gates', to: 'escalated', actor: 'agent' },
-    { from: 'automated-gates', to: 'security-review', actor: 'agent' }
-  ];
-
-  for (const { from, to, actor } of NON_FLAGGED) {
-    const transition = `${from} → ${to}`;
-
-    it(`[high × null] ${transition} is legal (non-flagged, guard must not fire)`, () => {
-      const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('high', null));
-      expect(result.ok).toBe(true);
-    });
-
-    it(`[high × pass] ${transition} is legal (non-flagged)`, () => {
-      const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('high', 'pass'));
-      expect(result.ok).toBe(true);
-    });
-
-    it(`[high × bounce] ${transition} is legal (non-flagged)`, () => {
-      const result = validateSecurityGate(evt(from, to, actor), taskMachine, makeTask('high', 'bounce'));
-      expect(result.ok).toBe(true);
-    });
-  }
-});
-
-// ────────────────────────────────────────────────────────────────────────────
-// Edge cases
-
-describe('validator: security-gate — edge cases', () => {
-  it('non-task work item is always legal (no security_class)', () => {
-    const nonTaskItem = {
-      id: 'CLV-1',
-      type: 'rfc' as const,
-      status: 'drafting',
-      project: 'CLV'
-    };
-    // Cast as Task to satisfy the overload — the validator checks type at runtime
-    const result = validateSecurityGate(
-      evt('automated-gates', 'merged', 'human'),
-      taskMachine,
-      nonTaskItem as unknown as Task
-    );
-    expect(result.ok).toBe(true);
+  it('refuses high + null with rule "security-gate"', () => {
+    const r = validateSecurityGate(evt('council', 'merged', 'human'), synthetic, task('high', null));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.violations[0].rule).toBe('security-gate');
   });
-
-  it('missing workItem argument is legal (early exit)', () => {
-    const result = validateSecurityGate(
-      evt('automated-gates', 'merged', 'human'),
-      taskMachine,
-      undefined
-    );
-    expect(result.ok).toBe(true);
+  it('allows high + pass', () => {
+    expect(validateSecurityGate(evt('council', 'merged', 'human'), synthetic, task('high', 'pass')).ok).toBe(true);
   });
-
-  it('transition not found in state machine is legal (no flagging)', () => {
-    const result = validateSecurityGate(
-      evt('merged', 'pending'),  // no such transition
-      taskMachine,
-      makeTask('high', null)
-    );
-    expect(result.ok).toBe(true);
-  });
-
-  it('task with no security_class set is legal on flagged transition (undefined treated as non-high)', () => {
-    const result = validateSecurityGate(
-      evt('automated-gates', 'qa', 'agent'),
-      taskMachine,
-      makeTask(undefined, undefined)
-    );
-    expect(result.ok).toBe(true);
-  });
-
-  it('violation workItemId matches the event work_item_id', () => {
-    const result = validateSecurityGate(
-      evt('automated-gates', 'qa', 'agent'),
-      taskMachine,
-      makeTask('high', null)
-    );
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.violations[0].workItemId).toEqual({ project: 'CLV', id: 'CLV-999' });
-    }
+  it('allows low + null', () => {
+    expect(validateSecurityGate(evt('council', 'merged', 'human'), synthetic, task('low', null)).ok).toBe(true);
   });
 });
