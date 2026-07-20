@@ -1,47 +1,34 @@
 /**
- * CLV-107: Integration tests for security-gate Flows 1–4 + backward-compat.
+ * Integration tests for the v0.8.1 security guarantee in the COLLAPSED council FSM.
  *
- * Each describe block drives the full CLI surface (set-task-field via CLI subprocess)
- * and library surface (advance-status via direct call) end-to-end against a temp repo.
- * No LLM subagent involvement.
- * Uses __setMockChangedFiles to inject diffs deterministically (in-process).
+ * The mechanical security-gate (the FSM `security_gate` annotation on
+ * automated-gates → ui-review and the review → automated-gates verdict reset)
+ * is RETIRED (KD1). The guarantee is now carried by:
+ *   1. the B4 writeback at `documenting → council` (a declared-low task whose diff
+ *      touches a sensitive path is upgraded to security_class:high), and
+ *   2. the delivery council's blocking `security` member + the applyCouncilVerdict
+ *      backstop that records security_review_verdict='pass' at final-gate.
+ *
+ * The blocking-member / backstop / un-lowerable-escalate mechanics are unit-tested
+ * in council-security.test.ts; this file drives the end-to-end integration (writeback
+ * at the door → council → final-gate; a security escalate → escalated).
+ *
+ * Uses __setMockChangedFiles to inject diffs deterministically (in-process, so we
+ * call advanceStatus() directly rather than via the CLI child process).
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
-import { advanceStatus, loadTask, saveTask } from '../lib/task.js';
+import { join } from 'node:path';
+import { advanceStatus, loadTask } from '../lib/task.js';
+import { applyCouncilVerdict, resolveCouncilPlan } from '../lib/council.js';
+import { aggregate } from '../lib/aggregation.js';
 import { __setMockChangedFiles } from '../lib/security-classify.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const CLI = resolve(__dirname, '..', 'lib', 'cli.ts');
-
-/**
- * Invoke the CLI in a child process. Used for set-task-field (CLI-only surface).
- * Note: __setMockChangedFiles does NOT transfer to child processes — for advance-status
- * with mock diffs, call advanceStatus() directly (in-process) instead.
- */
-function run(args: string[]): { stdout: string; stderr: string; exitCode: number } {
-  try {
-    const stdout = execSync(`npx tsx ${CLI} ${args.map((a) => JSON.stringify(a)).join(' ')}`, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    return { stdout, stderr: '', exitCode: 0 };
-  } catch (err: unknown) {
-    const e = err as { stdout?: string; stderr?: string; status?: number };
-    return {
-      stdout: e.stdout?.toString() ?? '',
-      stderr: e.stderr?.toString() ?? '',
-      exitCode: e.status ?? 1,
-    };
-  }
-}
 
 /** Create a minimal temp repo with the required .cloverleaf structure. */
 function createTempRepo(): string {
@@ -84,65 +71,17 @@ function loadTaskFromDisk(repoRoot: string): Record<string, unknown> {
 }
 
 // ---------------------------------------------------------------------------
-// Flow 1 — Clean two-pass
+// Under-classification at the door (LOAD-BEARING dogfood, rewritten for the collapse)
 // ---------------------------------------------------------------------------
 
-describe('Flow 1 — Clean two-pass', () => {
+describe('Under-classification at the door (LOAD-BEARING dogfood)', () => {
   let repoRoot: string;
 
   beforeEach(() => {
     repoRoot = createTempRepo();
-    // Seed: high-class task at automated-gates, verdict null
+    // Seed: low-declared task at documenting (under-classified), one step before council.
     writeBaseTask(repoRoot, {
-      status: 'automated-gates',
-      risk_class: 'high',
-      security_class: 'high',
-      security_review_verdict: null,
-    });
-  });
-
-  afterEach(() => {
-    __setMockChangedFiles(null);
-    rmSync(repoRoot, { recursive: true, force: true });
-  });
-
-  it('clean two-pass: high task traverses security-review → automated-gates → ui-review', () => {
-    // Step 1: automated-gates → security-review (unconditional; no security_gate on this edge)
-    advanceStatus(repoRoot, 'DEMO-001', 'security-review', 'agent');
-    expect(loadTaskFromDisk(repoRoot).status).toBe('security-review');
-
-    // Step 2: set verdict=pass via CLI set-task-field
-    const r2 = run(['set-task-field', repoRoot, 'DEMO-001', 'security_review_verdict', 'pass']);
-    expect(r2.exitCode).toBe(0);
-
-    // Step 3: security-review → automated-gates (unconditional edge; verdict preserved)
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-    expect(loadTaskFromDisk(repoRoot).status).toBe('automated-gates');
-
-    // Step 4: automated-gates → ui-review (security_gate=true; guard allows because verdict=pass)
-    // Use empty mock diff so the security-classify doesn't upgrade the class.
-    __setMockChangedFiles([]);
-    advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' });
-
-    // Final assertions
-    const task = loadTaskFromDisk(repoRoot);
-    expect(task.status).toBe('ui-review');
-    expect(task.security_review_verdict).toBe('pass');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Flow 2 — LOAD-BEARING dogfood reproduction (under-classification at the door)
-// ---------------------------------------------------------------------------
-
-describe('Flow 2 — Under-classification at the door (LOAD-BEARING dogfood)', () => {
-  let repoRoot: string;
-
-  beforeEach(() => {
-    repoRoot = createTempRepo();
-    // Seed: low-declared task at automated-gates (under-classified)
-    writeBaseTask(repoRoot, {
-      status: 'automated-gates',
+      status: 'documenting',
       risk_class: 'low',
       security_class: 'low',
       security_review_verdict: null,
@@ -154,114 +93,57 @@ describe('Flow 2 — Under-classification at the door (LOAD-BEARING dogfood)', (
     rmSync(repoRoot, { recursive: true, force: true });
   });
 
-  it('dogfood: low-declared task with sensitive diff is refused, upgraded, then recovers to merged', () => {
+  it('dogfood: a sensitive diff upgrades security_class to high at documenting → council; the security member then blocks and the passing council reaches final-gate', () => {
     // Inject a sensitive file so the diff-detect fires.
     // scripts/deploy.sh matches the "**/deploy*.sh" path pattern in the default security-paths config.
     __setMockChangedFiles(['scripts/deploy.sh']);
 
-    // Attempt fast-lane merge: should fail with SECURITY_GATE because:
-    // 1. Writeback fires: declared=low, effective=high → security_class upgraded to 'high'.
-    // 2. Validator sees high+null → refuses.
-    let caughtErr: (Error & { code?: string }) | null = null;
-    try {
-      advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'human_merge', path: 'fast_lane' });
-    } catch (err) {
-      caughtErr = err as Error & { code?: string };
-    }
+    // documenting → council: the B4 writeback fires because declared=low, effective=high,
+    // upgrading security_class to 'high'. No mechanical gate refuses this (KD1); the upgrade
+    // is what arms the blocking security member for the delivery council.
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
 
-    expect(caughtErr).not.toBeNull();
-    expect(caughtErr?.code).toBe('SECURITY_GATE');
+    const upgraded = loadTaskFromDisk(repoRoot);
+    expect(upgraded.status).toBe('council');
+    expect(upgraded.security_class).toBe('high');
 
-    // The error message must contain the security-gate refusal text.
-    expect(caughtErr?.message).toMatch(/security_review_verdict.*pass|security-gate/i);
+    // The council plan now includes the blocking `security` member (delivery-fast round 2,
+    // when security_class:high). This is the guarantee: an under-classified sensitive diff
+    // is caught by the security member rather than a mechanical FSM gate.
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['scripts/deploy.sh'] });
+    const security = plan.rounds.flat().find((m) => m.member === 'security');
+    expect(security).toBeDefined();
+    expect(security?.blocking).toBe(true);
 
-    // Despite the refusal, the writeback must have fired: security_class should now be 'high'.
-    const taskAfterRefusal = loadTaskFromDisk(repoRoot);
-    expect(taskAfterRefusal.security_class).toBe('high');
+    // The security member passes; the council passes → council → final-gate, and the
+    // backstop records security_review_verdict='pass' for the (now-high) task.
+    const verdict = aggregate(
+      [{ member: 'reviewer', verdict: 'pass' }, { member: 'security', verdict: 'pass' }],
+      'any-veto',
+      {},
+    );
+    expect(verdict.verdict).toBe('pass');
+    const res = applyCouncilVerdict(repoRoot, 'DEMO-001', 'task.review', verdict);
+    expect(res.walk).toEqual(['council', 'final-gate']);
 
-    // Clear the sensitive mock — simulate clean diff for recovery.
-    __setMockChangedFiles([]);
-
-    // Recovery sequence:
-    // 1) automated-gates → security-review (unconditional; no guard on this edge)
-    advanceStatus(repoRoot, 'DEMO-001', 'security-review', 'agent');
-
-    // 2) Set verdict=pass via CLI set-task-field
-    const r2 = run(['set-task-field', repoRoot, 'DEMO-001', 'security_review_verdict', 'pass']);
-    expect(r2.exitCode).toBe(0);
-
-    // 3) security-review → automated-gates
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-
-    // 4) Retry: automated-gates → merged (fast-lane). Verdict is now pass so guard allows.
-    advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'human_merge', path: 'fast_lane' });
-
-    // Final assertions
     const finalTask = loadTaskFromDisk(repoRoot);
-    expect(finalTask.status).toBe('merged');
+    expect(finalTask.status).toBe('final-gate');
     expect(finalTask.security_review_verdict).toBe('pass');
   });
 });
 
 // ---------------------------------------------------------------------------
-// Flow 3 — Rework reset
+// Blocker → escalated (rewritten for the collapse: the security member escalates)
 // ---------------------------------------------------------------------------
 
-describe('Flow 3 — Rework reset', () => {
+describe('Blocker → escalated', () => {
   let repoRoot: string;
 
   beforeEach(() => {
     repoRoot = createTempRepo();
-    // Seed: high task at review with verdict=pass (from a prior cycle)
+    // Seed: high task parked at the collapsed `council` state.
     writeBaseTask(repoRoot, {
-      status: 'review',
-      risk_class: 'high',
-      security_class: 'high',
-      security_review_verdict: 'pass',
-    });
-  });
-
-  afterEach(() => {
-    __setMockChangedFiles(null);
-    rmSync(repoRoot, { recursive: true, force: true });
-  });
-
-  it('rework reset: review → automated-gates resets verdict to null; next guarded advance refuses', () => {
-    // Step 1: review → automated-gates (carries resets_security_verdict=true)
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-
-    // Reload — verdict must now be null (reset fired)
-    const taskAfterReset = loadTaskFromDisk(repoRoot);
-    expect(taskAfterReset.security_review_verdict).toBe(null);
-
-    // Step 2: attempt automated-gates → ui-review (security_gate=true)
-    // verdict=null + high class → guard must refuse with SECURITY_GATE
-    __setMockChangedFiles([]);
-    let caughtErr: (Error & { code?: string }) | null = null;
-    try {
-      advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' });
-    } catch (err) {
-      caughtErr = err as Error & { code?: string };
-    }
-
-    expect(caughtErr).not.toBeNull();
-    expect(caughtErr?.code).toBe('SECURITY_GATE');
-    expect(caughtErr?.message).toMatch(/security_review_verdict.*pass|security-gate/i);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Flow 4 — Blocker → escalated
-// ---------------------------------------------------------------------------
-
-describe('Flow 4 — Blocker → escalated', () => {
-  let repoRoot: string;
-
-  beforeEach(() => {
-    repoRoot = createTempRepo();
-    // Seed: task at security-review (high class, no verdict yet)
-    writeBaseTask(repoRoot, {
-      status: 'security-review',
+      status: 'council',
       risk_class: 'high',
       security_class: 'high',
       security_review_verdict: null,
@@ -273,94 +155,29 @@ describe('Flow 4 — Blocker → escalated', () => {
     rmSync(repoRoot, { recursive: true, force: true });
   });
 
-  it('blocker: set verdict=escalate → advance to escalated; task is terminal', () => {
-    // Step 1: set verdict=escalate via CLI set-task-field
-    const r1 = run(['set-task-field', repoRoot, 'DEMO-001', 'security_review_verdict', 'escalate']);
-    expect(r1.exitCode).toBe(0);
-
-    // Step 2: security-review → escalated (allowed by the state machine for agent/human)
-    advanceStatus(repoRoot, 'DEMO-001', 'escalated', 'agent');
-
-    // Assertions: status=escalated, verdict=escalate
-    const task = loadTaskFromDisk(repoRoot);
-    expect(task.status).toBe('escalated');
-    expect(task.security_review_verdict).toBe('escalate');
+  it('blocker: a security escalate is un-lowerable → council drives the task to escalated; terminal', () => {
+    // The security member returns escalate (a hard blocker). An escalate short-circuits
+    // aggregation regardless of the other members, and applyCouncilVerdict drives
+    // council → escalated.
+    const verdict = aggregate(
+      [{ member: 'reviewer', verdict: 'pass' }, { member: 'security', verdict: 'escalate' }],
+      'any-veto',
+      {},
+    );
+    expect(verdict.verdict).toBe('escalate');
+    const res = applyCouncilVerdict(repoRoot, 'DEMO-001', 'task.review', verdict);
+    expect(res.walk).toEqual(['council', 'escalated']);
+    expect(loadTask(repoRoot, 'DEMO-001').status).toBe('escalated');
 
     // Confirm escalated is terminal: any further advance must fail (illegal transition).
-    // The state machine has no outgoing guarded edges from escalated.
     let caughtErr: (Error & { code?: string }) | null = null;
     try {
       advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human');
     } catch (err) {
       caughtErr = err as Error & { code?: string };
     }
-
     expect(caughtErr).not.toBeNull();
-    // Must be an illegal-transition error, NOT a security-gate error.
     expect(caughtErr?.code).not.toBe('SECURITY_GATE');
     expect(caughtErr?.message.toLowerCase()).toMatch(/illegal|not allowed/);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Backward-compat — Field absent (0.8.0-era task)
-// ---------------------------------------------------------------------------
-
-describe('Backward-compat — security_review_verdict field absent', () => {
-  let repoRoot: string;
-
-  beforeEach(() => {
-    repoRoot = createTempRepo();
-    // Seed: high task at review WITHOUT security_review_verdict property in JSON.
-    const taskObj: Record<string, unknown> = {
-      id: 'DEMO-001',
-      type: 'task',
-      status: 'review',
-      owner: { kind: 'agent', id: 'unassigned' },
-      project: 'DEMO',
-      title: 'demo',
-      context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-001' } },
-      acceptance_criteria: ['a'],
-      definition_of_done: ['d'],
-      risk_class: 'high',
-      security_class: 'high',
-      // NOTE: security_review_verdict intentionally absent (simulating 0.8.0-era task)
-    };
-    writeFileSync(
-      join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
-      JSON.stringify(taskObj)
-    );
-  });
-
-  afterEach(() => {
-    __setMockChangedFiles(null);
-    rmSync(repoRoot, { recursive: true, force: true });
-  });
-
-  it('backward-compat: absent field treated as null on read; review → automated-gates writes null; guard then refuses', () => {
-    // Verify the field is truly absent before advancing
-    const rawBefore = loadTaskFromDisk(repoRoot);
-    expect(Object.prototype.hasOwnProperty.call(rawBefore, 'security_review_verdict')).toBe(false);
-
-    // Step 1: review → automated-gates (resets_security_verdict=true)
-    // The reset writes security_review_verdict: null explicitly even though the field was absent.
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-
-    // Reload — the reset must have written null explicitly
-    const taskAfterReset = loadTaskFromDisk(repoRoot);
-    expect(taskAfterReset.security_review_verdict).toBe(null);
-
-    // Step 2: attempt guarded advance; verdict is null + class=high → guard must refuse
-    __setMockChangedFiles([]);
-    let caughtErr: (Error & { code?: string }) | null = null;
-    try {
-      advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' });
-    } catch (err) {
-      caughtErr = err as Error & { code?: string };
-    }
-
-    expect(caughtErr).not.toBeNull();
-    expect(caughtErr?.code).toBe('SECURITY_GATE');
-    expect(caughtErr?.message).toMatch(/security_review_verdict.*pass|security-gate/i);
   });
 });

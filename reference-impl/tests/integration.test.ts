@@ -26,15 +26,15 @@ describe('integration: tight-loop pass case', () => {
   beforeEach(() => { repoRoot = setupFixture(); });
   afterEach(() => { rmSync(repoRoot, { recursive: true, force: true }); });
 
-  it('walks pending → automated-gates with 5 events and no feedback', () => {
+  it('walks pending → final-gate with 5 events and no feedback', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'tactical-plan', 'agent');
     advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent');
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent');
 
     const task = loadTask(repoRoot, 'DEMO-001');
-    expect(task.status).toBe('automated-gates');
+    expect(task.status).toBe('final-gate');
 
     const events = readdirSync(join(repoRoot, '.cloverleaf', 'events')).sort();
     // v0.6: event filenames are `<workItemId>-<NNN>-<type>.json` (per-work-item counter)
@@ -52,21 +52,21 @@ describe('integration: tight-loop pass case', () => {
     expect(firstEvent.to_status).toBe('tactical-plan');
   });
 
-  it('completes the merge gate on human approval', () => {
+  it('completes the final-gate on human approval', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'tactical-plan', 'agent');
     advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent');
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent');
     emitGateDecision(repoRoot, {
       project: 'DEMO',
       workItemType: 'task',
       workItemId: 'DEMO-001',
-      gate: 'human_merge',
+      gate: 'final_approval_gate',
       decision: 'approve',
       actor: 'human',
     });
-    advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'human_merge', path: 'fast_lane' });
+    advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'final_approval_gate' });
     expect(loadTask(repoRoot, 'DEMO-001').status).toBe('merged');
   });
 });
@@ -76,11 +76,11 @@ describe('integration: bounce then pass', () => {
   beforeEach(() => { repoRoot = setupFixture(); });
   afterEach(() => { rmSync(repoRoot, { recursive: true, force: true }); });
 
-  it('writes an r1 feedback and loops back to implementing', () => {
+  it('writes an r1 feedback and loops back to implementing on a council bounce', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'tactical-plan', 'agent');
     advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent');
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
     writeFeedback(repoRoot, {
       project: 'DEMO',
       taskId: 'DEMO-001',
@@ -90,12 +90,12 @@ describe('integration: bounce then pass', () => {
         findings: [{ severity: 'error', message: 'Add zero-input test case' }],
       },
     });
-    advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent'); // council bounce
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent');
 
-    expect(loadTask(repoRoot, 'DEMO-001').status).toBe('automated-gates');
+    expect(loadTask(repoRoot, 'DEMO-001').status).toBe('final-gate');
     const feedback = latestFeedback(repoRoot, 'DEMO-001');
     expect(feedback?.verdict).toBe('bounce');
     const fbFiles = readdirSync(join(repoRoot, '.cloverleaf', 'feedback'));
@@ -108,14 +108,14 @@ describe('integration: max bounces → escalated', () => {
   beforeEach(() => { repoRoot = setupFixture(); });
   afterEach(() => { rmSync(repoRoot, { recursive: true, force: true }); });
 
-  it('escalates after 3 bounces', () => {
+  it('escalates after 3 council bounces', () => {
     for (let i = 1; i <= 3; i++) {
       if (i === 1) {
         advanceStatus(repoRoot, 'DEMO-001', 'tactical-plan', 'agent');
         advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent');
       }
       advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-      advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
+      advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
       writeFeedback(repoRoot, {
         project: 'DEMO',
         taskId: 'DEMO-001',
@@ -125,7 +125,7 @@ describe('integration: max bounces → escalated', () => {
           findings: [{ severity: 'error', message: `still failing on iteration ${i}` }],
         },
       });
-      advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent');
+      advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent'); // council bounce
     }
     advanceStatus(repoRoot, 'DEMO-001', 'escalated', 'agent');
     expect(loadTask(repoRoot, 'DEMO-001').status).toBe('escalated');

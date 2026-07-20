@@ -391,11 +391,11 @@ describe('cli', () => {
     expect(JSON.parse(stdout).source).toBe('default');
   });
 
-  it('apply-council-verdict drives a fast-lane pass to automated-gates', () => {
+  it('apply-council-verdict drives a delivery pass from council to final-gate', () => {
     writeFileSync(
       join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'),
       JSON.stringify({
-        id: 'DEMO-001', type: 'task', status: 'review', project: 'DEMO', title: 't',
+        id: 'DEMO-001', type: 'task', status: 'council', project: 'DEMO', title: 't',
         owner: { kind: 'agent', id: 'unassigned' }, context: { rfc: { project: 'DEMO', id: 'DEMO-RFC-001' } },
         acceptance_criteria: ['a'], definition_of_done: ['d'], risk_class: 'low',
       }),
@@ -404,7 +404,7 @@ describe('cli', () => {
     const { stdout, exitCode } = run(['apply-council-verdict', repoRoot, 'DEMO-001', 'task.review', verdict]);
     expect(exitCode).toBe(0);
     expect(JSON.parse(stdout).final_verdict).toBe('pass');
-    expect(JSON.parse(readFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'), 'utf-8')).status).toBe('automated-gates');
+    expect(JSON.parse(readFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'), 'utf-8')).status).toBe('final-gate');
   });
 });
 
@@ -1554,79 +1554,14 @@ describe('cli — classify-security (v0.8.0)', () => {
   });
 });
 
-describe('cli — security-gate wiring (v0.8.1)', () => {
-  let tmp: string;
-
-  beforeEach(() => {
-    tmp = mkdtempSync(join(tmpdir(), 'cl-sg-'));
-    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
-    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
-    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
-    writeFileSync(
-      join(tmp, '.cloverleaf', 'projects', 'SG.json'),
-      JSON.stringify({ key: 'SG', name: 'SecurityGate' })
-    );
-  });
-
-  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
-
-  function writeTask(
-    id: string,
-    status: string,
-    securityClass: 'low' | 'high',
-    verdict: 'pass' | 'bounce' | 'escalate' | null | undefined
-  ): void {
-    const doc: Record<string, unknown> = {
-      type: 'task',
-      id,
-      project: 'SG',
-      status,
-      owner: { kind: 'agent', id: 'implementer' },
-      title: 'sg test task',
-      context: { rfc: { project: 'SG', id: 'SG-RFC-1' } },
-      acceptance_criteria: ['ac'],
-      definition_of_done: ['dod'],
-      risk_class: 'high',
-      security_class: securityClass,
-    };
-    if (verdict !== undefined) {
-      doc.security_review_verdict = verdict;
-    }
-    writeFileSync(
-      join(tmp, '.cloverleaf', 'tasks', `${id}.json`),
-      JSON.stringify(doc) + '\n'
-    );
-  }
-
-  it('advance-status refuses automated-gates → ui-review on high+null with a security-gate error', () => {
-    writeTask('SG-1', 'automated-gates', 'high', null);
-    const r = run(['advance-status', tmp, 'SG-1', 'ui-review', 'agent', '', 'full_pipeline']);
-    expect(r.exitCode).not.toBe(0);
-    expect(r.stderr.toLowerCase()).toMatch(/security.gate|security_review_verdict/);
-  });
-
-  it('advance-status allows automated-gates → ui-review on high+pass', () => {
-    writeTask('SG-2', 'automated-gates', 'high', 'pass');
-    const r = run(['advance-status', tmp, 'SG-2', 'ui-review', 'agent', '', 'full_pipeline']);
-    expect(r.exitCode).toBe(0);
-    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'SG-2.json'), 'utf-8'));
-    expect(task.status).toBe('ui-review');
-  });
-
-  it('advance-status allows automated-gates → ui-review on low+null', () => {
-    writeTask('SG-3', 'automated-gates', 'low', null);
-    const r = run(['advance-status', tmp, 'SG-3', 'ui-review', 'agent', '', 'full_pipeline']);
-    expect(r.exitCode).toBe(0);
-  });
-
-  it('advance-status allows automated-gates → implementing (escape hatch) even on high+null', () => {
-    writeTask('SG-4', 'automated-gates', 'high', null);
-    const r = run(['advance-status', tmp, 'SG-4', 'implementing', 'agent']);
-    expect(r.exitCode).toBe(0);
-    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'SG-4.json'), 'utf-8'));
-    expect(task.status).toBe('implementing');
-  });
-});
+// ---------------------------------------------------------------------------
+// The mechanical security-gate wiring (v0.8.1) is RETIRED (KD1): the FSM
+// `security_gate` annotation on automated-gates → ui-review and the
+// review → automated-gates verdict reset were removed with those states. The
+// v0.8.1 guarantee now lives in the delivery council's blocking security member
+// + the applyCouncilVerdict backstop, covered by council-security.test.ts and
+// the classify-security writeback below.
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // CLV-104: advance-status: classify-security writeback
@@ -1786,130 +1721,12 @@ describe('advance-status: classify-security writeback', () => {
 });
 
 // ---------------------------------------------------------------------------
-// CLV-104: advance-status: verdict reset on review → automated-gates
+// The advance-status verdict reset (review → automated-gates) and the mechanical
+// security-gate refusal exit code (automated-gates → ui-review on high+null) are
+// RETIRED (KD1): those FSM edges collapsed away. The v0.8.1 guarantee is now the
+// council's blocking security member + the applyCouncilVerdict backstop, covered
+// by council-security.test.ts and the classify-security writeback above.
 // ---------------------------------------------------------------------------
-
-describe('advance-status: verdict reset on review → automated-gates', () => {
-  let tmp: string;
-
-  beforeEach(() => {
-    tmp = mkdtempSync(join(tmpdir(), 'cl-vr-'));
-    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
-    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
-    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
-    writeFileSync(
-      join(tmp, '.cloverleaf', 'projects', 'VR.json'),
-      JSON.stringify({ key: 'VR', name: 'VerdictReset' })
-    );
-    execSync('git init -q -b main', { cwd: tmp });
-    execSync('git config user.email test@test', { cwd: tmp });
-    execSync('git config user.name test', { cwd: tmp });
-    writeFileSync(join(tmp, 'seed.txt'), 'x\n');
-    execSync('git add . && git commit -q -m init', { cwd: tmp });
-  });
-
-  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
-
-  function writeVrTask(
-    id: string,
-    status: string,
-    verdict: 'pass' | 'bounce' | 'escalate' | null | undefined
-  ): void {
-    const doc: Record<string, unknown> = {
-      type: 'task', id, project: 'VR', status,
-      owner: { kind: 'agent', id: 'implementer' },
-      title: 'vr test task',
-      context: { rfc: { project: 'VR', id: 'VR-RFC-1' } },
-      acceptance_criteria: ['ac'], definition_of_done: ['dod'],
-      risk_class: 'high', security_class: 'low',
-    };
-    if (verdict !== undefined) doc.security_review_verdict = verdict;
-    writeFileSync(join(tmp, '.cloverleaf', 'tasks', `${id}.json`), JSON.stringify(doc) + '\n');
-    execSync('git add . && git commit -q -m "write task"', { cwd: tmp });
-  }
-
-  it('review → automated-gates resets security_review_verdict=pass to null; single commit with both messages', () => {
-    writeVrTask('VR-1', 'review', 'pass');
-    const r = run(['advance-status', tmp, 'VR-1', 'automated-gates', 'agent']);
-    expect(r.exitCode).toBe(0);
-
-    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'VR-1.json'), 'utf-8'));
-    expect(task.status).toBe('automated-gates');
-    expect(task.security_review_verdict).toBeNull();
-
-    // Verify a single commit with the combined message.
-    const log = execSync('git log --oneline -1', { cwd: tmp, encoding: 'utf-8' }).trim();
-    expect(log).toMatch(/status review → automated-gates/);
-    expect(log).toMatch(/security_review_verdict → null/);
-  });
-
-  it('verdict reset is idempotent: verdict=null remains null after review → automated-gates', () => {
-    writeVrTask('VR-2', 'review', null);
-    const r = run(['advance-status', tmp, 'VR-2', 'automated-gates', 'agent']);
-    expect(r.exitCode).toBe(0);
-
-    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'VR-2.json'), 'utf-8'));
-    expect(task.status).toBe('automated-gates');
-    expect(task.security_review_verdict).toBeNull();
-  });
-
-  it('security-review → automated-gates does NOT reset security_review_verdict', () => {
-    writeVrTask('VR-3', 'security-review', 'pass');
-    const r = run(['advance-status', tmp, 'VR-3', 'automated-gates', 'agent']);
-    expect(r.exitCode).toBe(0);
-
-    const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'VR-3.json'), 'utf-8'));
-    expect(task.status).toBe('automated-gates');
-    expect(task.security_review_verdict).toBe('pass');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// CLV-105: advance-status: security-gate refusal exit code
-// ---------------------------------------------------------------------------
-
-describe('CLI advance-status: security-gate refusal exit code', () => {
-  let tmp: string;
-
-  beforeEach(() => {
-    tmp = mkdtempSync(join(tmpdir(), 'cl-sgec-'));
-    mkdirSync(join(tmp, '.cloverleaf', 'projects'), { recursive: true });
-    mkdirSync(join(tmp, '.cloverleaf', 'tasks'), { recursive: true });
-    mkdirSync(join(tmp, '.cloverleaf', 'events'), { recursive: true });
-    writeFileSync(
-      join(tmp, '.cloverleaf', 'projects', 'SGE.json'),
-      JSON.stringify({ key: 'SGE', name: 'SecurityGateExit' })
-    );
-  });
-
-  afterEach(() => rmSync(tmp, { recursive: true, force: true }));
-
-  it('high+null task attempting a guarded transition exits with code 2 and canonical stderr', () => {
-    writeFileSync(
-      join(tmp, '.cloverleaf', 'tasks', 'SGE-1.json'),
-      JSON.stringify({
-        type: 'task',
-        id: 'SGE-1',
-        project: 'SGE',
-        status: 'automated-gates',
-        owner: { kind: 'agent', id: 'implementer' },
-        title: 'sg exit test',
-        context: { rfc: { project: 'SGE', id: 'SGE-RFC-1' } },
-        acceptance_criteria: ['ac'],
-        definition_of_done: ['dod'],
-        risk_class: 'high',
-        security_class: 'high',
-        security_review_verdict: null,
-      }) + '\n'
-    );
-
-    const r = run(['advance-status', tmp, 'SGE-1', 'ui-review', 'agent', '', 'full_pipeline']);
-    expect(r.exitCode).toBe(2);
-    expect(r.stderr).toMatch(/security_review_verdict/);
-    expect(r.stderr).toMatch(/pass/);
-    expect(r.stderr).toMatch(/Advance to security-review first/i);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // CLV-105: set-task-field subcommand
@@ -1932,7 +1749,7 @@ describe('CLI set-task-field', () => {
         type: 'task',
         id: 'STF-1',
         project: 'STF',
-        status: 'security-review',
+        status: 'council',
         owner: { kind: 'agent', id: 'implementer' },
         title: 'set field test',
         context: { rfc: { project: 'STF', id: 'STF-RFC-1' } },

@@ -59,8 +59,6 @@ export function advanceStatus(
   const from = task.status;
   const sm = loadStateMachine('task');
 
-  const targetTransition = sm.transitions.find((t) => t.from === from && t.to === toStatus);
-
   // Security classification at council entry: a declared-low task whose diff touches a
   // sensitive path is upgraded to security_class:high so the delivery council runs its
   // blocking security member. (v0.8.0: replaces the retired security_gate FSM annotation.)
@@ -116,12 +114,7 @@ export function advanceStatus(
     acceptance_criteria: task.acceptance_criteria,
   };
 
-  const resetsVerdict = targetTransition?.resets_security_verdict === true;
-  const proposed: TaskDoc = {
-    ...task,
-    status: toStatus,
-    ...(resetsVerdict ? { security_review_verdict: null } : {}),
-  };
+  const proposed: TaskDoc = { ...task, status: toStatus };
 
   advanceWorkItemStatus({
     repoRoot,
@@ -138,21 +131,6 @@ export function advanceStatus(
     gate: options.gate,
     path: options.path,
   });
-
-  // After a successful status change + verdict reset, emit a single commit covering both.
-  if (resetsVerdict) {
-    const taskFilePath = join(tasksDir(repoRoot), `${taskId}.json`);
-    try {
-      execFileSync('git', ['-C', repoRoot, 'add', taskFilePath], { stdio: 'pipe' });
-      execFileSync(
-        'git',
-        ['-C', repoRoot, 'commit', '-m', `cloverleaf: ${taskId} status ${from} → ${toStatus}; security_review_verdict → null (rework)`],
-        { stdio: 'pipe' }
-      );
-    } catch {
-      // No-op: commit is best-effort when running outside a git repo (e.g., test environments).
-    }
-  }
 
   return proposed;
 }
