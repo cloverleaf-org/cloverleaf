@@ -2,6 +2,29 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## 0.8.0 — 2026-07-20
+
+**Breaking: the task delivery states collapse into one generic `council` phase.** The `review`, `automated-gates`, `security-review`, `ui-review`, and `qa` states — and the fast-lane/full-pipeline split — are replaced by a single parameterized `council` phase driven by a configurable review council. This is the largest single change to the Standard; it breaks conformance for hosts built against the 0.7.x task FSM.
+
+### Changed
+- `state-machines/task.json` — collapse `review`/`automated-gates`/`security-review`/`ui-review`/`qa` into one `council` phase (exits: `final-gate` on pass, `implementing` on bounce, `escalated` on escalate; enter from `documenting`). Removed the `path` (`fast_lane`/`full_pipeline`), `security_gate`, and `resets_security_verdict` annotations. The fast lane now merges through `final-gate` under `final_approval_gate`; the `human_merge` gate is retired. `tactical-plan → pending` gains `agent` to its actors, enabling a decisive plan-review council bounce.
+- `schemas/task.schema.json` — the `status` enum is the nine collapsed states.
+- `validators/types.ts`, `validators/gate-decision-validity.ts` — `GateDecisionEvent.gate` drops `human_merge`.
+- `validators/security-gate.ts` — retained as a general primitive (a consumer FSM may still annotate `security_gate`); the default task FSM no longer uses it.
+
+### Added
+- `schemas/council-config.schema.json` — validates a project's `.cloverleaf/config/council.json` (profiles + per-gate bindings; members carry an optional `kind` of `code`/`rfc`/`plan`).
+- `schemas/council-result.schema.json` — validates the per-gate council audit artifact.
+- `validators/council-config.ts` — kind-homogeneity (a profile's members share one kind; a bound profile's kind matches the gate's kind) + closed aggregation/when enums.
+- `agent-contracts/chair.openapi.yaml` — the deliberative chair (judge) contract.
+
+### Migration
+Upgrading from 0.7.1 to 0.8.0 is a clean break (no compat shim):
+- Task documents with a `review` / `automated-gates` / `security-review` / `ui-review` / `qa` status map to `council`.
+- The `human_merge` gate is gone; fast-lane merges use `final_approval_gate` at `final-gate`.
+- The `security_gate` / `resets_security_verdict` FSM annotations are retired. A high-security task's "no merge without a passing security review" guarantee is now enforced by a blocking `security` council member (any-veto) plus a recorded `security_review_verdict='pass'` on `council → final-gate`.
+- Discovery gates (`rfc.strategy_gate`, `plan.task_batch`) may bind advisory councils built from kind-homogeneous custom roles; the `plan.json` / `rfc.json` state machines are unchanged.
+
 ## 0.7.1 — 2026-05-26
 
 **Stricter conformance.** Tasks valid under 0.7.0 with `security_class=high` advanced past `automated-gates` without a security review are invalid under 0.7.1. This plugs a gap in v0.7.0 where the security-review state was modeled but the prose-driven orchestration didn't always honor the bookkeeping; the rule is now mechanical (see reference-impl 0.8.1's advance-status guard).
