@@ -184,24 +184,19 @@ describe('cloverleaf-qa skill', () => {
   });
 });
 
-describe('cloverleaf-merge skill (v0.2 state-aware)', () => {
+describe('cloverleaf-merge skill (Slice 4 unified final gate)', () => {
   const body = readSkill('cloverleaf-merge');
 
-  it('accepts both automated-gates and final-gate states', () => {
-    expect(body).toContain('automated-gates');
+  it('merges every task at final-gate under final_approval_gate', () => {
     expect(body).toContain('final-gate');
-  });
-
-  it('uses human_merge gate for automated-gates state', () => {
-    expect(body).toContain('human_merge');
-  });
-
-  it('uses final_approval_gate for final-gate state', () => {
     expect(body).toContain('final_approval_gate');
+    expect(body).toMatch(/advance-status\s+\S+\s+\S+\s+merged\s+human\s+final_approval_gate/);
   });
 
-  it('shows richer summary at final-gate', () => {
-    expect(body.toLowerCase()).toMatch(/ui.review|qa|summary/);
+  it('no longer references the retired human_merge gate or the automated-gates hub', () => {
+    expect(body).not.toContain('human_merge');
+    expect(body).not.toContain('automated-gates');
+    expect(body).not.toContain('fast_lane');
   });
 });
 
@@ -324,17 +319,18 @@ describe('cloverleaf-merge skill (v0.4.1 #1)', () => {
 describe('cloverleaf-merge skill (v0.5.2 #A — final-gate actor bug)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-merge', 'SKILL.md'), 'utf-8');
 
-  it('full-pipeline final-gate → merged uses actor=human with gate + path positional args', () => {
+  it('final-gate → merged uses actor=human with final_approval_gate (no path arg)', () => {
     // The task state machine declares `final-gate → merged` as allowed_actors: [human],
-    // so the skill must pass `human final_approval_gate full_pipeline`, not `agent`.
+    // so the skill must pass `human final_approval_gate`, not `agent`.
     // Regression guard for two field repros (CLV-16, CLV-17) where the skill used `agent`
     // and the CLI rejected with "Illegal transition final-gate → merged ... by agent".
-    expect(body).toMatch(/advance-status[^\n]*\bmerged human final_approval_gate full_pipeline\b/);
+    // Slice 4: unified single gate, no `full_pipeline` path arg.
+    expect(body).toMatch(/advance-status[^\n]*\bmerged human final_approval_gate\b/);
   });
 
   it('does not use actor=agent for any merged transition', () => {
-    // Fast lane uses `human human_merge fast_lane`; full pipeline uses `human final_approval_gate full_pipeline`.
-    // Neither should use `agent` for the `merged` transition.
+    // Unified gate: every task uses `human final_approval_gate`.
+    // Must not use `agent` for the `merged` transition.
     expect(body).not.toMatch(/advance-status[^\n]*\bmerged agent\b/);
   });
 });
