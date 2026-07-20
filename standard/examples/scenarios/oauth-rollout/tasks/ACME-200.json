@@ -1,7 +1,7 @@
 {
   "id": "ACME-200",
   "type": "task",
-  "status": "review",
+  "status": "council",
   "owner": { "kind": "agent", "id": "implementer" },
   "project": "ACME",
   "parent": { "project": "ACME", "id": "ACME-102" },

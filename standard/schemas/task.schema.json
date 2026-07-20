@@ -12,8 +12,7 @@
       "type": "string",
       "enum": [
         "pending", "tactical-plan", "implementing", "documenting",
-        "review", "automated-gates", "security-review", "ui-review", "qa", "final-gate",
-        "merged", "rejected", "escalated"
+        "council", "final-gate", "merged", "rejected", "escalated"
       ]
     },
     "owner": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/owner" },
@@ -73,7 +72,7 @@
     "security_class": {
       "type": "string",
       "enum": ["low", "high"],
-      "description": "Independent of risk_class. When 'high' (or diff-detected at review time), the task routes through security-review off the automated-gates hub. Absent ⇒ treated as 'low'."
+      "description": "Independent of risk_class. When 'high' (or diff-detected at council entry), a blocking security member runs in the delivery council. Absent ⇒ treated as 'low'."
     },
     "scope": {
       "type": "object",

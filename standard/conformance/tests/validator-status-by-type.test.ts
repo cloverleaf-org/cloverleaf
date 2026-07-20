@@ -16,9 +16,14 @@ describe('validator: status-by-type', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('accepts task with ui-review', () => {
-    const wi: WorkItem = { ...base, type: 'task', status: 'ui-review' };
+  it('accepts task with council', () => {
+    const wi: WorkItem = { ...base, type: 'task', status: 'council' };
     expect(validateStatusByType(wi)).toEqual({ ok: true });
+  });
+
+  it('rejects task with a collapsed-away status (ui-review)', () => {
+    const wi: WorkItem = { ...base, type: 'task', status: 'ui-review' };
+    expect(validateStatusByType(wi)).toEqual({ ok: false, violations: [expect.objectContaining({ rule: 'status-by-type' })] });
   });
 
   it('rejects spike with an arbitrary status', () => {

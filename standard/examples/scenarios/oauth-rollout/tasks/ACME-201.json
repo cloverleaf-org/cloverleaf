@@ -1,7 +1,7 @@
 {
   "id": "ACME-201",
   "type": "task",
-  "status": "automated-gates",
+  "status": "council",
   "owner": { "kind": "agent", "id": "implementer" },
   "project": "ACME",
   "parent": { "project": "ACME", "id": "ACME-102" },
