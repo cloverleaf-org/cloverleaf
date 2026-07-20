@@ -61,8 +61,10 @@ export function advanceStatus(
 
   const targetTransition = sm.transitions.find((t) => t.from === from && t.to === toStatus);
 
-  // Security-gate writeback: classify the task's security and upgrade if needed.
-  if (targetTransition?.security_gate) {
+  // Security classification at council entry: a declared-low task whose diff touches a
+  // sensitive path is upgraded to security_class:high so the delivery council runs its
+  // blocking security member. (v0.8.0: replaces the retired security_gate FSM annotation.)
+  if (from === 'documenting' && toStatus === 'council') {
     let classification;
     try {
       classification = classifyTaskSecurity(repoRoot, taskId);

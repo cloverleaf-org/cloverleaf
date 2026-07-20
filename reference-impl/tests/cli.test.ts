@@ -1684,15 +1684,13 @@ describe('advance-status: classify-security writeback', () => {
     execSync('git add . && git commit -q -m "write task"', { cwd: tmp });
   }
 
-  it('declared=low + sensitive diff → writeback fires (security_class becomes high) AND validator refuses (high+null)', () => {
+  it('declared=low + sensitive diff → writeback fires at documenting→council (security_class becomes high)', () => {
     // git diff main..cloverleaf/WB-1 will include scripts/deploy.sh which matches **/deploy*.sh
-    writeWbTask('WB-1', 'automated-gates', 'low', null);
+    writeWbTask('WB-1', 'documenting', 'low', null);
 
-    // Advance should fail because: writeback sets security_class=high, then validator
-    // refuses high+null.
-    const r = run(['advance-status', tmp, 'WB-1', 'ui-review', 'agent', '', 'full_pipeline']);
-    expect(r.exitCode).not.toBe(0);
-    expect(r.stderr.toLowerCase()).toMatch(/security.gate|security_review_verdict/);
+    // Advance documenting → council: writeback fires and upgrades security_class to high.
+    const r = run(['advance-status', tmp, 'WB-1', 'council', 'agent']);
+    expect(r.exitCode).toBe(0);
 
     // Reload from disk — security_class must have been upgraded.
     const task = JSON.parse(readFileSync(join(tmp, '.cloverleaf', 'tasks', 'WB-1.json'), 'utf-8'));
@@ -1712,7 +1710,7 @@ describe('advance-status: classify-security writeback', () => {
         JSON.stringify({ key: 'WB', name: 'WritebackTest' })
       );
       const doc: Record<string, unknown> = {
-        type: 'task', id: 'WB-2', project: 'WB', status: 'automated-gates',
+        type: 'task', id: 'WB-2', project: 'WB', status: 'documenting',
         owner: { kind: 'agent', id: 'implementer' },
         title: 'wb test task',
         context: { rfc: { project: 'WB', id: 'WB-RFC-1' } },
@@ -1722,10 +1720,10 @@ describe('advance-status: classify-security writeback', () => {
       writeFileSync(join(tmp3, '.cloverleaf', 'tasks', 'WB-2.json'), JSON.stringify(doc) + '\n');
       // Inject a benign file list; none match path_patterns, so effective='low'.
       __setMockChangedFiles(['README.md']);
-      const result = advanceStatus(tmp3, 'WB-2', 'ui-review', 'agent', { path: 'full_pipeline' });
-      expect(result.status).toBe('ui-review');
+      const result = advanceStatus(tmp3, 'WB-2', 'council', 'agent');
+      expect(result.status).toBe('council');
       const task = JSON.parse(readFileSync(join(tmp3, '.cloverleaf', 'tasks', 'WB-2.json'), 'utf-8'));
-      expect(task.status).toBe('ui-review');
+      expect(task.status).toBe('council');
       expect(task.security_class).toBe('low');
     } finally {
       __setMockChangedFiles(null);
@@ -1733,7 +1731,7 @@ describe('advance-status: classify-security writeback', () => {
     }
   });
 
-  it('classify-security exception → stderr contains classify-security and high; validator refuses guarded transition', () => {
+  it('classify-security exception → stderr contains classify-security and high; writeback still fires at council entry', () => {
     // Force classifyTaskSecurity to throw via the testing seam to exercise the
     // error-fallback path in advanceStatus. We call advanceStatus directly (not via CLI).
     const tmp4 = mkdtempSync(join(tmpdir(), 'cl-wb-exc-'));
@@ -1756,9 +1754,9 @@ describe('advance-status: classify-security writeback', () => {
         join(tmp4, '.cloverleaf', 'projects', 'WB.json'),
         JSON.stringify({ key: 'WB', name: 'WritebackTest' })
       );
-      // Task with security_class: 'low' and verdict=null — error path treats effective='high'.
+      // Task with security_class: 'low' — error path treats effective='high' and upgrades.
       const doc: Record<string, unknown> = {
-        type: 'task', id: 'WB-3', project: 'WB', status: 'automated-gates',
+        type: 'task', id: 'WB-3', project: 'WB', status: 'documenting',
         owner: { kind: 'agent', id: 'implementer' },
         title: 'wb exc task',
         context: { rfc: { project: 'WB', id: 'WB-RFC-1' } },
@@ -1769,21 +1767,16 @@ describe('advance-status: classify-security writeback', () => {
 
       // advanceStatus catches the throw, emits stderr, treats effective='high'.
       // Writeback fires (best-effort git commit skipped — no git repo).
-      // Validator refuses high+null with SECURITY_GATE.
-      let caughtError: (Error & { code?: string }) | null = null;
-      try {
-        advanceStatus(tmp4, 'WB-3', 'ui-review', 'agent', { path: 'full_pipeline' });
-      } catch (err) {
-        caughtError = err as Error & { code?: string };
-      }
+      // The advance documenting → council succeeds (no mechanical gate); security_class is upgraded.
+      advanceStatus(tmp4, 'WB-3', 'council', 'agent');
 
       // Stderr must mention 'classify-security' and 'high'.
       expect(stderrCapture).toMatch(/classify-security/);
       expect(stderrCapture).toMatch(/high/);
 
-      // Validator must have refused (SECURITY_GATE).
-      expect(caughtError).not.toBeNull();
-      expect(caughtError?.code).toBe('SECURITY_GATE');
+      // Writeback upgraded security_class to high.
+      const task = JSON.parse(readFileSync(join(tmp4, '.cloverleaf', 'tasks', 'WB-3.json'), 'utf-8'));
+      expect(task.security_class).toBe('high');
     } finally {
       process.stderr.write = origWrite as typeof process.stderr.write;
       __setMockClassifyError(null);
