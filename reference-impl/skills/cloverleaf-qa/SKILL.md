@@ -1,9 +1,17 @@
 ---
 name: cloverleaf-qa
-description: Run the QA agent on a task in the `qa` state (full pipeline only). Dispatches a subagent to run per-package test suites against an isolated worktree; emits feedback envelope with results; advances qa → final-gate on pass or loops back to implementing on bounce. Usage — /cloverleaf-qa <TASK-ID>.
+description: Run the QA council member on a task's feature branch as a standalone one-off. Dispatches a subagent to run per-package test suites against an isolated worktree. Emit-only — it writes a feedback envelope with the test results and reports the verdict (pass/bounce/escalate) for the delivery council or a human to apply. It does NOT advance the task FSM. Usage — /cloverleaf-qa <TASK-ID>.
 ---
 
-# Cloverleaf — qa
+# Cloverleaf — qa (emit-only council member)
+
+The delivery states `qa`/`final-gate` are no longer entered by a standalone QA gate — the `@cloverleaf/standard`
+task FSM collapsed the delivery gates into a single `council` phase (Council Slice 4). QA is now a **council member**
+that the runner (`/cloverleaf-run`) dispatches and aggregates alongside the other members. A single member cannot
+drive the multi-member council to `final-gate` (that would bypass the others' gating), so this standalone skill is
+**emit-only**: it runs the QA prompt against the task's branch, emits the feedback envelope with the test results,
+and reports the verdict. **It does not advance the FSM** — the council or a human applies the aggregated verdict via
+`apply-council-verdict` (a council pass is what advances `council → final-gate`).
 
 ## Steps
 
@@ -19,7 +27,7 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
    ```
    cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
-   Verify `status === "qa"`. If not, report and stop.
+   Light guard only: confirm the task exists and is not terminal (`merged`/`rejected`/`escalated`). Do NOT hard-require any particular state — this skill reviews the branch, not a specific FSM state. If the task is terminal, report and stop.
 
 3. Confirm feature branch exists: `git rev-parse --verify cloverleaf/<TASK-ID>`.
 
@@ -53,34 +61,27 @@ description: Run the QA agent on a task in the `qa` state (full pipeline only). 
 
 8. Parse response: expect `{"verdict": "pass"|"bounce"|"escalate", "summary", "findings", "results"}`.
 
-9. Branch on verdict:
+9. **Emit the envelope + report the verdict (no FSM advance).**
 
-   **Pass:**
-   ```
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> final-gate agent --path=full_pipeline
-   ```
-   Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> qa passed → final-gate"`.
-   Report: "✓ QA passed (`<passed>/<total>` tests). State → final-gate. Next: `/cloverleaf-merge <TASK-ID>`."
-
-   **Bounce:**
-   1. Write feedback envelope: `echo '<json>' > /tmp/cloverleaf-fb-q.json`
+   Persist the feedback envelope (with the test results) so the council/human can read it, regardless of verdict:
+   1. Write the feedback envelope: `echo '<json>' > /tmp/cloverleaf-fb-q.json`
    2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-q.json --prefix=q`
-   3. Commit the persisted feedback file (was missing pre-v0.4.1 — bug #3):
+   3. Commit the persisted feedback file:
       ```bash
       cd <repo_root>
       git add .cloverleaf/feedback/
-      git commit -m "cloverleaf: <TASK-ID> qa feedback"
+      git commit -m "cloverleaf: <TASK-ID> qa verdict (emit-only)"
       ```
-   4. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent --path=full_pipeline`
-   5. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> qa bounced → implementing"`.
-   6. Report: "✗ QA bounced. `<failed>/<total>` tests failed. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
 
-   **Escalate:**
-   1. `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`
-   2. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> qa escalated"`.
-   3. Report: "✗ QA escalated. Review infrastructure and retry manually."
+   Then report the verdict — do **NOT** run `advance-status`:
+
+   **Pass:** "✓ QA verdict: **pass** (`<passed>/<total>` tests). Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. This is one council member's verdict — the delivery council (`/cloverleaf-run <TASK-ID>`) or a human applies the aggregated verdict (`apply-council-verdict`, a council pass advances `council → final-gate`); this skill does not advance the FSM."
+
+   **Bounce:** "✗ QA verdict: **bounce**. `<failed>/<total>` tests failed. Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. The delivery council or a human applies the verdict (a council bounce loops the task back to `implementing`); this skill does not advance the FSM."
+
+   **Escalate:** "✗ QA verdict: **escalate** (infrastructure issue). Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. The council or a human applies the verdict (a council escalate → `escalated`); this skill does not advance the FSM. Review infrastructure and retry manually."
 
 ## Rules
 
 - Never push. Read-only. Do not modify source.
-- On illegal state transition, report and stop.
+- Emit-only: never call `advance-status`. This is one council member's verdict; the council/human applies it.

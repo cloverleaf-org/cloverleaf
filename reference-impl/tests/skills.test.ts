@@ -118,13 +118,27 @@ describe('cloverleaf-ui-review skill', () => {
     expect(body).toMatch(/preview_port|free.*port|getFreePort/);
   });
 
-  it('verifies task state is ui-review', () => {
-    expect(body).toMatch(/status.*ui-review|ui-review.*status/);
+  // Slice 4: the `ui-review` FSM state was collapsed into `council`. The standalone
+  // skill is emit-only — it must NOT hard-require the dead `ui-review` state; instead
+  // it applies a light non-terminal guard and reviews the branch.
+  it('does not hard-require the collapsed ui-review state (emit-only, light guard)', () => {
+    expect(body).not.toMatch(/verify.*status.*===.*['"]ui-review['"]|status.*===.*['"]ui-review['"]/i);
+    expect(body).toMatch(/not.*terminal|terminal.*status|light guard/i);
   });
 
-  it('handles bounce by looping back to implementing', () => {
-    expect(body).toContain('implementing');
+  it('is emit-only: emits a feedback envelope + verdict and does not advance the FSM', () => {
+    expect(body).toMatch(/emit-only/i);
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    expect(body).toMatch(/verdict/);
+    // No advance-status CALL to any dead delivery state.
+    expect(body).not.toMatch(/advance-status[^\n]*\b(qa|ui-review|automated-gates)\b/);
+  });
+
+  it('handles bounce by emitting feedback (no implementing advance — the council applies it)', () => {
     expect(body).toContain('bounce');
+    // The council (not this skill) loops the task back to implementing.
+    expect(body).toMatch(/council.*implementing|loops.*implementing|implementing/i);
+    expect(body).not.toMatch(/advance-status[^\n]*implementing/);
   });
 
   it('writes feedback envelope with u<N> prefix', () => {
@@ -135,9 +149,11 @@ describe('cloverleaf-ui-review skill', () => {
     expect(body).toContain('affected-routes');
   });
 
-  it('handles empty-set early-exit by advancing to qa without subagent', () => {
+  it('handles empty-set early-exit by emitting a trivial pass without subagent (no qa advance)', () => {
     expect(body).toMatch(/\[\]|empty.*set|no.*renderable.*routes/i);
-    expect(body).toMatch(/advance-status.*qa|→ qa/);
+    // Emit a trivial pass verdict; do NOT advance to any dead state.
+    expect(body).toMatch(/trivial.*pass|verdict.*pass|pass.*skipped/i);
+    expect(body).not.toMatch(/advance-status[^\n]*qa/);
   });
 
   it('sets PLAYWRIGHT_BROWSERS_PATH before subagent dispatch', () => {
@@ -161,17 +177,33 @@ describe('cloverleaf-qa skill', () => {
     expect(body).toMatch(/subagent_type.*general-purpose/);
   });
 
-  it('verifies task state is qa', () => {
-    expect(body).toMatch(/status.*['"]qa['"]|['"]qa['"].*status/);
+  // Slice 4: the `qa` FSM state was collapsed into `council`. The standalone skill is
+  // emit-only — it must NOT hard-require the dead `qa` state; it applies a light
+  // non-terminal guard and reviews the branch.
+  it('does not hard-require the collapsed qa state (emit-only, light guard)', () => {
+    expect(body).not.toMatch(/verify.*status.*===.*['"]qa['"]|status.*===.*['"]qa['"]/i);
+    expect(body).toMatch(/not.*terminal|terminal.*status|light guard/i);
   });
 
-  it('advances qa → final-gate on pass', () => {
-    expect(body).toContain('final-gate');
+  it('is emit-only: emits a feedback envelope + verdict and does not advance the FSM', () => {
+    expect(body).toMatch(/emit-only/i);
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    // No advance-status CALL to any dead delivery state (final-gate is reached by the council, not this skill).
+    expect(body).not.toMatch(/advance-status[^\n]*\b(qa|final-gate|implementing)\b/);
   });
 
-  it('handles bounce by looping back to implementing with q prefix', () => {
-    expect(body).toContain('implementing');
+  it('reports the pass verdict and defers the council → final-gate advance to the council', () => {
+    // The skill may reference final-gate in prose (the council pass advances there) but
+    // must not itself advance-status to it.
+    expect(body).toMatch(/verdict.*pass|pass.*verdict/i);
+    expect(body).toMatch(/council.*final-gate|apply-council-verdict/i);
+  });
+
+  it('handles bounce by emitting feedback with q prefix (no implementing advance — the council applies it)', () => {
     expect(body).toMatch(/prefix=q|-q\d|<TASK-ID>-q/);
+    // The council (not this skill) loops the task back to implementing.
+    expect(body).toMatch(/council.*implementing|loops.*implementing|implementing/i);
+    expect(body).not.toMatch(/advance-status[^\n]*implementing/);
   });
 
   it('passes qa_rules to the subagent prompt', () => {
@@ -618,26 +650,32 @@ describe('cloverleaf-discover skill — advisory discovery councils (Slice 4)', 
 // CLV-19: baseline-approval sidecar gate in cloverleaf-ui-review skill
 // ---------------------------------------------------------------------------
 
-describe('cloverleaf-ui-review skill (CLV-19 — baseline-approval gate)', () => {
+describe('cloverleaf-ui-review skill (CLV-19 — baseline capture survives the council collapse)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
+
+  // Slice 4: the `ui-review → qa` hold moved to the council pass, but the per-engine
+  // baseline capture + the baselines_pending sidecar mechanism survive unchanged. The
+  // emit-only skill still READS the sidecar and SURFACES baselines_pending; it just no
+  // longer advances the (now dead) qa state.
 
   it('reads the ui-review state sidecar after the subagent completes', () => {
     expect(body).toMatch(/read-ui-review-state/);
   });
 
-  it('references baselines_pending flag', () => {
+  it('references baselines_pending flag (capture mechanism survives)', () => {
     expect(body).toContain('baselines_pending');
   });
 
-  it('blocks ui-review → qa when baselines_pending is true', () => {
-    // Must NOT advance to qa when baselines_pending is true
+  it('surfaces baselines_pending in its report without advancing the FSM (no qa advance)', () => {
     expect(body).toMatch(/baselines_pending.*true|true.*baselines_pending/i);
-    expect(body).toMatch(/do NOT advance|not advance|leave.*ui-review|remains? in.*ui-review/i);
+    // Emit-only: surfaces the pending baselines; does NOT advance-status to the dead qa state.
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    expect(body).not.toMatch(/advance-status[^\n]*qa/);
   });
 
   it('surfaces a human-readable message containing "baselines_pending" when baseline approval is required', () => {
     expect(body).toMatch(/baselines_pending/);
-    // Must tell the human to run the approve-baselines skill
+    // Must tell the human to run the approve-baselines skill (the runner holds the council pass there).
     expect(body).toMatch(/cloverleaf-approve-baselines/);
   });
 
@@ -651,9 +689,10 @@ describe('cloverleaf-ui-review skill (CLV-19 — baseline-approval gate)', () =>
     expect(body).not.toMatch(/(^|[^-])\/approve-baselines\b/);
   });
 
-  it('advances to qa normally when baselines_pending is false', () => {
+  it('reports a plain pass when baselines_pending is false (still no qa advance — emit-only)', () => {
     expect(body).toMatch(/baselines_pending.*false|false.*baselines_pending/i);
-    expect(body).toMatch(/advance-status[^\n]*qa/);
+    // The council pass (not this skill) advances the FSM; the skill never advance-status to qa.
+    expect(body).not.toMatch(/advance-status[^\n]*qa/);
   });
 
   it('uses cloverleaf-cli read-ui-review-state command', () => {
@@ -1626,8 +1665,12 @@ describe('cloverleaf-security-review skill (v0.8.0)', () => {
   it('has frontmatter name cloverleaf-security-review', () => {
     expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-security-review[\s\S]*?---/);
   });
-  it('verifies task status is security-review', () => {
-    expect(body).toMatch(/status.*security-review/);
+  // Slice 4: the `security-review` FSM state was collapsed into `council`. The standalone
+  // skill is emit-only — it must NOT hard-require the dead `security-review` state; it
+  // applies a light non-terminal guard and reviews the branch.
+  it('does not hard-require the collapsed security-review state (emit-only, light guard)', () => {
+    expect(body).not.toMatch(/verify.*status.*===.*['"]security-review['"]|status.*===.*['"]security-review['"]/i);
+    expect(body).toMatch(/not.*terminal|terminal.*status|light guard/i);
   });
   it('runs deterministic secret-scan (Pass A)', () => {
     expect(body).toMatch(/cloverleaf-cli secret-scan <repo_root> --branch/);
@@ -1636,11 +1679,18 @@ describe('cloverleaf-security-review skill (v0.8.0)', () => {
     expect(body).toMatch(/prompts\/security-reviewer\.md/);
     expect(body).toMatch(/subagent_type.*general-purpose/);
   });
-  it('merges both passes and maps to all three transitions', () => {
+  it('merges both passes and derives all three verdicts (pass/bounce/escalate)', () => {
+    // The severity → verdict mapping is retained; the FSM transitions are applied by the
+    // council (apply-council-verdict), not by this emit-only skill.
     expect(body).toMatch(/blocker.*escalate|escalate.*blocker/);
-    expect(body).toMatch(/automated-gates/);
-    expect(body).toMatch(/implementing/);
-    expect(body).toMatch(/escalated/);
+    expect(body).toMatch(/error.*warning.*bounce|bounce/i);
+    expect(body).toMatch(/info.*pass|pass/i);
+  });
+  it('is emit-only: emits a feedback envelope + verdict and does not advance the FSM', () => {
+    expect(body).toMatch(/emit-only/i);
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    // No advance-status CALL to any dead delivery state.
+    expect(body).not.toMatch(/advance-status[^\n]*\b(automated-gates|security-review|implementing|escalated)\b/);
   });
   it('writes feedback on non-pass', () => {
     expect(body).toMatch(/write-feedback/);
@@ -1743,75 +1793,47 @@ describe('Site guide — security reviewer (v0.8.0)', () => {
 // automated-gates → post-gate refusal path no longer exists.)
 // ---------------------------------------------------------------------------
 
-describe('cloverleaf-security-review skill (CLV-106 — verdict writes in terminal branches)', () => {
+describe('cloverleaf-security-review skill (CLV-106 — verdict writes, emit-only under the collapsed council FSM)', () => {
   const body = readFileSync(
     resolve(__dirname, '..', 'skills', 'cloverleaf-security-review', 'SKILL.md'),
     'utf-8',
   );
 
-  /**
-   * Extract fenced ```bash ... ``` code blocks from the skill body.
-   * Returns array of block text strings.
-   */
-  function extractBashBlocks(text: string): string[] {
-    const blocks: string[] = [];
-    const fenceRe = /[ \t]*```bash[ \t]*\n([\s\S]*?)[ \t]*```/g;
-    let m: RegExpExecArray | null;
-    while ((m = fenceRe.exec(text)) !== null) {
-      blocks.push(m[1]);
-    }
-    return blocks;
-  }
+  // Slice 4: the standalone security gate became an emit-only council member. The skill
+  // still RECORDS the security_review_verdict on the task (a live field the council's
+  // council → final-gate backstop reads) — one write per branch (pass/bounce/escalate) —
+  // but it NO LONGER drives the FSM: the dead-state advance-status calls
+  // (automated-gates / implementing / escalated) are gone. The council
+  // (apply-council-verdict) applies the aggregated verdict.
 
-  it('contains at least three set-task-field invocations (one per terminal branch)', () => {
+  it('contains at least three set-task-field invocations (one per verdict branch)', () => {
     const matches = body.match(/set-task-field/g);
     expect(matches, 'expected at least 3 set-task-field occurrences').not.toBeNull();
     expect(matches!.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('pass branch: set-task-field security_review_verdict pass appears before advance-status automated-gates in the same code block', () => {
-    const blocks = extractBashBlocks(body);
-    const passBlock = blocks.find(
-      (b) => b.includes('security_review_verdict pass') && b.includes('automated-gates'),
-    );
-    expect(passBlock, 'expected a bash block containing both set-task-field pass and advance-status automated-gates').toBeDefined();
-    const setIdx = passBlock!.indexOf('set-task-field');
-    const advIdx = passBlock!.indexOf('advance-status');
-    expect(setIdx).toBeLessThan(advIdx);
+  it('records security_review_verdict for all three verdicts (pass/bounce/escalate)', () => {
+    expect(body).toMatch(/set-task-field[^\n]*security_review_verdict pass/);
+    expect(body).toMatch(/set-task-field[^\n]*security_review_verdict bounce/);
+    expect(body).toMatch(/set-task-field[^\n]*security_review_verdict escalate/);
   });
 
-  it('pass branch: commit message between set-task-field and advance-status references security_review_verdict → pass', () => {
+  it('pass branch: records security_review_verdict → pass', () => {
     expect(body).toMatch(/security_review_verdict → pass/);
   });
 
-  it('bounce branch: set-task-field security_review_verdict bounce appears before advance-status implementing in the same code block', () => {
-    const blocks = extractBashBlocks(body);
-    const bounceBlock = blocks.find(
-      (b) => b.includes('security_review_verdict bounce') && b.includes('implementing'),
-    );
-    expect(bounceBlock, 'expected a bash block containing both set-task-field bounce and advance-status implementing').toBeDefined();
-    const setIdx = bounceBlock!.indexOf('set-task-field');
-    const advIdx = bounceBlock!.indexOf('advance-status');
-    expect(setIdx).toBeLessThan(advIdx);
-  });
-
-  it('bounce branch: commit message between set-task-field and advance-status references security_review_verdict → bounce', () => {
+  it('bounce branch: records security_review_verdict → bounce', () => {
     expect(body).toMatch(/security_review_verdict → bounce/);
   });
 
-  it('escalate branch: set-task-field security_review_verdict escalate appears before advance-status escalated in the same code block', () => {
-    const blocks = extractBashBlocks(body);
-    const escalateBlock = blocks.find(
-      (b) => b.includes('security_review_verdict escalate') && b.includes('advance-status') && b.includes('escalated'),
-    );
-    expect(escalateBlock, 'expected a bash block containing both set-task-field escalate and advance-status escalated').toBeDefined();
-    const setIdx = escalateBlock!.indexOf('set-task-field');
-    const advIdx = escalateBlock!.indexOf('advance-status');
-    expect(setIdx).toBeLessThan(advIdx);
+  it('escalate branch: records security_review_verdict → escalate', () => {
+    expect(body).toMatch(/security_review_verdict → escalate/);
   });
 
-  it('escalate branch: commit message between set-task-field and advance-status references security_review_verdict → escalate', () => {
-    expect(body).toMatch(/security_review_verdict → escalate/);
+  it('drives NO FSM transition: no advance-status to any dead delivery state', () => {
+    // Emit-only: the council applies the verdict. The skill must not advance-status to
+    // the collapsed-away automated-gates / implementing / escalated states.
+    expect(body).not.toMatch(/advance-status[^\n]*\b(automated-gates|implementing|escalated)\b/);
   });
 });
 

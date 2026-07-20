@@ -1,9 +1,24 @@
 ---
 name: cloverleaf-ui-review
-description: Run the UI Reviewer agent on a task in the `ui-review` state (full pipeline only). Computes diff-affected routes via CLI; if empty, skips axe and advances ui-review → qa. Otherwise dispatches a subagent with Playwright + axe-core scoped to those routes. Usage — /cloverleaf-ui-review <TASK-ID>.
+description: Run the UI Reviewer council member on a task's feature branch as a standalone one-off. Computes diff-affected routes via CLI; if empty, skips axe and emits a trivial pass. Otherwise dispatches a subagent with Playwright + axe-core scoped to those routes, capturing per-engine visual baselines. Emit-only — it writes a feedback envelope + reports the verdict (and surfaces baselines_pending) for the delivery council or a human to apply. It does NOT advance the task FSM. Usage — /cloverleaf-ui-review <TASK-ID>.
 ---
 
-# Cloverleaf — ui-review
+# Cloverleaf — ui-review (emit-only council member)
+
+The delivery states `ui-review`/`qa` no longer exist — the `@cloverleaf/standard` task FSM collapsed the delivery
+gates into a single `council` phase (Council Slice 4). The UI Reviewer is now a **council member** that the runner
+(`/cloverleaf-run`) dispatches and aggregates alongside the other members. A single member cannot drive the
+multi-member council forward (that would bypass the others' gating), so this standalone skill is **emit-only**: it
+computes the affected routes, dispatches the UI reviewer prompt (capturing per-engine visual baselines), emits the
+feedback envelope, and reports the verdict. **It does not advance the FSM** — the council or a human applies the
+aggregated verdict via `apply-council-verdict`.
+
+**Baselines still gate at the council.** The per-engine (cross-browser) baseline capture and the `baselines_pending`
+sidecar mechanism survive unchanged: when the UI reviewer captures new or resized baselines it sets
+`baselines_pending=true` via `write-ui-review-state`. The old `ui-review → qa` hold moved to the **council pass**:
+the runner holds a council `pass` at `baselines_pending` until `/cloverleaf-approve-baselines <TASK-ID>` clears it and
+re-runs the council. This standalone skill just **surfaces** `baselines_pending` in its report; it does not advance
+the FSM.
 
 ## Steps
 
@@ -27,7 +42,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
    ```
    cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
-   Verify `status === "ui-review"`. If not, report and stop.
+   Light guard only: confirm the task exists and is not terminal (`merged`/`rejected`/`escalated`). Do NOT hard-require any particular state — this skill reviews the branch, not a specific FSM state. If the task is terminal, report and stop.
 
 3. Confirm feature branch exists: `git rev-parse --verify cloverleaf/<TASK-ID>`. If missing, report and stop.
 
@@ -42,14 +57,13 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
    AFFECTED=$(cloverleaf-cli affected-routes <repo_root> <TASK-ID>)
    ```
 
-6. **Empty-set early-exit.** If `AFFECTED` is `[]`, skip the subagent entirely:
+6. **Empty-set early-exit.** If `AFFECTED` is `[]`, skip the subagent entirely — there are no renderable routes to check, so the UI member's verdict is a trivial `pass`. Do NOT advance the FSM:
    ```bash
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> qa agent '' full_pipeline
    cd <repo_root>
    git add .cloverleaf/
-   git commit -m "cloverleaf: <TASK-ID> ui-review skipped (no renderable routes) → qa"
+   git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> ui-review skipped (no renderable routes)"
    ```
-   Report: "✓ UI Review skipped (no renderable routes affected). State → qa. Next: `/cloverleaf-qa <TASK-ID>`."
+   Report: "✓ UI Reviewer verdict: **pass** (skipped — no renderable routes affected). This is one council member's verdict — the delivery council (`/cloverleaf-run <TASK-ID>`) or a human applies the aggregated verdict; this skill does not advance the FSM."
    Stop here.
 
 7. Allocate a free preview port:
@@ -76,7 +90,7 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
 
 11. Parse the subagent's response. Expect `{"verdict": "pass"|"bounce"|"escalate", "summary": "...", "findings": [...]}`.
 
-12. **Read the baseline-approval sidecar** (after the subagent completes, regardless of verdict):
+12. **Read the baseline-approval sidecar** (after the subagent completes, regardless of verdict — the per-engine baseline capture + `baselines_pending` mechanism survives the collapse):
     ```bash
     UI_STATE=$(cloverleaf-cli read-ui-review-state <repo_root> <TASK-ID>)
     BASELINES_PENDING=$(echo "$UI_STATE" | node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('/dev/stdin','utf-8')).baselines_pending ? 'true' : 'false')")
@@ -86,49 +100,47 @@ description: Run the UI Reviewer agent on a task in the `ui-review` state (full 
     BASELINES_PENDING=$(cloverleaf-cli read-ui-review-state <repo_root> <TASK-ID> | node -e "const s=require('fs').readFileSync('/dev/stdin','utf-8'); process.stdout.write(JSON.parse(s).baselines_pending?'true':'false')")
     ```
 
-13. Branch on verdict:
+13. **Emit the verdict + envelope (no FSM advance).**
+
+    Persist artifacts + the feedback envelope, then report the verdict and surface `baselines_pending`. **Never call `advance-status`** — the council/human applies the aggregated verdict.
 
     **Pass:**
+    1. Commit artifacts: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> ui-review verdict (emit-only)")`.
+    2. Report, branching on `BASELINES_PENDING`:
 
-    Check `BASELINES_PENDING`:
+       - If `BASELINES_PENDING` is `true`:
+         > "✓ UI Reviewer verdict: **pass** (no a11y errors), but **baselines_pending** is true: one or more new or resized visual baselines were captured and require human approval.
+         > This is one council member's verdict — the delivery council (`/cloverleaf-run <TASK-ID>`) or a human applies the aggregated verdict; this skill does not advance the FSM. The runner holds a council **pass** at `baselines_pending`: inspect the new baseline images, then run `/cloverleaf-approve-baselines <TASK-ID>` (which clears the flag) so the re-run's council pass applies."
 
-    - If `BASELINES_PENDING` is `true`:
-      - Do NOT advance to `qa`.
-      - Commit artifacts: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review passed (baselines pending approval)"`.
-      - Report:
-        > "✓ UI Review passed (no a11y errors), but **baselines_pending** is true: one or more new or resized visual baselines were captured and require human approval before advancing to qa.
-        > Run `/cloverleaf-approve-baselines <TASK-ID>` to review the new baseline images and approve them, which will clear the flag and advance the task to qa."
-      - Stop here (task remains in `ui-review` status).
-
-    - If `BASELINES_PENDING` is `false` (or state.json is absent):
-      ```
-      cloverleaf-cli advance-status <repo_root> <TASK-ID> qa agent '' full_pipeline
-      ```
-      Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review passed → qa"`.
-      Report: "✓ UI Review passed. State → qa. Next: `/cloverleaf-qa <TASK-ID>`."
+       - If `BASELINES_PENDING` is `false` (or state.json is absent):
+         > "✓ UI Reviewer verdict: **pass** (no a11y errors, no baselines pending). This is one council member's verdict — the delivery council (`/cloverleaf-run <TASK-ID>`) or a human applies the aggregated verdict (`apply-council-verdict`); this skill does not advance the FSM."
 
     **Bounce:**
     1. Write feedback: `echo '<envelope-json>' > /tmp/cloverleaf-fb-u.json`
     2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-u.json --prefix=u`
-    3. Commit the persisted feedback file (was missing pre-v0.4.1 — bug #3):
+    3. Commit the persisted feedback file:
        ```bash
        cd <repo_root>
        git add .cloverleaf/feedback/
        git commit -m "cloverleaf: <TASK-ID> ui-review feedback"
        ```
-    4. `cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent '' full_pipeline`
-    5. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review bounced → implementing"`.
-    6. Report: "✗ UI Review bounced. Findings: <summary by severity>. State → implementing. Next: `/cloverleaf-implement <TASK-ID>`."
+    4. Report: "✗ UI Reviewer verdict: **bounce**. Findings: <summary by severity>. Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-u<N>.json`. The delivery council or a human applies the verdict (a council bounce loops the task back to `implementing`); this skill does not advance the FSM."
 
     **Escalate:**
-    1. `cloverleaf-cli advance-status <repo_root> <TASK-ID> escalated agent`
-    2. Commit: `git add .cloverleaf/ && git commit -m "cloverleaf: <TASK-ID> ui-review escalated"`.
-    3. Report: "✗ UI Review escalated (infrastructure issue). Review and retry manually."
+    1. Write feedback: `echo '<envelope-json>' > /tmp/cloverleaf-fb-u.json`
+    2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-u.json --prefix=u`
+    3. Commit the persisted feedback file:
+       ```bash
+       cd <repo_root>
+       git add .cloverleaf/feedback/
+       git commit -m "cloverleaf: <TASK-ID> ui-review feedback"
+       ```
+    4. Report: "✗ UI Reviewer verdict: **escalate** (infrastructure issue). Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-u<N>.json`. The council or a human applies the verdict (a council escalate → `escalated`); this skill does not advance the FSM. Review and retry manually."
 
 ## Rules
 
 - Never push.
 - Do not modify source code — UI Reviewer is read-only.
 - Always teardown preview server + worktree on error.
-- Empty-set early-exit (step 6) skips the browser entirely — no Playwright invocation, no worktree.
-- On illegal state transition, report and stop without partial commits.
+- Empty-set early-exit (step 6) skips the browser entirely — no Playwright invocation, no worktree — and emits a trivial `pass`.
+- Emit-only: never call `advance-status`. This is one council member's verdict; the council/human applies it.
