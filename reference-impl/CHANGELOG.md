@@ -2,6 +2,20 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.13.0 — 2026-07-20
+
+**Breaking: delivery runs through one generic council phase.** The reviewer / security / UI / QA gates are unified into a single configurable review council driven by the collapsed `council` task state (requires `@cloverleaf/standard@0.8.0`). The shipped default reproduces the previous fast/full pipeline exactly.
+
+### Changed
+- The council engine generalizes over gate `kind`: `applyCouncilVerdict` exits `council → final-gate`/`implementing`/`escalated` (no lane admin-walk); `resolveCouncilPlan` + `postAdvisoryVerdict` operate on task / plan / rfc work items. `task.review` rebinds to the `council` state; `task.plan_review` becomes decisive-capable.
+- The shipped `config/council.json` ships two lane profiles (`delivery-fast`, `delivery-full`) selected by `risk_class`; the default reproduces today's pipeline (the regression guard, now through the FSM change).
+- `cloverleaf-run` drives a single universal council delivery path; `cloverleaf-merge` / `cloverleaf-run-plan` merge every task at `final-gate` under `final_approval_gate`. Security classification moves to council entry; the v0.8.1 guarantee is now carried by a blocking security council member + a recorded verdict backstop.
+
+### Added
+- Council members carry an optional `kind` (`code` | `rfc` | `plan`); `validate-council` CLI enforces kind-homogeneity.
+- Advisory discovery-gate councils: `cloverleaf-discover` runs an opt-in council at `rfc.strategy_gate` / `plan.task_batch` before the human gate.
+- A decisive `plan_review` council (agent bounce `tactical-plan → pending`).
+
 ## 0.12.0 — 2026-07-18
 
 ### Added
