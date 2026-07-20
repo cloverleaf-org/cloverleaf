@@ -57,7 +57,7 @@ describe('L3 Host conformance', () => {
   it('every agent contract dereferences as valid OpenAPI 3.1', async () => {
     const contractsDir = resolve(STANDARD_ROOT, 'agent-contracts');
     const files = readdirSync(contractsDir).filter((f) => f.endsWith('.openapi.yaml'));
-    expect(files.length).toBe(7);
+    expect(files.length).toBe(8);
     for (const f of files) {
       const name = f.replace(/\.openapi\.yaml$/, '');
       expect(CONTRACT_LEVEL[name]).toBe('L3');

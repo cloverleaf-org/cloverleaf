@@ -57,7 +57,7 @@ export const VALIDATOR_LEVEL: Readonly<Record<string, Level>> = {
 };
 
 // Agent contract file name (sans `.openapi.yaml`) → level.
-// All 7 agents are L3 (full methodology orchestration).
+// All 8 agents are L3 (full methodology orchestration).
 export const CONTRACT_LEVEL: Readonly<Record<string, Level>> = {
   researcher: 'L3',
   plan: 'L3',
@@ -66,6 +66,7 @@ export const CONTRACT_LEVEL: Readonly<Record<string, Level>> = {
   reviewer: 'L3',
   'ui-reviewer': 'L3',
   qa: 'L3',
+  chair: 'L3',
 };
 
 // State machine file name (sans `.json`) → level.
