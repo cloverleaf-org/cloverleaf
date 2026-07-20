@@ -77,7 +77,7 @@ export interface GateDecisionEvent {
   event_id: string;
   event_type: 'gate_decision';
   occurred_at: string;
-  gate: 'rfc_strategy_gate' | 'task_batch_gate' | 'per_task_plan_review' | 'final_approval_gate' | 'human_merge';
+  gate: 'rfc_strategy_gate' | 'task_batch_gate' | 'per_task_plan_review' | 'final_approval_gate';
   work_item_id: WorkItemRef;
   decision: 'approve' | 'reject' | 'revise' | 'split' | 'abandon' | 'escalate';
   approver: { kind: 'human' | 'agent' | 'system'; id: string };

@@ -15,8 +15,7 @@
         "rfc_strategy_gate",
         "task_batch_gate",
         "per_task_plan_review",
-        "final_approval_gate",
-        "human_merge"
+        "final_approval_gate"
       ]
     },
     "work_item_id": { "$ref": "https://cloverleaf.example/schemas/work-item.schema.json#/$defs/workItemRef" },
