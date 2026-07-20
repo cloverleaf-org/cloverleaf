@@ -1,6 +1,6 @@
 ---
 name: cloverleaf-document
-description: Run the Documenter agent on a task in the `implementing` state (full pipeline only). Dispatches a subagent to add doc-only commits to the feature branch, then advances implementing → documenting → review. Usage — /cloverleaf-document <TASK-ID>.
+description: Run the Documenter agent on a task in the `implementing` state (high-risk delivery only). Dispatches a subagent to add doc-only commits to the feature branch, then advances implementing → documenting (stops at documenting). Usage — /cloverleaf-document <TASK-ID>.
 ---
 
 # Cloverleaf — document
@@ -49,23 +49,22 @@ description: Run the Documenter agent on a task in the `implementing` state (ful
 
 7. On failure to parse or response with invalid shape: report the response and stop without advancing state.
 
-8. Advance state:
+8. Advance state (stop at `documenting` — the delivery council owns `documenting → council`):
    ```
    cloverleaf-cli advance-status <repo_root> <TASK-ID> documenting agent
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> review agent
    ```
 
 9. Commit state changes:
    ```bash
    cd <repo_root>
    git add .cloverleaf/
-   git commit -m "cloverleaf: <TASK-ID> documented → review"
+   git commit -m "cloverleaf: <TASK-ID> documented → documenting"
    ```
 
 10. Report:
-    - "✓ Documenter done. `<commits_added>` doc commit(s) added. State → review."
+    - "✓ Documenter done. `<commits_added>` doc commit(s) added. State → documenting."
     - "Files changed: `<comma-separated files_changed>`."
-    - "Next: `/cloverleaf-review <TASK-ID>`."
+    - "Next: the delivery council (`/cloverleaf-run <TASK-ID>` advances `documenting → council`)."
 
 ## Rules
 

@@ -73,9 +73,11 @@ describe('cloverleaf-document skill', () => {
     expect(body).toMatch(/risk_class.*high|high.*risk_class/);
   });
 
-  it('advances state implementing → documenting → review after success', () => {
-    expect(body).toContain('documenting');
-    expect(body).toContain('review');
+  it('advances implementing → documenting and STOPS at documenting (Slice 4)', () => {
+    expect(body).toMatch(/advance-status[^\n]*documenting agent/);
+    // The collapsed FSM has no `review` state — the document skill must not advance to it.
+    expect(body).toMatch(/stops? at `?documenting`?|→ documenting|State → documenting/i);
+    expect(body).not.toMatch(/advance-status[^\n]*\b(review|council|final-gate)\b/);
   });
 
   it('expects JSON response with commits_added', () => {
@@ -83,21 +85,36 @@ describe('cloverleaf-document skill', () => {
   });
 });
 
-describe('cloverleaf-implement skill (v0.2 path-aware)', () => {
+describe('cloverleaf-implement skill (Slice 4 — single delivery spine, ends at implementing)', () => {
   const body = readSkill('cloverleaf-implement');
 
-  it('reads risk_class after load-task', () => {
-    expect(body).toContain('risk_class');
+  it('walks pending → tactical-plan → implementing (both steps present, distinct)', () => {
+    expect(body).toMatch(/advance-status[^\n]*tactical-plan agent/);
+    expect(body).toMatch(/advance-status[^\n]*implementing agent/);
   });
 
-  it('stops at implementing for risk_class=high', () => {
-    expect(body).toMatch(/risk_class.*high|high.*risk_class/);
-    expect(body).toMatch(/stop.*implementing|state.*implementing|Next.*document/i);
+  it('ends at implementing for EVERY risk_class (no lane branch in the walk)', () => {
+    // The collapsed FSM has a single delivery spine; the walk is the same for both classes.
+    expect(body).toMatch(/same for every `risk_class`|single delivery spine|ends at `?implementing`?/i);
+    expect(body).toMatch(/stop at `?implementing`?|STOP here/i);
   });
 
-  it('batches to review for risk_class=low', () => {
-    expect(body).toMatch(/risk_class.*low|low.*fast|fast.*lane/i);
-    expect(body).toMatch(/review/);
+  it('keeps the tactical-plan step distinct so the runner can checkpoint a plan-review', () => {
+    expect(body).toMatch(/tactical-plan.*distinct|distinct.*implement|checkpoint.*plan-review|plan-review.*between/i);
+  });
+
+  it('risk_class still selects the downstream council profile (not the walk)', () => {
+    expect(body).toMatch(/risk_class/);
+    expect(body).toMatch(/council profile|delivery-fast|delivery-full|downstream council/i);
+  });
+
+  it('loop-back (status already implementing) re-implements in place with no state advance', () => {
+    expect(body).toMatch(/loop-back/i);
+    expect(body).toMatch(/re-implement in place|No state advance|stays\s+at `?implementing`?/i);
+  });
+
+  it('drives NO advance-status to any collapsed-away delivery state', () => {
+    expect(body).not.toMatch(/advance-status[^\n]*\b(review|documenting|ui-review|automated-gates|qa|final-gate)\b/);
   });
 });
 
@@ -268,6 +285,15 @@ describe('cloverleaf-run skill — universal council delivery (Slice 4)', () => 
     // if the ui member set baselines_pending, surface /cloverleaf-approve-baselines and re-run.
     expect(body).toContain('baselines_pending');
     expect(body).toContain('approve-baselines');
+  });
+
+  it('§3c: reaches documenting for every risk_class — Documenter (high) or runner-advance (low)', () => {
+    // The Implementer now stops at `implementing` for both classes. §3c reconciles the
+    // "task reaches documenting" precondition of §4a: high-risk runs /cloverleaf-document;
+    // low-risk (no docs) the RUNNER advances implementing → documenting itself.
+    expect(body).toMatch(/risk_class:\s*"?high"?[^\n]*\/cloverleaf-document/i);
+    expect(body).toMatch(/risk_class:\s*"?low"?/i);
+    expect(body).toMatch(/advance-status[^\n]*documenting agent/);
   });
 });
 
@@ -704,17 +730,19 @@ describe('cloverleaf-ui-review skill (CLV-19 — baseline capture survives the c
 // CLV-19: cloverleaf-approve-baselines skill
 // ---------------------------------------------------------------------------
 
-describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
+describe('cloverleaf-approve-baselines skill (CLV-19 / Slice 4 — clear-only, no FSM drive)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-approve-baselines', 'SKILL.md'), 'utf-8');
 
   it('has valid frontmatter with name cloverleaf-approve-baselines', () => {
     expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-approve-baselines[\s\S]*?---/);
   });
 
-  it('has a description mentioning baselines_pending and qa', () => {
+  it('has a description that is clear-only (no dead-state ui-review → qa drive)', () => {
     expect(body).toMatch(/description:/);
     expect(body).toMatch(/baselines_pending|baselines.*pending/i);
-    expect(body).toMatch(/qa/);
+    expect(body).toMatch(/clear-only|drives no FSM|no FSM transition/i);
+    // No stale "advance to qa" / "ui-review → qa" language in the description.
+    expect(body.split('\n')[2]).not.toMatch(/ui-review → qa|advance to qa|advance the task to qa/i);
   });
 
   it('documents its trigger condition (baselines_pending: true)', () => {
@@ -722,8 +750,12 @@ describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
     expect(body).toMatch(/baselines_pending.*true|new-baseline|dimension-mismatch/i);
   });
 
-  it('verifies task status is ui-review before acting', () => {
-    expect(body).toMatch(/status.*ui-review|ui-review.*status/);
+  it('gates on baselines_pending (NOT on task status === ui-review)', () => {
+    // Under the collapsed council FSM the task sits at `council` while baselines await
+    // approval — there is no `ui-review` state to verify.
+    expect(body).toMatch(/baselines_pending === true|baselines_pending.*true/);
+    expect(body).not.toMatch(/Verify\s+`?status\s*===\s*["']ui-review["']/i);
+    expect(body).not.toMatch(/status.*===.*['"]ui-review['"]/);
   });
 
   it('reads state.json to check baselines_pending before proceeding', () => {
@@ -735,8 +767,14 @@ describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
     expect(body).toMatch(/write-ui-review-state[^\n]*false/);
   });
 
-  it('advances the task ui-review → qa after approval', () => {
-    expect(body).toMatch(/advance-status[^\n]*qa/);
+  it('drives NO FSM transition — no advance-status CALL to any state', () => {
+    // Clear-only: it clears baselines_pending and the council runner re-runs the council.
+    // Guard against a real CLI invocation (advance-status followed by a `<placeholder>` or
+    // `$var` argument), not the Rules-prose that explains the skill drives none
+    // (e.g. "... no `advance-status`). It only clears ... the council runner ...").
+    expect(body).not.toMatch(/advance-status\s+[<$]/);
+    // And specifically no dead delivery-state advance anywhere on a command line.
+    expect(body).not.toMatch(/advance-status\s+\S+\s+\S+\s+(qa|ui-review|review|final-gate)\b/);
   });
 
   it('commits the updated state before reporting', () => {
@@ -744,9 +782,9 @@ describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
     expect(body).toContain('git commit');
   });
 
-  it('documents the effect: baselines_pending cleared → qa', () => {
+  it('documents the effect: baselines_pending cleared → re-run /cloverleaf-run', () => {
     expect(body).toMatch(/baselines.*cleared|clear.*flag|baselines_pending.*false/i);
-    expect(body).toMatch(/qa/);
+    expect(body).toMatch(/re-run `?\/cloverleaf-run/i);
   });
 
   it('contains no hardcoded plugin paths', () => {

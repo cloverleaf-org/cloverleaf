@@ -30,7 +30,11 @@ These counters live in-session (not persisted). Rerunning `/cloverleaf-run` rese
       - `pending` (bounce) → `plan_review_bounces += 1`; if `>= 3` escalate (section 6); else return to 3a.
       - `escalated` → stop and surface.
       Otherwise (no decisive plan-review bound) skip.
-   c. Finish the Implementer, and for `risk_class: "high"` run `/cloverleaf-document <TASK-ID>`. The task reaches `documenting`.
+   c. Finish the Implementer (task at `implementing`), then reach `documenting` for **every** `risk_class`:
+      - `risk_class: "high"` → run `/cloverleaf-document <TASK-ID>` (the Documenter adds doc commits and advances `implementing → documenting`).
+      - `risk_class: "low"` (no docs) → the **runner** advances the state itself: `cloverleaf-cli advance-status <repo_root> <TASK-ID> documenting agent`, then commit (`git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> → documenting")`).
+
+      Either way the task reaches `documenting` before §4a advances `documenting → council`.
 
 4. **Delivery council.**
    a. Enter the phase: `cloverleaf-cli advance-status <repo_root> <TASK-ID> council agent`. Commit. (Council entry classifies security — a sensitive diff upgrades `security_class` to `high` so the blocking security member runs.)
