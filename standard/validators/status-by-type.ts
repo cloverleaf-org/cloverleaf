@@ -6,8 +6,7 @@ const ALLOWED: Record<WorkItemType, Set<string>> = {
   plan: new Set(['drafting', 'gate-pending', 'approved', 'rejected']),
   task: new Set([
     'pending', 'tactical-plan', 'implementing', 'documenting',
-    'review', 'automated-gates', 'security-review', 'ui-review', 'qa', 'final-gate',
-    'merged', 'rejected', 'escalated'
+    'council', 'final-gate', 'merged', 'rejected', 'escalated',
   ])
 };
 

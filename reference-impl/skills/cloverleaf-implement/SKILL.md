@@ -1,6 +1,6 @@
 ---
 name: cloverleaf-implement
-description: Run the Implementer agent on a task. Dispatches a subagent to produce code + tests on a new branch, then advances state pending → tactical-plan → implementing → documenting → review. Usage — /cloverleaf-implement <TASK-ID>.
+description: Run the Implementer agent on a task. Dispatches a subagent to produce code + tests on a new branch, then advances state pending → tactical-plan → implementing (stops at implementing for every risk_class). Usage — /cloverleaf-implement <TASK-ID>.
 ---
 
 # Cloverleaf — implement
@@ -15,7 +15,7 @@ The user has invoked this skill with a TASK-ID (e.g., `DEMO-001`).
    ```
    cloverleaf-cli load-task <repo_root> <TASK-ID>
    ```
-   Parse the JSON. Verify `status === "pending"` OR `status === "implementing"` (the second case is a re-run after a Reviewer bounce). If neither, report the current status and ask the user to use the correct command for that state.
+   Parse the JSON. Verify `status === "pending"` OR `status === "implementing"` (the second case is a re-run after a delivery-council bounce). If neither, report the current status and ask the user to use the correct command for that state.
 
 3. Load any outstanding feedback:
    ```
@@ -58,50 +58,41 @@ The user has invoked this skill with a TASK-ID (e.g., `DEMO-001`).
 
    If this fails (uncommitted changes on main, detached HEAD, etc.), report the error and stop without advancing state.
 
-8. Walk the state machine. Read `task.risk_class` (already captured at step 2).
+8. Walk the state machine. The walk is the **same for every `risk_class`** — the collapsed
+   council FSM has a single delivery spine (`pending → tactical-plan → implementing → …`),
+   so the Implementer always ends at `implementing`. `risk_class` still selects the
+   downstream council profile (delivery-fast / delivery-full); it no longer branches the walk.
 
-   **If `risk_class === "low"` (fast lane — v0.1.1 behavior):**
-
-   If the current task status is `pending`:
-   ```
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> tactical-plan agent
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> documenting agent
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> review agent
-   ```
-
-   If the current task status was `implementing` (loop-back after bounce):
-   ```
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> documenting agent
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> review agent
-   ```
-
-   **If `risk_class === "high"` (full pipeline — new in v0.2):**
+   The walk keeps the **tactical-plan** step distinct from the **implement** step so the
+   runner (`/cloverleaf-run` §3a/§3b) can checkpoint a decisive plan-review between them.
 
    If the current task status is `pending`:
    ```
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> tactical-plan agent
-   cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent
+   cloverleaf-cli advance-status <repo_root> <TASK-ID> tactical-plan agent   # produce the tactical plan
+   cloverleaf-cli advance-status <repo_root> <TASK-ID> implementing agent    # implement; STOP here
    ```
-   Stop here. Documenter runs next (will advance implementing → documenting → review).
+   Stop at `implementing`. The Documenter (high-risk) or the runner (low-risk) advances
+   `implementing → documenting` next; the delivery council then owns `documenting → council`.
 
-   If the current task status was `implementing` (loop-back after Reviewer/UI/QA bounce):
-   No state advance — the bouncing skill already moved state back to `implementing`.
+   If the current task status was `implementing` (loop-back after a council bounce):
+   No state advance — re-implement in place. The council already moved state back to
+   `implementing`, and the batched feedback is in `.cloverleaf/feedback/`. The task stays
+   at `implementing` after this re-run.
 
 9. Commit the state changes:
    ```
    cd <repo_root>
    git add .cloverleaf/
-   git commit -m "cloverleaf: <TASK-ID> → <new-state>"
+   git commit -m "cloverleaf: <TASK-ID> → implementing"
    ```
-   where `<new-state>` is `review` for fast lane (`risk_class === "low"`) or `implementing` for full pipeline (`risk_class === "high"`).
+   (On a loop-back re-run there may be nothing staged — that is expected; skip the commit
+   if `git diff --cached --quiet`.)
 
 10. Report:
-    - "✓ Implementer done. Branch `<branch>`. State → <new-state>."
+    - "✓ Implementer done. Branch `<branch>`. State → implementing."
     - "Files changed: <comma-separated>."
     - "Currently on: `main`."
-    - **If `risk_class === "low"`:** "Next: `/cloverleaf-review <TASK-ID>`."
-    - **If `risk_class === "high"`:** "Next: `/cloverleaf-document <TASK-ID>`."
+    - "Next: `/cloverleaf-document <TASK-ID>` (high-risk docs) — for low-risk the runner advances `implementing → documenting`; the delivery council then runs."
 
 ## Rules
 

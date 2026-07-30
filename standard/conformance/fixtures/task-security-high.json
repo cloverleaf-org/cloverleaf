@@ -1,13 +1,13 @@
 {
+  "id": "CLV-999",
   "type": "task",
-  "id": "CLV-900",
+  "status": "council",
   "project": "CLV",
-  "status": "security-review",
-  "owner": { "kind": "agent", "id": "security-reviewer" },
-  "title": "Wire exchange credentials",
+  "title": "High-security task in the council phase",
+  "owner": { "kind": "agent", "id": "unassigned" },
   "context": { "rfc": { "project": "CLV", "id": "CLV-1" } },
-  "acceptance_criteria": ["Engine authenticates against the exchange"],
-  "definition_of_done": ["Auth succeeds; no -2015 error"],
-  "risk_class": "low",
+  "acceptance_criteria": ["y"],
+  "definition_of_done": ["x"],
+  "risk_class": "high",
   "security_class": "high"
 }

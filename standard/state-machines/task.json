@@ -5,40 +5,24 @@
     "terminal": ["merged", "rejected", "escalated"],
     "all": [
       "pending", "tactical-plan", "implementing", "documenting",
-      "review", "automated-gates", "security-review", "ui-review", "qa", "final-gate",
-      "merged", "rejected", "escalated"
+      "council", "final-gate", "merged", "rejected", "escalated"
     ]
   },
   "transitions": [
     { "from": "pending", "to": "tactical-plan", "allowed_actors": ["agent"], "description": "Implementer picks up the Task." },
-    { "from": "tactical-plan", "to": "implementing", "allowed_actors": ["agent"] },
-    { "from": "tactical-plan", "to": "pending", "allowed_actors": ["human"], "gate": "per_task_plan_review", "description": "Optional Per-Task Plan Review rejected." },
+    { "from": "tactical-plan", "to": "implementing", "allowed_actors": ["agent"], "description": "Tactical plan accepted (plan_review pass, or no plan_review council)." },
+    { "from": "tactical-plan", "to": "pending", "allowed_actors": ["human", "agent"], "gate": "per_task_plan_review", "description": "Per-Task Plan Review rejected. Human by default; agent-driven when a decisive plan_review council is bound." },
     { "from": "implementing", "to": "documenting", "allowed_actors": ["agent"] },
-    { "from": "documenting", "to": "review", "allowed_actors": ["agent"] },
-    { "from": "review", "to": "automated-gates", "allowed_actors": ["agent"], "resets_security_verdict": true, "description": "Fresh-Eyes Reviewer passed." },
-    { "from": "review", "to": "implementing", "allowed_actors": ["agent"], "description": "Reviewer bounced; back to Implementer." },
-    { "from": "automated-gates", "to": "ui-review", "path": "full_pipeline", "security_gate": true, "allowed_actors": ["agent"], "description": "UI changes detected; run UI Review." },
-    { "from": "automated-gates", "to": "qa", "path": "full_pipeline", "security_gate": true, "allowed_actors": ["agent"], "description": "No UI changes; skip UI Review." },
-    { "from": "automated-gates", "to": "merged", "path": "fast_lane", "security_gate": true, "allowed_actors": ["human"], "gate": "human_merge", "description": "Fast Lane: gated by single Human Merge." },
-    { "from": "automated-gates", "to": "implementing", "allowed_actors": ["agent"], "description": "Automated check failed; back to Implementer." },
-    { "from": "automated-gates", "to": "security-review", "allowed_actors": ["agent"], "description": "Security Reviewer runs when effective security_class is high. Applies to BOTH lanes (fast and full) — security-review is an automated check off the automated-gates hub, not a full-pipeline-only step." },
-    { "from": "security-review", "to": "automated-gates", "allowed_actors": ["agent"], "description": "Security review passed (verdict pass); return to the hub." },
-    { "from": "security-review", "to": "implementing", "allowed_actors": ["agent"], "description": "Security review bounced (verdict bounce; max severity warning/error); Implementer fixes." },
-    { "from": "security-review", "to": "escalated", "allowed_actors": ["agent", "human"], "description": "Security review found a blocker (verdict escalate; e.g. leaked credential); human must review." },
-    { "from": "ui-review", "to": "qa", "path": "full_pipeline", "allowed_actors": ["agent"] },
-    { "from": "ui-review", "to": "implementing", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "UI Review bounced." },
-    { "from": "qa", "to": "final-gate", "path": "full_pipeline", "allowed_actors": ["agent"] },
-    { "from": "qa", "to": "implementing", "path": "full_pipeline", "allowed_actors": ["agent"], "description": "QA bounced." },
-    { "from": "final-gate", "to": "merged", "path": "full_pipeline", "allowed_actors": ["human"], "gate": "final_approval_gate" },
-    { "from": "final-gate", "to": "rejected", "path": "full_pipeline", "allowed_actors": ["human"], "gate": "final_approval_gate" },
+    { "from": "documenting", "to": "council", "allowed_actors": ["agent"], "description": "Enter the delivery council phase." },
+    { "from": "council", "to": "final-gate", "allowed_actors": ["agent"], "description": "Council passed. Carries security_review_verdict='pass' backstop for high-security tasks." },
+    { "from": "council", "to": "implementing", "allowed_actors": ["agent"], "description": "Council bounced; back to the Implementer (batched feedback)." },
+    { "from": "council", "to": "escalated", "allowed_actors": ["agent", "human"], "description": "Council escalated (hard blocker; un-lowerable)." },
+    { "from": "final-gate", "to": "merged", "allowed_actors": ["human"], "gate": "final_approval_gate", "description": "Single human approval before merge." },
+    { "from": "final-gate", "to": "rejected", "allowed_actors": ["human"], "gate": "final_approval_gate" },
     { "from": "pending", "to": "escalated", "allowed_actors": ["agent", "human"] },
     { "from": "tactical-plan", "to": "escalated", "allowed_actors": ["agent", "human"] },
     { "from": "implementing", "to": "escalated", "allowed_actors": ["agent", "human"] },
     { "from": "documenting", "to": "escalated", "allowed_actors": ["agent", "human"] },
-    { "from": "review", "to": "escalated", "allowed_actors": ["agent", "human"] },
-    { "from": "automated-gates", "to": "escalated", "allowed_actors": ["agent", "human"] },
-    { "from": "ui-review", "to": "escalated", "path": "full_pipeline", "allowed_actors": ["agent", "human"] },
-    { "from": "qa", "to": "escalated", "path": "full_pipeline", "allowed_actors": ["agent", "human"] },
-    { "from": "final-gate", "to": "escalated", "path": "full_pipeline", "allowed_actors": ["human"] }
+    { "from": "final-gate", "to": "escalated", "allowed_actors": ["human"] }
   ]
 }

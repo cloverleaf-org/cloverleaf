@@ -1,0 +1,17 @@
+{
+  "profiles": {
+    "delivery-fast": {
+      "rounds": [ [ { "member": "reviewer" } ], [ { "member": "security", "when": "security_class:high" } ] ],
+      "aggregation": "any-veto",
+      "on_round_bounce": "stop"
+    },
+    "delivery-full": {
+      "rounds": [ [ { "member": "reviewer" } ], [ { "member": "security", "when": "security_class:high" }, { "member": "ui", "when": "ui_changes" }, { "member": "qa" } ] ],
+      "aggregation": "any-veto",
+      "on_round_bounce": "stop"
+    }
+  },
+  "gates": {
+    "task.review": { "by": "risk_class", "map": { "low": "delivery-fast", "high": "delivery-full" } }
+  }
+}

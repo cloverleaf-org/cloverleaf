@@ -13,7 +13,7 @@ function makeRepo(taskOverrides: Record<string, unknown> = {}): string {
     JSON.stringify({
       id: 'DEMO-001',
       type: 'task',
-      status: 'review',
+      status: 'council',
       owner: { kind: 'agent', id: 'unassigned' },
       project: 'DEMO',
       title: 'demo',
@@ -58,24 +58,30 @@ describe('resolveBinding', () => {
   });
 });
 
-describe('resolveCouncilPlan — default council reproduces today (REGRESSION GUARD)', () => {
+// makeRepo() is risk_class:'low' → the shipped two-lane default routes it to the
+// delivery-fast lane (reviewer; security only when security_class:high). The
+// delivery-full (high-risk) lane + the ui-when-changes dimension are covered in
+// council-backcompat.test.ts. Full back-compat matrix lives there; this block
+// pins the fast lane's shape + member defaults.
+describe('resolveCouncilPlan — default (low risk) resolves the fast lane (REGRESSION GUARD)', () => {
   let repoRoot: string;
   afterEach(() => rmSync(repoRoot, { recursive: true, force: true }));
 
-  it('low security + no UI changes → reviewer, then qa only', () => {
+  it('low risk + low security → delivery-fast, reviewer only', () => {
     repoRoot = makeRepo();
     const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
-    expect(plan.profile).toBe('default');
+    expect(plan.profile).toBe('delivery-fast');
     expect(plan.mode).toBe('decisive');
     expect(plan.aggregation).toBe('any-veto');
     expect(plan.on_round_bounce).toBe('stop');
-    expect(plan.rounds.map((r) => r.map((x) => x.member))).toEqual([['reviewer'], ['qa']]);
+    expect(plan.rounds.map((r) => r.map((x) => x.member))).toEqual([['reviewer']]);
   });
 
-  it('declared high security → security member becomes active', () => {
+  it('low risk + declared high security → security member becomes active', () => {
     repoRoot = makeRepo({ security_class: 'high' });
     const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
-    expect(plan.rounds.map((r) => r.map((x) => x.member))).toEqual([['reviewer'], ['security', 'qa']]);
+    expect(plan.profile).toBe('delivery-fast');
+    expect(plan.rounds.map((r) => r.map((x) => x.member))).toEqual([['reviewer'], ['security']]);
   });
 
   it('no binding for an unknown gate → empty plan (today behavior)', () => {

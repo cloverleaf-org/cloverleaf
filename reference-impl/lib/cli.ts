@@ -47,6 +47,7 @@
  *   apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>
  *   chair-context <chairMemberInputsJson>
  *   chair-verdict <chairRawJson> <membersJson>
+ *   validate-council <repoRoot>
  */
 
 import { readFileSync, mkdirSync, copyFileSync, appendFileSync, existsSync } from 'node:fs';
@@ -80,7 +81,9 @@ import type { SiblingScope } from './scope-check.js';
 import { computeRfcTasksView, type RfcTasksView } from './rfc-tasks.js';
 import { loadSecretPatternsConfig, scanSecrets } from './secret-scan.js';
 import { classifyTaskSecurity } from './security-classify.js';
-import { resolveCouncilPlan, applyCouncilVerdict } from './council.js';
+import { resolveCouncilPlan, applyCouncilVerdict, GATE_DESCRIPTORS } from './council.js';
+import { loadCouncilConfigWithSource } from './council-config.js';
+import { validateCouncilConfig } from '@cloverleaf/standard/validators/index.js';
 import { aggregate, type MemberVerdict, type ThresholdRule, type CouncilVerdict } from './aggregation.js';
 import { buildChairContext, finalizeChairVerdict, type ChairMemberInput, type ChairRawVerdict } from './chair.js';
 
@@ -135,7 +138,8 @@ function usage(msg?: string): never {
       '  apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>\n' +
       '  chair-context <chairMemberInputsJson>\n' +
       '  chair-verdict <chairRawJson> <membersJson>\n' +
-      '  set-task-field <repoRoot> <taskId> <field> <value>\n'
+      '  set-task-field <repoRoot> <taskId> <field> <value>\n' +
+      '  validate-council <repoRoot>\n'
   );
   process.exit(2);
 }
@@ -920,6 +924,23 @@ try {
       const parsed: unknown = value === 'null' ? null : value;
       (task as Record<string, unknown>)[field] = parsed;
       saveTask(repoRoot, task);
+      break;
+    }
+
+    case 'validate-council': {
+      const [repoRoot] = rest;
+      if (!repoRoot) usage('validate-council requires <repoRoot>');
+      const { config } = loadCouncilConfigWithSource(repoRoot);
+      const gd = Object.fromEntries(
+        Object.entries(GATE_DESCRIPTORS).map(([k, d]) => [k, { kind: d.kind ?? 'code' }]),
+      );
+      const result = validateCouncilConfig(config as never, gd);
+      if (result.ok) {
+        process.stdout.write('council config OK\n');
+      } else {
+        for (const v of result.violations) process.stderr.write(`${v.rule}: ${v.message}\n`);
+        process.exit(1);
+      }
       break;
     }
 

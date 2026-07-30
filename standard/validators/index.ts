@@ -15,3 +15,4 @@ export { validateCrossProjectRef } from './cross-project-ref.js';
 export { validateGateDecisionValidity } from './gate-decision-validity.js';
 export { validateStatusTransitionLegality } from './status-transition-legality.js';
 export { validateSecurityGate } from './security-gate.js';
+export { validateCouncilConfig } from './council-config.js';

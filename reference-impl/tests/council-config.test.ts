@@ -14,11 +14,19 @@ describe('loadCouncilConfig', () => {
     rmSync(repoRoot, { recursive: true, force: true });
   });
 
-  it('returns the package default when no consumer override exists', () => {
+  it('returns the two-lane package default when no consumer override exists', () => {
     const cfg = loadCouncilConfig(repoRoot);
-    expect(cfg.gates['task.review']).toBe('default');
-    expect(cfg.profiles.default.rounds[0]).toEqual([{ member: 'reviewer' }]);
-    expect(cfg.profiles.default.rounds[1].map((mem) => mem.member)).toEqual(['security', 'ui', 'qa']);
+    // task.review is bound by risk_class: low → delivery-fast, high → delivery-full.
+    expect(cfg.gates['task.review']).toEqual({
+      by: 'risk_class',
+      map: { low: 'delivery-fast', high: 'delivery-full' },
+    });
+    // delivery-fast (low risk): reviewer, then security only when security_class:high.
+    expect(cfg.profiles['delivery-fast'].rounds[0]).toEqual([{ member: 'reviewer' }]);
+    expect(cfg.profiles['delivery-fast'].rounds[1].map((mem) => mem.member)).toEqual(['security']);
+    // delivery-full (high risk): reviewer, then security(if-high) + ui(if-changes) + qa.
+    expect(cfg.profiles['delivery-full'].rounds[0]).toEqual([{ member: 'reviewer' }]);
+    expect(cfg.profiles['delivery-full'].rounds[1].map((mem) => mem.member)).toEqual(['security', 'ui', 'qa']);
   });
 
   it('returns the consumer override when present', () => {
@@ -37,12 +45,15 @@ describe('loadCouncilConfig', () => {
     expect(cfg.profiles.default).toBeUndefined(); // full replacement — default profile is not merged in
   });
 
-  it('falls back to default on invalid JSON', () => {
+  it('falls back to the two-lane default on invalid JSON', () => {
     const dir = join(repoRoot, '.cloverleaf', 'config');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'council.json'), 'not json');
     const cfg = loadCouncilConfig(repoRoot);
-    expect(cfg.gates['task.review']).toBe('default');
+    expect(cfg.gates['task.review']).toEqual({
+      by: 'risk_class',
+      map: { low: 'delivery-fast', high: 'delivery-full' },
+    });
   });
 
   it('fully replaces the default: a partial consumer file yields empty gates + no default leak', () => {
@@ -55,12 +66,15 @@ describe('loadCouncilConfig', () => {
     expect(cfg.profiles.default).toBeUndefined(); // replace, not merge
   });
 
-  it('falls back to default when consumer JSON is a non-object (e.g. null)', () => {
+  it('falls back to the two-lane default when consumer JSON is a non-object (e.g. null)', () => {
     const dir = join(repoRoot, '.cloverleaf', 'config');
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, 'council.json'), 'null');
     const cfg = loadCouncilConfig(repoRoot);
-    expect(cfg.gates['task.review']).toBe('default');
+    expect(cfg.gates['task.review']).toEqual({
+      by: 'risk_class',
+      map: { low: 'delivery-fast', high: 'delivery-full' },
+    });
   });
 });
 

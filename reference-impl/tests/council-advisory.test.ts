@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { postAdvisoryVerdict } from '../lib/council.js';
+import { postAdvisoryVerdict, applyCouncilVerdict } from '../lib/council.js';
 import { loadTask } from '../lib/task.js';
 import { readCouncilResult } from '../lib/council-result.js';
 import type { CouncilVerdict } from '../lib/aggregation.js';
@@ -67,13 +67,20 @@ describe('postAdvisoryVerdict — final_gate (advisory)', () => {
   });
 });
 
-describe('postAdvisoryVerdict — plan_review (advisory)', () => {
-  it('posts at tactical-plan without transitioning', () => {
+describe('applyCouncilVerdict — plan_review (now decisive, Slice 4)', () => {
+  it('bounce transitions tactical-plan → pending (no longer advisory posts-and-stays)', () => {
     const r = repoWithTaskAt('tactical-plan');
-    const res = postAdvisoryVerdict(r, 'DEMO-001', 'task.plan_review', 'tactical-plan',
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.plan_review',
       V('bounce', [{ member: 'reviewer', verdict: 'bounce' }]));
-    expect(res.mode).toBe('advisory');
-    expect(res.walk).toEqual(['tactical-plan']);
-    expect(loadTask(r, 'DEMO-001').status).toBe('tactical-plan');
+    expect(res.mode).toBeUndefined(); // decisive verdicts carry no advisory mode marker
+    expect(res.walk).toEqual(['tactical-plan', 'pending']);
+    expect(loadTask(r, 'DEMO-001').status).toBe('pending');
+  });
+  it('pass transitions tactical-plan → implementing', () => {
+    const r = repoWithTaskAt('tactical-plan');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.plan_review',
+      V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
+    expect(res.walk).toEqual(['tactical-plan', 'implementing']);
+    expect(loadTask(r, 'DEMO-001').status).toBe('implementing');
   });
 });

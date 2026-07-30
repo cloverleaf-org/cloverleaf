@@ -118,14 +118,14 @@ describe('state', () => {
       expect(() => advanceStatus(repoRoot, 'DEMO-001', 'merged', 'agent')).toThrow(/illegal|not allowed/i);
     });
 
-    it('accepts the full fast-lane path to merged', () => {
+    it('accepts the full collapsed council path to merged', () => {
       advanceStatus(repoRoot, 'DEMO-001', 'tactical-plan', 'agent');
       advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent');
       advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-      advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-      advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+      advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
+      advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent');
       expect(() =>
-        advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'human_merge', path: 'fast_lane' })
+        advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'final_approval_gate' })
       ).not.toThrow();
     });
   });
@@ -177,7 +177,7 @@ describe('state', () => {
   });
 });
 
-describe('full_pipeline transitions', () => {
+describe('collapsed council transitions', () => {
   let repoRoot: string;
 
   beforeEach(() => {
@@ -215,78 +215,51 @@ describe('full_pipeline transitions', () => {
     expect(() => advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent')).not.toThrow();
   });
 
-  it('documenting → review is legal', () => {
+  it('documenting → council is legal', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    expect(() => advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent')).not.toThrow();
+    expect(() => advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent')).not.toThrow();
   });
 
-  it('automated-gates → ui-review is legal with full_pipeline path', () => {
+  it('council → final-gate is legal (council passed)', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
     expect(() =>
-      advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' })
+      advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent')
     ).not.toThrow();
   });
 
-  it('automated-gates → qa is legal with full_pipeline path', () => {
+  it('council → implementing is legal (council bounce)', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
     expect(() =>
-      advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' })
+      advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent')
     ).not.toThrow();
   });
 
-  it('ui-review → qa is legal', () => {
+  it('council → escalated is legal (council escalate)', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' });
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
     expect(() =>
-      advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' })
-    ).not.toThrow();
-  });
-
-  it('qa → final-gate is legal', () => {
-    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' });
-    expect(() =>
-      advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent', { path: 'full_pipeline' })
+      advanceStatus(repoRoot, 'DEMO-001', 'escalated', 'agent')
     ).not.toThrow();
   });
 
   it('final-gate → merged requires human and final_approval_gate', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' });
-    advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent', { path: 'full_pipeline' });
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent');
     expect(() =>
-      advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'final_approval_gate', path: 'full_pipeline' })
+      advanceStatus(repoRoot, 'DEMO-001', 'merged', 'human', { gate: 'final_approval_gate' })
     ).not.toThrow();
   });
 
-  it('ui-review → implementing (bounce) is legal', () => {
+  it('final-gate → merged rejects an agent actor (human-only gate)', () => {
     advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'ui-review', 'agent', { path: 'full_pipeline' });
+    advanceStatus(repoRoot, 'DEMO-001', 'council', 'agent');
+    advanceStatus(repoRoot, 'DEMO-001', 'final-gate', 'agent');
     expect(() =>
-      advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent', { path: 'full_pipeline' })
-    ).not.toThrow();
-  });
-
-  it('qa → implementing (bounce) is legal', () => {
-    advanceStatus(repoRoot, 'DEMO-001', 'documenting', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'review', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'automated-gates', 'agent');
-    advanceStatus(repoRoot, 'DEMO-001', 'qa', 'agent', { path: 'full_pipeline' });
-    expect(() =>
-      advanceStatus(repoRoot, 'DEMO-001', 'implementing', 'agent', { path: 'full_pipeline' })
-    ).not.toThrow();
+      advanceStatus(repoRoot, 'DEMO-001', 'merged', 'agent', { gate: 'final_approval_gate' })
+    ).toThrow(/illegal|not allowed/i);
   });
 });
 

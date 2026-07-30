@@ -73,9 +73,11 @@ describe('cloverleaf-document skill', () => {
     expect(body).toMatch(/risk_class.*high|high.*risk_class/);
   });
 
-  it('advances state implementing → documenting → review after success', () => {
-    expect(body).toContain('documenting');
-    expect(body).toContain('review');
+  it('advances implementing → documenting and STOPS at documenting (Slice 4)', () => {
+    expect(body).toMatch(/advance-status[^\n]*documenting agent/);
+    // The collapsed FSM has no `review` state — the document skill must not advance to it.
+    expect(body).toMatch(/stops? at `?documenting`?|→ documenting|State → documenting/i);
+    expect(body).not.toMatch(/advance-status[^\n]*\b(review|council|final-gate)\b/);
   });
 
   it('expects JSON response with commits_added', () => {
@@ -83,21 +85,36 @@ describe('cloverleaf-document skill', () => {
   });
 });
 
-describe('cloverleaf-implement skill (v0.2 path-aware)', () => {
+describe('cloverleaf-implement skill (Slice 4 — single delivery spine, ends at implementing)', () => {
   const body = readSkill('cloverleaf-implement');
 
-  it('reads risk_class after load-task', () => {
-    expect(body).toContain('risk_class');
+  it('walks pending → tactical-plan → implementing (both steps present, distinct)', () => {
+    expect(body).toMatch(/advance-status[^\n]*tactical-plan agent/);
+    expect(body).toMatch(/advance-status[^\n]*implementing agent/);
   });
 
-  it('stops at implementing for risk_class=high', () => {
-    expect(body).toMatch(/risk_class.*high|high.*risk_class/);
-    expect(body).toMatch(/stop.*implementing|state.*implementing|Next.*document/i);
+  it('ends at implementing for EVERY risk_class (no lane branch in the walk)', () => {
+    // The collapsed FSM has a single delivery spine; the walk is the same for both classes.
+    expect(body).toMatch(/same for every `risk_class`|single delivery spine|ends at `?implementing`?/i);
+    expect(body).toMatch(/stop at `?implementing`?|STOP here/i);
   });
 
-  it('batches to review for risk_class=low', () => {
-    expect(body).toMatch(/risk_class.*low|low.*fast|fast.*lane/i);
-    expect(body).toMatch(/review/);
+  it('keeps the tactical-plan step distinct so the runner can checkpoint a plan-review', () => {
+    expect(body).toMatch(/tactical-plan.*distinct|distinct.*implement|checkpoint.*plan-review|plan-review.*between/i);
+  });
+
+  it('risk_class still selects the downstream council profile (not the walk)', () => {
+    expect(body).toMatch(/risk_class/);
+    expect(body).toMatch(/council profile|delivery-fast|delivery-full|downstream council/i);
+  });
+
+  it('loop-back (status already implementing) re-implements in place with no state advance', () => {
+    expect(body).toMatch(/loop-back/i);
+    expect(body).toMatch(/re-implement in place|No state advance|stays\s+at `?implementing`?/i);
+  });
+
+  it('drives NO advance-status to any collapsed-away delivery state', () => {
+    expect(body).not.toMatch(/advance-status[^\n]*\b(review|documenting|ui-review|automated-gates|qa|final-gate)\b/);
   });
 });
 
@@ -118,13 +135,27 @@ describe('cloverleaf-ui-review skill', () => {
     expect(body).toMatch(/preview_port|free.*port|getFreePort/);
   });
 
-  it('verifies task state is ui-review', () => {
-    expect(body).toMatch(/status.*ui-review|ui-review.*status/);
+  // Slice 4: the `ui-review` FSM state was collapsed into `council`. The standalone
+  // skill is emit-only — it must NOT hard-require the dead `ui-review` state; instead
+  // it applies a light non-terminal guard and reviews the branch.
+  it('does not hard-require the collapsed ui-review state (emit-only, light guard)', () => {
+    expect(body).not.toMatch(/verify.*status.*===.*['"]ui-review['"]|status.*===.*['"]ui-review['"]/i);
+    expect(body).toMatch(/not.*terminal|terminal.*status|light guard/i);
   });
 
-  it('handles bounce by looping back to implementing', () => {
-    expect(body).toContain('implementing');
+  it('is emit-only: emits a feedback envelope + verdict and does not advance the FSM', () => {
+    expect(body).toMatch(/emit-only/i);
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    expect(body).toMatch(/verdict/);
+    // No advance-status CALL to any dead delivery state.
+    expect(body).not.toMatch(/advance-status[^\n]*\b(qa|ui-review|automated-gates)\b/);
+  });
+
+  it('handles bounce by emitting feedback (no implementing advance — the council applies it)', () => {
     expect(body).toContain('bounce');
+    // The council (not this skill) loops the task back to implementing.
+    expect(body).toMatch(/council.*implementing|loops.*implementing|implementing/i);
+    expect(body).not.toMatch(/advance-status[^\n]*implementing/);
   });
 
   it('writes feedback envelope with u<N> prefix', () => {
@@ -135,9 +166,11 @@ describe('cloverleaf-ui-review skill', () => {
     expect(body).toContain('affected-routes');
   });
 
-  it('handles empty-set early-exit by advancing to qa without subagent', () => {
+  it('handles empty-set early-exit by emitting a trivial pass without subagent (no qa advance)', () => {
     expect(body).toMatch(/\[\]|empty.*set|no.*renderable.*routes/i);
-    expect(body).toMatch(/advance-status.*qa|→ qa/);
+    // Emit a trivial pass verdict; do NOT advance to any dead state.
+    expect(body).toMatch(/trivial.*pass|verdict.*pass|pass.*skipped/i);
+    expect(body).not.toMatch(/advance-status[^\n]*qa/);
   });
 
   it('sets PLAYWRIGHT_BROWSERS_PATH before subagent dispatch', () => {
@@ -161,17 +194,33 @@ describe('cloverleaf-qa skill', () => {
     expect(body).toMatch(/subagent_type.*general-purpose/);
   });
 
-  it('verifies task state is qa', () => {
-    expect(body).toMatch(/status.*['"]qa['"]|['"]qa['"].*status/);
+  // Slice 4: the `qa` FSM state was collapsed into `council`. The standalone skill is
+  // emit-only — it must NOT hard-require the dead `qa` state; it applies a light
+  // non-terminal guard and reviews the branch.
+  it('does not hard-require the collapsed qa state (emit-only, light guard)', () => {
+    expect(body).not.toMatch(/verify.*status.*===.*['"]qa['"]|status.*===.*['"]qa['"]/i);
+    expect(body).toMatch(/not.*terminal|terminal.*status|light guard/i);
   });
 
-  it('advances qa → final-gate on pass', () => {
-    expect(body).toContain('final-gate');
+  it('is emit-only: emits a feedback envelope + verdict and does not advance the FSM', () => {
+    expect(body).toMatch(/emit-only/i);
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    // No advance-status CALL to any dead delivery state (final-gate is reached by the council, not this skill).
+    expect(body).not.toMatch(/advance-status[^\n]*\b(qa|final-gate|implementing)\b/);
   });
 
-  it('handles bounce by looping back to implementing with q prefix', () => {
-    expect(body).toContain('implementing');
+  it('reports the pass verdict and defers the council → final-gate advance to the council', () => {
+    // The skill may reference final-gate in prose (the council pass advances there) but
+    // must not itself advance-status to it.
+    expect(body).toMatch(/verdict.*pass|pass.*verdict/i);
+    expect(body).toMatch(/council.*final-gate|apply-council-verdict/i);
+  });
+
+  it('handles bounce by emitting feedback with q prefix (no implementing advance — the council applies it)', () => {
     expect(body).toMatch(/prefix=q|-q\d|<TASK-ID>-q/);
+    // The council (not this skill) loops the task back to implementing.
+    expect(body).toMatch(/council.*implementing|loops.*implementing|implementing/i);
+    expect(body).not.toMatch(/advance-status[^\n]*implementing/);
   });
 
   it('passes qa_rules to the subagent prompt', () => {
@@ -184,58 +233,67 @@ describe('cloverleaf-qa skill', () => {
   });
 });
 
-describe('cloverleaf-merge skill (v0.2 state-aware)', () => {
+describe('cloverleaf-merge skill (Slice 4 unified final gate)', () => {
   const body = readSkill('cloverleaf-merge');
 
-  it('accepts both automated-gates and final-gate states', () => {
-    expect(body).toContain('automated-gates');
+  it('merges every task at final-gate under final_approval_gate', () => {
     expect(body).toContain('final-gate');
-  });
-
-  it('uses human_merge gate for automated-gates state', () => {
-    expect(body).toContain('human_merge');
-  });
-
-  it('uses final_approval_gate for final-gate state', () => {
     expect(body).toContain('final_approval_gate');
+    expect(body).toMatch(/advance-status\s+\S+\s+\S+\s+merged\s+human\s+final_approval_gate/);
   });
 
-  it('shows richer summary at final-gate', () => {
-    expect(body.toLowerCase()).toMatch(/ui.review|qa|summary/);
+  it('no longer references the retired human_merge gate or the automated-gates hub', () => {
+    expect(body).not.toContain('human_merge');
+    expect(body).not.toContain('automated-gates');
+    expect(body).not.toContain('fast_lane');
   });
 });
 
-describe('cloverleaf-run skill (v0.2 path-aware)', () => {
+describe('cloverleaf-run skill — universal council delivery (Slice 4)', () => {
   const body = readSkill('cloverleaf-run');
 
-  it('reads risk_class to select path', () => {
+  it('drives every task through the council phase via the CLI', () => {
+    expect(body).toContain('council-plan');
+    expect(body).toContain('apply-council-verdict');
+    expect(body).toMatch(/advance-status\s+\S+\s+\S+\s+council|documenting.{0,6}council/);
+  });
+
+  it('selects the lane profile by risk_class (the shipped two-lane default)', () => {
     expect(body).toContain('risk_class');
-    expect(body).toMatch(/fast.lane|full.pipeline/);
+    expect(body).toMatch(/delivery-fast|delivery-full/);
   });
 
-  it('fast lane calls implement → review → merge', () => {
-    expect(body).toMatch(/cloverleaf-implement[\s\S]*cloverleaf-review[\s\S]*cloverleaf-merge/);
+  it('uses a single council_bounces counter capped at 3', () => {
+    expect(body).toContain('council_bounces');
+    expect(body).toMatch(/>=\s*3|max.*3/i);
   });
 
-  it('full pipeline calls implement → document → review → [ui-review?] → qa → merge', () => {
-    expect(body).toContain('cloverleaf-document');
-    expect(body).toContain('cloverleaf-qa');
-    expect(body).toContain('cloverleaf-ui-review');
+  it('auto-runs a decisive plan_review when bound', () => {
+    expect(body).toContain('task.plan_review');
+    expect(body).toContain('plan_review_bounces');
   });
 
-  it('has per-agent bounce counters with max 3 each', () => {
-    expect(body).toContain('reviewer_bounces');
-    expect(body).toContain('ui_reviewer_bounces');
-    expect(body).toContain('qa_bounces');
-    expect(body).toMatch(/MAX.*3|max.*3|= 3/);
-  });
-
-  it('uses detect-ui-paths to decide ui-review conditional', () => {
-    expect(body).toContain('detect-ui-paths');
-  });
-
-  it('escalates when any per-agent counter hits cap', () => {
+  it('no longer references the collapsed-away lane states or the standalone gate steps', () => {
+    expect(body).not.toContain('automated-gates');
+    expect(body).not.toContain('detect-ui-paths');
     expect(body).toMatch(/escalate/i);
+  });
+
+  it('holds a council pass at baselines_pending until /cloverleaf-approve-baselines re-runs the council', () => {
+    // The collapse removed the ui-review → qa hold that baselines_pending guarded.
+    // The runner convention now holds BEFORE applying a council pass (council → final-gate):
+    // if the ui member set baselines_pending, surface /cloverleaf-approve-baselines and re-run.
+    expect(body).toContain('baselines_pending');
+    expect(body).toContain('approve-baselines');
+  });
+
+  it('§3c: reaches documenting for every risk_class — Documenter (high) or runner-advance (low)', () => {
+    // The Implementer now stops at `implementing` for both classes. §3c reconciles the
+    // "task reaches documenting" precondition of §4a: high-risk runs /cloverleaf-document;
+    // low-risk (no docs) the RUNNER advances implementing → documenting itself.
+    expect(body).toMatch(/risk_class:\s*"?high"?[^\n]*\/cloverleaf-document/i);
+    expect(body).toMatch(/risk_class:\s*"?low"?/i);
+    expect(body).toMatch(/advance-status[^\n]*documenting agent/);
   });
 });
 
@@ -319,17 +377,18 @@ describe('cloverleaf-merge skill (v0.4.1 #1)', () => {
 describe('cloverleaf-merge skill (v0.5.2 #A — final-gate actor bug)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-merge', 'SKILL.md'), 'utf-8');
 
-  it('full-pipeline final-gate → merged uses actor=human with gate + path positional args', () => {
+  it('final-gate → merged uses actor=human with final_approval_gate (no path arg)', () => {
     // The task state machine declares `final-gate → merged` as allowed_actors: [human],
-    // so the skill must pass `human final_approval_gate full_pipeline`, not `agent`.
+    // so the skill must pass `human final_approval_gate`, not `agent`.
     // Regression guard for two field repros (CLV-16, CLV-17) where the skill used `agent`
     // and the CLI rejected with "Illegal transition final-gate → merged ... by agent".
-    expect(body).toMatch(/advance-status[^\n]*\bmerged human final_approval_gate full_pipeline\b/);
+    // Slice 4: unified single gate, no `full_pipeline` path arg.
+    expect(body).toMatch(/advance-status[^\n]*\bmerged human final_approval_gate\b/);
   });
 
   it('does not use actor=agent for any merged transition', () => {
-    // Fast lane uses `human human_merge fast_lane`; full pipeline uses `human final_approval_gate full_pipeline`.
-    // Neither should use `agent` for the `merged` transition.
+    // Unified gate: every task uses `human final_approval_gate`.
+    // Must not use `agent` for the `merged` transition.
     expect(body).not.toMatch(/advance-status[^\n]*\bmerged agent\b/);
   });
 });
@@ -596,29 +655,53 @@ describe('cloverleaf-discover skill', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Slice 4: advisory discovery-gate councils in cloverleaf-discover
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-discover skill — advisory discovery councils (Slice 4)', () => {
+  const body = readSkill('cloverleaf-discover');
+  it('runs an advisory council at rfc.strategy_gate before the human prompt', () => {
+    expect(body).toContain('rfc.strategy_gate');
+  });
+  it('runs an advisory council at plan.task_batch before the human prompt', () => {
+    expect(body).toContain('plan.task_batch');
+  });
+  it('the human still drives the gate (council never auto-approves)', () => {
+    expect(body).toMatch(/advisory/i);
+    expect(body).toContain('council-plan');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CLV-19: baseline-approval sidecar gate in cloverleaf-ui-review skill
 // ---------------------------------------------------------------------------
 
-describe('cloverleaf-ui-review skill (CLV-19 — baseline-approval gate)', () => {
+describe('cloverleaf-ui-review skill (CLV-19 — baseline capture survives the council collapse)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
+
+  // Slice 4: the `ui-review → qa` hold moved to the council pass, but the per-engine
+  // baseline capture + the baselines_pending sidecar mechanism survive unchanged. The
+  // emit-only skill still READS the sidecar and SURFACES baselines_pending; it just no
+  // longer advances the (now dead) qa state.
 
   it('reads the ui-review state sidecar after the subagent completes', () => {
     expect(body).toMatch(/read-ui-review-state/);
   });
 
-  it('references baselines_pending flag', () => {
+  it('references baselines_pending flag (capture mechanism survives)', () => {
     expect(body).toContain('baselines_pending');
   });
 
-  it('blocks ui-review → qa when baselines_pending is true', () => {
-    // Must NOT advance to qa when baselines_pending is true
+  it('surfaces baselines_pending in its report without advancing the FSM (no qa advance)', () => {
     expect(body).toMatch(/baselines_pending.*true|true.*baselines_pending/i);
-    expect(body).toMatch(/do NOT advance|not advance|leave.*ui-review|remains? in.*ui-review/i);
+    // Emit-only: surfaces the pending baselines; does NOT advance-status to the dead qa state.
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    expect(body).not.toMatch(/advance-status[^\n]*qa/);
   });
 
   it('surfaces a human-readable message containing "baselines_pending" when baseline approval is required', () => {
     expect(body).toMatch(/baselines_pending/);
-    // Must tell the human to run the approve-baselines skill
+    // Must tell the human to run the approve-baselines skill (the runner holds the council pass there).
     expect(body).toMatch(/cloverleaf-approve-baselines/);
   });
 
@@ -632,9 +715,10 @@ describe('cloverleaf-ui-review skill (CLV-19 — baseline-approval gate)', () =>
     expect(body).not.toMatch(/(^|[^-])\/approve-baselines\b/);
   });
 
-  it('advances to qa normally when baselines_pending is false', () => {
+  it('reports a plain pass when baselines_pending is false (still no qa advance — emit-only)', () => {
     expect(body).toMatch(/baselines_pending.*false|false.*baselines_pending/i);
-    expect(body).toMatch(/advance-status[^\n]*qa/);
+    // The council pass (not this skill) advances the FSM; the skill never advance-status to qa.
+    expect(body).not.toMatch(/advance-status[^\n]*qa/);
   });
 
   it('uses cloverleaf-cli read-ui-review-state command', () => {
@@ -646,17 +730,19 @@ describe('cloverleaf-ui-review skill (CLV-19 — baseline-approval gate)', () =>
 // CLV-19: cloverleaf-approve-baselines skill
 // ---------------------------------------------------------------------------
 
-describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
+describe('cloverleaf-approve-baselines skill (CLV-19 / Slice 4 — clear-only, no FSM drive)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-approve-baselines', 'SKILL.md'), 'utf-8');
 
   it('has valid frontmatter with name cloverleaf-approve-baselines', () => {
     expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-approve-baselines[\s\S]*?---/);
   });
 
-  it('has a description mentioning baselines_pending and qa', () => {
+  it('has a description that is clear-only (no dead-state ui-review → qa drive)', () => {
     expect(body).toMatch(/description:/);
     expect(body).toMatch(/baselines_pending|baselines.*pending/i);
-    expect(body).toMatch(/qa/);
+    expect(body).toMatch(/clear-only|drives no FSM|no FSM transition/i);
+    // No stale "advance to qa" / "ui-review → qa" language in the description.
+    expect(body.split('\n')[2]).not.toMatch(/ui-review → qa|advance to qa|advance the task to qa/i);
   });
 
   it('documents its trigger condition (baselines_pending: true)', () => {
@@ -664,8 +750,12 @@ describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
     expect(body).toMatch(/baselines_pending.*true|new-baseline|dimension-mismatch/i);
   });
 
-  it('verifies task status is ui-review before acting', () => {
-    expect(body).toMatch(/status.*ui-review|ui-review.*status/);
+  it('gates on baselines_pending (NOT on task status === ui-review)', () => {
+    // Under the collapsed council FSM the task sits at `council` while baselines await
+    // approval — there is no `ui-review` state to verify.
+    expect(body).toMatch(/baselines_pending === true|baselines_pending.*true/);
+    expect(body).not.toMatch(/Verify\s+`?status\s*===\s*["']ui-review["']/i);
+    expect(body).not.toMatch(/status.*===.*['"]ui-review['"]/);
   });
 
   it('reads state.json to check baselines_pending before proceeding', () => {
@@ -677,8 +767,14 @@ describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
     expect(body).toMatch(/write-ui-review-state[^\n]*false/);
   });
 
-  it('advances the task ui-review → qa after approval', () => {
-    expect(body).toMatch(/advance-status[^\n]*qa/);
+  it('drives NO FSM transition — no advance-status CALL to any state', () => {
+    // Clear-only: it clears baselines_pending and the council runner re-runs the council.
+    // Guard against a real CLI invocation (advance-status followed by a `<placeholder>` or
+    // `$var` argument), not the Rules-prose that explains the skill drives none
+    // (e.g. "... no `advance-status`). It only clears ... the council runner ...").
+    expect(body).not.toMatch(/advance-status\s+[<$]/);
+    // And specifically no dead delivery-state advance anywhere on a command line.
+    expect(body).not.toMatch(/advance-status\s+\S+\s+\S+\s+(qa|ui-review|review|final-gate)\b/);
   });
 
   it('commits the updated state before reporting', () => {
@@ -686,9 +782,9 @@ describe('cloverleaf-approve-baselines skill (CLV-19)', () => {
     expect(body).toContain('git commit');
   });
 
-  it('documents the effect: baselines_pending cleared → qa', () => {
+  it('documents the effect: baselines_pending cleared → re-run /cloverleaf-run', () => {
     expect(body).toMatch(/baselines.*cleared|clear.*flag|baselines_pending.*false/i);
-    expect(body).toMatch(/qa/);
+    expect(body).toMatch(/re-run `?\/cloverleaf-run/i);
   });
 
   it('contains no hardcoded plugin paths', () => {
@@ -1025,7 +1121,7 @@ describe('cloverleaf-run skill (CLV-53 — Branch discipline section)', () => {
 
   it('Branch discipline section defines <repo_root> as $(git rev-parse --show-toplevel)', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     expect(branchDisciplineIdx).toBeGreaterThan(-1);
     expect(perAgentIdx).toBeGreaterThan(-1);
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
@@ -1034,7 +1130,7 @@ describe('cloverleaf-run skill (CLV-53 — Branch discipline section)', () => {
 
   it('Branch discipline section notes that in walker context this is the worktree NOT the primary repo', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
     expect(branchSection.toLowerCase()).toMatch(/worktree/);
     expect(branchSection.toLowerCase()).toMatch(/not.*primary|primary.*not/);
@@ -1042,14 +1138,14 @@ describe('cloverleaf-run skill (CLV-53 — Branch discipline section)', () => {
 
   it('Branch discipline section forbids git checkout main from walker worktrees', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
     expect(branchSection).toMatch(/do NOT `git checkout main`|Do NOT `git checkout main`/i);
   });
 
   it('Branch discipline section points to git diff main..HEAD and git show main:<path>', () => {
     const branchDisciplineIdx = body.indexOf('## Branch discipline');
-    const perAgentIdx = body.indexOf('## Per-agent bounce budget');
+    const perAgentIdx = body.indexOf('## Bounce budget');
     const branchSection = body.slice(branchDisciplineIdx, perAgentIdx);
     expect(branchSection).toContain('git diff main..HEAD');
     expect(branchSection).toMatch(/git show main:<path>/);
@@ -1126,9 +1222,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.12.0', () => {
-    // v0.12.0: Council Slice 3 (parallel rounds + advisory gates)
-    expect(pkg.version).toBe('0.12.0');
+  it('reports version 0.13.0', () => {
+    // v0.13.0: Council Slice 4 (collapsed council FSM + discovery-gate councils)
+    expect(pkg.version).toBe('0.13.0');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
@@ -1607,8 +1703,12 @@ describe('cloverleaf-security-review skill (v0.8.0)', () => {
   it('has frontmatter name cloverleaf-security-review', () => {
     expect(body).toMatch(/^---[\s\S]*?name: cloverleaf-security-review[\s\S]*?---/);
   });
-  it('verifies task status is security-review', () => {
-    expect(body).toMatch(/status.*security-review/);
+  // Slice 4: the `security-review` FSM state was collapsed into `council`. The standalone
+  // skill is emit-only — it must NOT hard-require the dead `security-review` state; it
+  // applies a light non-terminal guard and reviews the branch.
+  it('does not hard-require the collapsed security-review state (emit-only, light guard)', () => {
+    expect(body).not.toMatch(/verify.*status.*===.*['"]security-review['"]|status.*===.*['"]security-review['"]/i);
+    expect(body).toMatch(/not.*terminal|terminal.*status|light guard/i);
   });
   it('runs deterministic secret-scan (Pass A)', () => {
     expect(body).toMatch(/cloverleaf-cli secret-scan <repo_root> --branch/);
@@ -1617,11 +1717,18 @@ describe('cloverleaf-security-review skill (v0.8.0)', () => {
     expect(body).toMatch(/prompts\/security-reviewer\.md/);
     expect(body).toMatch(/subagent_type.*general-purpose/);
   });
-  it('merges both passes and maps to all three transitions', () => {
+  it('merges both passes and derives all three verdicts (pass/bounce/escalate)', () => {
+    // The severity → verdict mapping is retained; the FSM transitions are applied by the
+    // council (apply-council-verdict), not by this emit-only skill.
     expect(body).toMatch(/blocker.*escalate|escalate.*blocker/);
-    expect(body).toMatch(/automated-gates/);
-    expect(body).toMatch(/implementing/);
-    expect(body).toMatch(/escalated/);
+    expect(body).toMatch(/error.*warning.*bounce|bounce/i);
+    expect(body).toMatch(/info.*pass|pass/i);
+  });
+  it('is emit-only: emits a feedback envelope + verdict and does not advance the FSM', () => {
+    expect(body).toMatch(/emit-only/i);
+    expect(body).toMatch(/does not advance the FSM|not advance the FSM/i);
+    // No advance-status CALL to any dead delivery state.
+    expect(body).not.toMatch(/advance-status[^\n]*\b(automated-gates|security-review|implementing|escalated)\b/);
   });
   it('writes feedback on non-pass', () => {
     expect(body).toMatch(/write-feedback/);
@@ -1643,31 +1750,48 @@ describe('cloverleaf-new-task — security_class inference (v0.8.0)', () => {
   });
 });
 
-describe('cloverleaf-run — security gate (v0.8.0)', () => {
-  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'), 'utf-8');
-  it('declares a MAX_SECURITY_BOUNCES budget', () => {
-    expect(body).toMatch(/MAX_SECURITY_BOUNCES\s*=\s*3/);
-  });
-  it('runs classify-security with the task branch', () => {
-    expect(body).toMatch(/cloverleaf-cli classify-security <repo_root> <TASK-ID> --branch/);
-  });
-  it('advances to security-review and invokes the skill on effective high', () => {
-    expect(body).toMatch(/advance-status <repo_root> <TASK-ID> security-review agent/);
-    expect(body).toMatch(/cloverleaf-security-review/);
-  });
-  it('writes back security_class on under-classification', () => {
-    expect(body.toLowerCase()).toMatch(/under-classif|write.?back|diff_detected/);
-  });
-  it('has a Security gate section applied in both lanes', () => {
-    expect(body).toMatch(/Security gate/);
-  });
-});
-
 describe('cloverleaf-run-plan — security escalation note (v0.8.0)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'), 'utf-8');
   it('Notes mention security-review escalations are expected', () => {
     const notes = body.slice(body.indexOf('## Notes'));
     expect(notes.toLowerCase()).toMatch(/security/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// C3: run-plan drain-queue + merge unified at final_approval_gate (Slice 4)
+// ---------------------------------------------------------------------------
+
+describe('cloverleaf-run-plan — drain-queue merges at final_approval_gate (C3 / Slice 4)', () => {
+  const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-run-plan', 'SKILL.md'), 'utf-8');
+
+  it('merges drained tasks under final_approval_gate only', () => {
+    expect(body).toContain('final_approval_gate');
+    expect(body).not.toContain('human_merge');
+    expect(body).not.toContain('automated-gates');
+  });
+
+  it('push condition is final-gate only (not automated-gates alternative)', () => {
+    // The turn_completed branch must push onto the final-gate queue only when
+    // the on-disk status is "final-gate" — "automated-gates" was dropped in Slice 4.
+    expect(body).toMatch(/final-gate[^\n]*push|push[^\n]*final-gate/);
+    expect(body).not.toMatch(/automated-gates[^\n]*push|push[^\n]*automated-gates/);
+  });
+
+  it('advance-status merged line has no path argument (fast_lane / full_pipeline)', () => {
+    // The unified gate emits: advance-status <repo_root> <TASK-ID> merged human final_approval_gate
+    // No trailing fast_lane or full_pipeline token on the same line.
+    expect(body).toMatch(/advance-status[^\n]*merged human final_approval_gate[ \t]*$/m);
+    expect(body).not.toContain('fast_lane');
+    expect(body).not.toContain('full_pipeline');
+  });
+
+  it('session brief says delivery lands at final-gate (not automated-gates)', () => {
+    const briefSection = body.match(/## Session brief template\n([\s\S]*?)(?:\n## |$)/);
+    expect(briefSection).not.toBeNull();
+    const brief = briefSection![1];
+    expect(brief).toMatch(/final-gate/);
+    expect(brief).not.toMatch(/automated-gates/);
   });
 });
 
@@ -1701,109 +1825,53 @@ describe('Site guide — security reviewer (v0.8.0)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// CLV-106: security-review verdict writes + cloverleaf-run refusal-and-recover
+// CLV-106: security-review verdict writes.
+// (The former cloverleaf-run "refusal-and-recover" half was retired in Council
+// Slice 4 — the standalone security gate collapsed into a council member, so the
+// automated-gates → post-gate refusal path no longer exists.)
 // ---------------------------------------------------------------------------
 
-describe('cloverleaf-security-review skill (CLV-106 — verdict writes in terminal branches)', () => {
+describe('cloverleaf-security-review skill (CLV-106 — verdict writes, emit-only under the collapsed council FSM)', () => {
   const body = readFileSync(
     resolve(__dirname, '..', 'skills', 'cloverleaf-security-review', 'SKILL.md'),
     'utf-8',
   );
 
-  /**
-   * Extract fenced ```bash ... ``` code blocks from the skill body.
-   * Returns array of block text strings.
-   */
-  function extractBashBlocks(text: string): string[] {
-    const blocks: string[] = [];
-    const fenceRe = /[ \t]*```bash[ \t]*\n([\s\S]*?)[ \t]*```/g;
-    let m: RegExpExecArray | null;
-    while ((m = fenceRe.exec(text)) !== null) {
-      blocks.push(m[1]);
-    }
-    return blocks;
-  }
+  // Slice 4: the standalone security gate became an emit-only council member. The skill
+  // still RECORDS the security_review_verdict on the task (a live field the council's
+  // council → final-gate backstop reads) — one write per branch (pass/bounce/escalate) —
+  // but it NO LONGER drives the FSM: the dead-state advance-status calls
+  // (automated-gates / implementing / escalated) are gone. The council
+  // (apply-council-verdict) applies the aggregated verdict.
 
-  it('contains at least three set-task-field invocations (one per terminal branch)', () => {
+  it('contains at least three set-task-field invocations (one per verdict branch)', () => {
     const matches = body.match(/set-task-field/g);
     expect(matches, 'expected at least 3 set-task-field occurrences').not.toBeNull();
     expect(matches!.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('pass branch: set-task-field security_review_verdict pass appears before advance-status automated-gates in the same code block', () => {
-    const blocks = extractBashBlocks(body);
-    const passBlock = blocks.find(
-      (b) => b.includes('security_review_verdict pass') && b.includes('automated-gates'),
-    );
-    expect(passBlock, 'expected a bash block containing both set-task-field pass and advance-status automated-gates').toBeDefined();
-    const setIdx = passBlock!.indexOf('set-task-field');
-    const advIdx = passBlock!.indexOf('advance-status');
-    expect(setIdx).toBeLessThan(advIdx);
+  it('records security_review_verdict for all three verdicts (pass/bounce/escalate)', () => {
+    expect(body).toMatch(/set-task-field[^\n]*security_review_verdict pass/);
+    expect(body).toMatch(/set-task-field[^\n]*security_review_verdict bounce/);
+    expect(body).toMatch(/set-task-field[^\n]*security_review_verdict escalate/);
   });
 
-  it('pass branch: commit message between set-task-field and advance-status references security_review_verdict → pass', () => {
+  it('pass branch: records security_review_verdict → pass', () => {
     expect(body).toMatch(/security_review_verdict → pass/);
   });
 
-  it('bounce branch: set-task-field security_review_verdict bounce appears before advance-status implementing in the same code block', () => {
-    const blocks = extractBashBlocks(body);
-    const bounceBlock = blocks.find(
-      (b) => b.includes('security_review_verdict bounce') && b.includes('implementing'),
-    );
-    expect(bounceBlock, 'expected a bash block containing both set-task-field bounce and advance-status implementing').toBeDefined();
-    const setIdx = bounceBlock!.indexOf('set-task-field');
-    const advIdx = bounceBlock!.indexOf('advance-status');
-    expect(setIdx).toBeLessThan(advIdx);
-  });
-
-  it('bounce branch: commit message between set-task-field and advance-status references security_review_verdict → bounce', () => {
+  it('bounce branch: records security_review_verdict → bounce', () => {
     expect(body).toMatch(/security_review_verdict → bounce/);
   });
 
-  it('escalate branch: set-task-field security_review_verdict escalate appears before advance-status escalated in the same code block', () => {
-    const blocks = extractBashBlocks(body);
-    const escalateBlock = blocks.find(
-      (b) => b.includes('security_review_verdict escalate') && b.includes('advance-status') && b.includes('escalated'),
-    );
-    expect(escalateBlock, 'expected a bash block containing both set-task-field escalate and advance-status escalated').toBeDefined();
-    const setIdx = escalateBlock!.indexOf('set-task-field');
-    const advIdx = escalateBlock!.indexOf('advance-status');
-    expect(setIdx).toBeLessThan(advIdx);
-  });
-
-  it('escalate branch: commit message between set-task-field and advance-status references security_review_verdict → escalate', () => {
+  it('escalate branch: records security_review_verdict → escalate', () => {
     expect(body).toMatch(/security_review_verdict → escalate/);
   });
-});
 
-describe('cloverleaf-run skill (CLV-106 — refusal-and-recover prose)', () => {
-  const body = readFileSync(
-    resolve(__dirname, '..', 'skills', 'cloverleaf-run', 'SKILL.md'),
-    'utf-8',
-  );
-
-  it('retains the "Security gate (both lanes)" section header', () => {
-    expect(body).toContain('Security gate (both lanes)');
-  });
-
-  it('retains the cloverleaf-security-review reference (belt-and-suspenders happy path)', () => {
-    expect(body).toContain('cloverleaf-security-review');
-  });
-
-  it('contains "Refusal and recover" subsection', () => {
-    expect(body).toMatch(/Refusal and recover/);
-  });
-
-  it('describes exit code 2 as the security-gate refusal signal', () => {
-    expect(body).toMatch(/exit(s)? code 2/i);
-  });
-
-  it('names the behavior a "security-gate refusal"', () => {
-    expect(body).toMatch(/security-gate refusal/i);
-  });
-
-  it('recovery sequence directs to advance to security-review first', () => {
-    expect(body).toMatch(/advance to.*security-review.*first|advance-status.*security-review/i);
+  it('drives NO FSM transition: no advance-status to any dead delivery state', () => {
+    // Emit-only: the council applies the verdict. The skill must not advance-status to
+    // the collapsed-away automated-gates / implementing / escalated states.
+    expect(body).not.toMatch(/advance-status[^\n]*\b(automated-gates|implementing|escalated)\b/);
   });
 });
 

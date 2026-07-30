@@ -1,18 +1,36 @@
 /**
  * CLV-20: End-to-end integration test — 3-browser matrix, per-browser baselines,
- * engine diffs, and baseline-approval gate.
+ * engine diffs, and the surviving baselines-hold.
  *
  * This test exercises the full cross-browser UI review flow without launching
- * real browsers.  The codebase represents the "UI Reviewer subagent" as library
- * functions that are tested in isolation elsewhere; here we wire them together
- * the way the subagent prompt describes, using synthetic PNG buffers in place of
- * Playwright screenshots.
+ * real browsers.  Under the collapsed "delivery council" FSM (Council Slice 4)
+ * the `ui-review` and `qa` task states are GONE — `ui` is now a council member,
+ * and the task lives at `council` while its members (including the UI Reviewer)
+ * run.  The cross-browser baseline capture and the `baselines_pending` mechanism
+ * both SURVIVE the collapse:
+ *   - the per-engine baseline PNG capture is unchanged;
+ *   - `read-/write-ui-review-state` + the `write-baseline` guard (refuses baseline
+ *     writes while `baselines_pending` is true) + `/cloverleaf-approve-baselines`
+ *     are unchanged;
+ *   - the old `ui-review → qa` hold is now a runner CONVENTION in cloverleaf-run
+ *     (SKILL §4.1): before applying a council `pass` that would advance
+ *     `council → final-gate`, the runner checks `baselines_pending` and, if true,
+ *     surfaces approve-baselines instead of passing.  It is a skill convention,
+ *     NOT an FSM/CLI operation — there is no transition gated on `baselines_pending`.
+ *
+ * The codebase represents the "UI Reviewer subagent" as library functions that
+ * are tested in isolation elsewhere; here we wire them together the way the
+ * subagent prompt describes, using synthetic PNG buffers in place of Playwright
+ * screenshots.
  *
  * Acceptance criteria covered:
  *  AC1 — npm test runs this file and it passes without requiring real browsers.
  *  AC2 — per-browser baseline PNGs are written under .cloverleaf/baselines/{engine}/.
  *  AC3 — zero axe findings are emitted for webkit and firefox browser passes.
- *  AC4 — task stays in ui-review when baselines_pending=true; advances to qa after approve-baselines.
+ *  AC4 — the baselines-hold survives: baselines_pending=true blocks new baseline
+ *        writes (write-baseline guard); approve-baselines clears it and unblocks
+ *        writes.  Modelled at the state/guard level (the hold is a skill convention,
+ *        not an FSM transition).
  *  AC5 — maxCombinations cap of 3 below the route×viewport×browser product emits ui-review-cap warnings.
  *  AC6 — test is self-contained and uses its own tmp directory (no global state).
  */
@@ -24,10 +42,12 @@ import {
   rmSync,
   existsSync,
   writeFileSync,
+  readFileSync,
   readdirSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { PNG } from 'pngjs';
 
 // Library under test
@@ -41,6 +61,44 @@ import {
 import { loadUiReviewConfig } from '../lib/ui-review-config.js';
 import { advanceStatus, loadTask } from '../lib/task.js';
 import type { Finding } from '../lib/feedback.js';
+
+// Real CLI, invoked as a subprocess so the AC4 tests exercise the surviving
+// baselines surface end-to-end (read/write ui-review state + the write-baseline
+// guard), exactly as the UI Reviewer member and /cloverleaf-approve-baselines do.
+const CLI = resolve(__dirname, '..', 'lib', 'cli.ts');
+
+function runCli(args: string[]): { stdout: string; stderr: string; exitCode: number } {
+  try {
+    const stdout = execFileSync('npx', ['tsx', CLI, ...args], {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return { stdout, stderr: '', exitCode: 0 };
+  } catch (err: unknown) {
+    const e = err as { stdout?: string; stderr?: string; status?: number };
+    return {
+      stdout: e.stdout?.toString() ?? '',
+      stderr: e.stderr?.toString() ?? '',
+      exitCode: e.status ?? 1,
+    };
+  }
+}
+
+/**
+ * Walk a freshly seeded task through the COLLAPSED FSM up to the delivery
+ * `council` phase: pending → tactical-plan → implementing → documenting →
+ * council.  There is no `ui-review` or `qa` state anymore; `ui` is a council
+ * member and the task sits at `council` while the members run.
+ */
+function advanceToCouncil(repoRoot: string, taskId: string): void {
+  advanceStatus(repoRoot, taskId, 'tactical-plan', 'agent');
+  advanceStatus(repoRoot, taskId, 'implementing', 'agent');
+  advanceStatus(repoRoot, taskId, 'documenting', 'agent');
+  // documenting → council classifies security via `git diff`; outside a git repo
+  // that fails gracefully to an empty changed-file list (no upgrade), so the
+  // transition succeeds without needing a real branch.
+  advanceStatus(repoRoot, taskId, 'council', 'agent');
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -308,82 +366,102 @@ describe('CLV-20 AC3: axe findings restricted to chromium only', () => {
 });
 
 // ---------------------------------------------------------------------------
-// AC4a: task stays in ui-review when baselines_pending=true
-// AC4b: task advances to qa after approve-baselines (baselines_pending cleared)
+// AC4: the baselines-hold survives the FSM collapse.
+//
+// The old `ui-review → qa` transition no longer exists (ui is a council member;
+// the task lives at `council`).  What survives is the `baselines_pending`
+// mechanism itself: the UI Reviewer member sets it via write-ui-review-state on
+// new/resized baselines, the write-baseline CLI guard refuses to overwrite
+// baselines while it is true, and /cloverleaf-approve-baselines (the CLI it
+// wraps — write-ui-review-state ... false) clears it.  The "held then proceeds"
+// shape is modelled at the state/guard level; we do NOT assert an FSM transition
+// is blocked by baselines_pending, because the hold is a runner convention
+// (SKILL §4.1), not an FSM operation.
 // ---------------------------------------------------------------------------
 
-describe('CLV-20 AC4: baselines_pending gate blocks ui-review → qa', () => {
-  it('task remains in ui-review status while baselines_pending is true', () => {
+describe('CLV-20 AC4: baselines-hold survives the collapse (state + write-baseline guard)', () => {
+  it('write-ui-review-state true → read-ui-review-state reports baselines_pending:true (the member set the hold)', () => {
     const taskId = 'TST-002';
     seedRepo(repoRoot, taskId);
 
-    // Advance to ui-review status (mirrors the full pipeline warm-up).
-    advanceStatus(repoRoot, taskId, 'tactical-plan', 'agent');
-    advanceStatus(repoRoot, taskId, 'implementing',  'agent');
-    advanceStatus(repoRoot, taskId, 'documenting',   'agent');
-    advanceStatus(repoRoot, taskId, 'review',        'agent');
-    advanceStatus(repoRoot, taskId, 'automated-gates', 'agent');
-    advanceStatus(repoRoot, taskId, 'ui-review', 'agent', { path: 'full_pipeline' });
+    // The task lives at `council` (not `ui-review` — that state is gone); the ui
+    // member runs there and, on new baselines, sets baselines_pending=true.
+    advanceToCouncil(repoRoot, taskId);
+    expect(loadTask(repoRoot, taskId).status).toBe('council');
 
-    const task = loadTask(repoRoot, taskId);
-    expect(task.status).toBe('ui-review');
+    // Set the hold via the real CLI (as the UI Reviewer member does).
+    const { exitCode } = runCli(['write-ui-review-state', repoRoot, taskId, 'true']);
+    expect(exitCode).toBe(0);
 
-    // Simulate: first-run produces new-baseline → write baselines_pending=true.
-    writeUiReviewState(repoRoot, taskId, { baselines_pending: true });
-
-    // Read back — must be true.
-    const state = readUiReviewState(repoRoot, taskId);
-    expect(state.baselines_pending).toBe(true);
-
-    // Skill logic: when baselines_pending is true, do NOT advance to qa.
-    // Task status must still be ui-review.
-    const taskAfter = loadTask(repoRoot, taskId);
-    expect(taskAfter.status).toBe('ui-review');
+    // read-ui-review-state must report the pending hold.
+    const read = runCli(['read-ui-review-state', repoRoot, taskId]);
+    expect(read.exitCode).toBe(0);
+    expect(JSON.parse(read.stdout).baselines_pending).toBe(true);
+    // Direct library read agrees.
+    expect(readUiReviewState(repoRoot, taskId).baselines_pending).toBe(true);
   });
 
-  it('after approve-baselines clears baselines_pending, task advances to qa', () => {
+  it('write-baseline is REFUSED while baselines_pending is true, then SUCCEEDS after approve-baselines clears it', () => {
     const taskId = 'TST-003';
     seedRepo(repoRoot, taskId);
+    advanceToCouncil(repoRoot, taskId);
 
-    // Advance to ui-review.
-    advanceStatus(repoRoot, taskId, 'tactical-plan', 'agent');
-    advanceStatus(repoRoot, taskId, 'implementing',  'agent');
-    advanceStatus(repoRoot, taskId, 'documenting',   'agent');
-    advanceStatus(repoRoot, taskId, 'review',        'agent');
-    advanceStatus(repoRoot, taskId, 'automated-gates', 'agent');
-    advanceStatus(repoRoot, taskId, 'ui-review', 'agent', { path: 'full_pipeline' });
+    // A captured per-engine candidate PNG the member would try to promote.
+    const candidatePng = join(repoRoot, 'candidate-webkit.png');
+    writeFileSync(candidatePng, makePng(1280, 800, [200, 200, 200, 255]));
 
-    // First run: new baselines captured.
-    writeUiReviewState(repoRoot, taskId, { baselines_pending: true });
-    expect(readUiReviewState(repoRoot, taskId).baselines_pending).toBe(true);
+    // The member captured new baselines → baselines_pending=true (the hold is on).
+    expect(runCli(['write-ui-review-state', repoRoot, taskId, 'true']).exitCode).toBe(0);
 
-    // Human runs /cloverleaf-approve-baselines → clears the flag.
-    writeUiReviewState(repoRoot, taskId, { baselines_pending: false });
-    expect(readUiReviewState(repoRoot, taskId).baselines_pending).toBe(false);
+    // While pending, write-baseline is refused: non-zero exit + the guard message.
+    const refused = runCli([
+      'write-baseline', repoRoot, taskId, 'webkit', 'index', 'desktop', candidatePng,
+    ]);
+    expect(refused.exitCode).not.toBe(0);
+    expect(refused.stderr).toMatch(/baselines_pending.*true|refused.*baselines_pending/i);
+    // The guarded baseline was NOT written.
+    const webkitBaseline = buildBaselinePath(repoRoot, 'webkit', 'index', 'desktop');
+    expect(existsSync(webkitBaseline)).toBe(false);
 
-    // Now the skill can advance to qa.
-    advanceStatus(repoRoot, taskId, 'qa', 'agent', { path: 'full_pipeline' });
-    const task = loadTask(repoRoot, taskId);
-    expect(task.status).toBe('qa');
+    // Human inspects the images and runs /cloverleaf-approve-baselines, which
+    // wraps `write-ui-review-state <taskId> false` → clears the hold.
+    expect(runCli(['write-ui-review-state', repoRoot, taskId, 'false']).exitCode).toBe(0);
+    expect(runCli(['read-ui-review-state', repoRoot, taskId]).stdout).toMatch(/"baselines_pending":\s*false/);
+
+    // Now the same write-baseline succeeds and promotes the per-engine PNG.
+    const allowed = runCli([
+      'write-baseline', repoRoot, taskId, 'webkit', 'index', 'desktop', candidatePng,
+    ]);
+    expect(allowed.exitCode).toBe(0);
+    expect(allowed.stdout.trim()).toBe(webkitBaseline);
+    expect(existsSync(webkitBaseline)).toBe(true);
+    // Content matches the captured candidate.
+    expect(readFileSync(webkitBaseline).equals(readFileSync(candidatePng))).toBe(true);
   });
 
-  it('baselines_pending:false (no new baselines) allows direct ui-review → qa', () => {
+  it('baselines_pending:false (no new baselines) never engages the hold — write-baseline succeeds directly', () => {
     const taskId = 'TST-004';
     seedRepo(repoRoot, taskId);
+    advanceToCouncil(repoRoot, taskId);
 
-    advanceStatus(repoRoot, taskId, 'tactical-plan', 'agent');
-    advanceStatus(repoRoot, taskId, 'implementing',  'agent');
-    advanceStatus(repoRoot, taskId, 'documenting',   'agent');
-    advanceStatus(repoRoot, taskId, 'review',        'agent');
-    advanceStatus(repoRoot, taskId, 'automated-gates', 'agent');
-    advanceStatus(repoRoot, taskId, 'ui-review', 'agent', { path: 'full_pipeline' });
+    const candidatePng = join(repoRoot, 'candidate-firefox.png');
+    writeFileSync(candidatePng, makePng(1280, 800, [180, 180, 180, 255]));
 
-    // All routes matched baselines → no pending approval.
-    writeUiReviewState(repoRoot, taskId, { baselines_pending: false });
+    // All routes matched their baselines → the member leaves baselines_pending=false.
+    expect(runCli(['write-ui-review-state', repoRoot, taskId, 'false']).exitCode).toBe(0);
+    expect(readUiReviewState(repoRoot, taskId).baselines_pending).toBe(false);
 
-    // Advance immediately to qa.
-    advanceStatus(repoRoot, taskId, 'qa', 'agent', { path: 'full_pipeline' });
-    expect(loadTask(repoRoot, taskId).status).toBe('qa');
+    // With the hold clear, write-baseline is allowed immediately (no approval needed).
+    const firefoxBaseline = buildBaselinePath(repoRoot, 'firefox', 'index', 'desktop');
+    const res = runCli([
+      'write-baseline', repoRoot, taskId, 'firefox', 'index', 'desktop', candidatePng,
+    ]);
+    expect(res.exitCode).toBe(0);
+    expect(existsSync(firefoxBaseline)).toBe(true);
+
+    // The task is still at `council` — the runner's baselines-hold convention would
+    // let the council pass advance council → final-gate when pending is false.
+    expect(loadTask(repoRoot, taskId).status).toBe('council');
   });
 });
 
@@ -584,27 +662,33 @@ describe('CLV-20 DoD#1: full cross-browser UI review flow simulation', () => {
     const nonVisualFindings = allFindings.filter(
       (f) => f.rule !== 'visual-diff' && f.rule !== 'ui-review-cap',
     );
-    const verdict = nonVisualFindings.some(
+    const councilVerdict = nonVisualFindings.some(
       (f) => f.severity === 'blocker' || f.severity === 'error',
     ) ? 'bounce' : 'pass';
-    expect(verdict).toBe('pass');
+    expect(councilVerdict).toBe('pass');
 
-    // AC4: task in ui-review — do NOT advance while baselines_pending=true.
-    advanceStatus(repoRoot, taskId, 'tactical-plan', 'agent');
-    advanceStatus(repoRoot, taskId, 'implementing',  'agent');
-    advanceStatus(repoRoot, taskId, 'documenting',   'agent');
-    advanceStatus(repoRoot, taskId, 'review',        'agent');
-    advanceStatus(repoRoot, taskId, 'automated-gates', 'agent');
-    advanceStatus(repoRoot, taskId, 'ui-review', 'agent', { path: 'full_pipeline' });
-    expect(loadTask(repoRoot, taskId).status).toBe('ui-review'); // still blocked
+    // Step 6: drive the COLLAPSED FSM. The task runs its council members (the ui
+    // member captured the baselines above) and lives at `council` — there is no
+    // `ui-review` or `qa` state to advance through.
+    advanceToCouncil(repoRoot, taskId);
+    expect(loadTask(repoRoot, taskId).status).toBe('council');
 
-    // Approve baselines (simulate /cloverleaf-approve-baselines).
+    // Baselines-hold (SKILL §4.1, a runner CONVENTION — not an FSM transition):
+    // the council verdict is `pass`, but because baselines_pending is true the
+    // runner does NOT apply it. We model the hold at the state level: while
+    // pending, the runner would surface /cloverleaf-approve-baselines instead of
+    // advancing. (No advance-status call is gated on baselines_pending.)
+    expect(readUiReviewState(repoRoot, taskId).baselines_pending).toBe(true);
+
+    // Human runs /cloverleaf-approve-baselines → clears the hold (the CLI it wraps).
     writeUiReviewState(repoRoot, taskId, { baselines_pending: false });
     expect(readUiReviewState(repoRoot, taskId).baselines_pending).toBe(false);
 
-    // Now skill advances to qa.
-    advanceStatus(repoRoot, taskId, 'qa', 'agent', { path: 'full_pipeline' });
-    expect(loadTask(repoRoot, taskId).status).toBe('qa');
+    // With baselines cleared, the runner applies the council `pass`, which the FSM
+    // allows: council → final-gate (the exact transition the hold convention gated).
+    // There is no `qa` state; final-gate is the human merge pause.
+    advanceStatus(repoRoot, taskId, 'final-gate', 'agent');
+    expect(loadTask(repoRoot, taskId).status).toBe('final-gate');
   });
 });
 

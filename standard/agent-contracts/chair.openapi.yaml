@@ -1,0 +1,59 @@
+openapi: 3.1.0
+info:
+  title: Cloverleaf Chair Agent Contract
+  version: 0.2.0
+  description: |
+    The Chair Agent is a deliberative judge convened on a council bounce
+    (aggregation: "chair"). It reads every council member's verdict and
+    feedback envelope and renders the council verdict (pass | bounce | escalate)
+    plus a rationale, and curates which member feedback is forwarded to the
+    Implementer. The Chair judges the members' verdicts — it does NOT review the
+    code. It may raise a bounce to an escalate; it may never lower an escalate.
+servers:
+  - url: https://example.com/cloverleaf/chair
+    description: Implementation-defined; placeholder.
+paths:
+  /judge:
+    post:
+      summary: Render the council verdict from member verdicts
+      operationId: judge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [task, member_verdicts]
+              properties:
+                task:
+                  $ref: 'https://cloverleaf.example/schemas/task.schema.json'
+                member_verdicts:
+                  type: array
+                  description: Each council member's verdict + feedback envelope.
+                  items:
+                    type: object
+                    required: [member, verdict]
+                    properties:
+                      member: { type: string }
+                      verdict: { $ref: 'https://cloverleaf.example/schemas/feedback.schema.json#/$defs/verdict' }
+                      envelope: { $ref: 'https://cloverleaf.example/schemas/feedback.schema.json' }
+      responses:
+        '200':
+          description: Council verdict + rationale + forwarded member ids
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verdict, rationale]
+                properties:
+                  verdict: { $ref: 'https://cloverleaf.example/schemas/feedback.schema.json#/$defs/verdict' }
+                  rationale: { type: string }
+                  forward:
+                    type: array
+                    items: { type: string }
+        default:
+          description: Error
+          content:
+            application/problem+json:
+              schema:
+                $ref: 'https://cloverleaf.example/schemas/problem.schema.json'

@@ -162,7 +162,7 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
       - **`tool_decision_required`** → let the walker policy decide (auto-approve per rules, defer to user for anything not covered).
 
-      - **`turn_completed [DONE]`** → the session has finished its current turn with a `[DONE]` terminal token. If the on-disk task status is `final-gate` or `automated-gates`, push onto the final-gate queue. Otherwise continue monitoring.
+      - **`turn_completed [DONE]`** → the session has finished its current turn with a `[DONE]` terminal token. If the on-disk task status is `final-gate`, push onto the final-gate queue. Otherwise continue monitoring.
 
       - **`turn_completed [NEEDS-INPUT]`** → the session is paused waiting for a user reply. Surface the assistant's last message to the driver and send the user's response via `mcp__claw-drive__send_turn`.
 
@@ -179,7 +179,7 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
       ```
       This covers transient API errors (e.g. HTTP 503, `API Error: 503`) and the `temporarily unavailable` service message without requiring a Session A nudge from the human.
 
-   e. **Drain the final-gate queue serially and merge on main.** Session B does NOT invoke `/cloverleaf-merge` — it stops at automated-gates (fast lane) or final-gate (full pipeline) and reports. The walker performs the merge on main in the primary repo. For each queued task:
+   e. **Drain the final-gate queue serially and merge on main.** Session B does NOT invoke `/cloverleaf-merge` — it stops at final-gate and reports. The walker performs the merge on main in the primary repo. For each queued task:
 
       **Scope check (BEFORE the y/N prompt).** Run `cloverleaf-cli check-scope` and capture its output and exit code:
 
@@ -204,10 +204,10 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
       1. Print a full summary to the driver:
          ```
-         ⏵ <TASK-ID> ready to merge (<fast lane | full pipeline>)
+         ⏵ <TASK-ID> ready to merge
            Reviewer: <summary>
            UI Reviewer: <summary or "skipped">
-           QA: <summary or "n/a for fast lane">
+           QA: <summary or "skipped">
            Session <session_id>, worktree <worktree_path>
 
            Confirm merge? (y/N, or ask a question)
@@ -224,7 +224,7 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
            echo "$CHANGED_FILES" | xargs grep -l -E '^(<{7}|={7}|>{7})' 2>/dev/null
            # Do NOT proceed; mark task escalated and surface to user
          else
-           git -C <repo_root> merge --no-ff cloverleaf/<TASK-ID> -m "cloverleaf: <TASK-ID> merged (<fast_lane | full_pipeline>)"
+           git -C <repo_root> merge --no-ff cloverleaf/<TASK-ID> -m "cloverleaf: <TASK-ID> merged"
          fi
          ```
 
@@ -232,12 +232,8 @@ description: Autonomous DAG walker for Cloverleaf Plans. Given a PLAN-ID in stat
 
          After a **successful** `git merge --no-ff`, advance state and commit:
          ```bash
-         # Fast lane:
-         cloverleaf-cli emit-gate-decision <repo_root> <TASK-ID> human_merge approve human
-         cloverleaf-cli advance-status <repo_root> <TASK-ID> merged human human_merge fast_lane
-         # Full pipeline (task is already at final-gate):
          cloverleaf-cli emit-gate-decision <repo_root> <TASK-ID> final_approval_gate approve human
-         cloverleaf-cli advance-status <repo_root> <TASK-ID> merged human final_approval_gate full_pipeline
+         cloverleaf-cli advance-status <repo_root> <TASK-ID> merged human final_approval_gate
          ```
          ```bash
          git -C <repo_root> add .cloverleaf/ && git -C <repo_root> commit -m "cloverleaf: <TASK-ID> merged"
@@ -350,23 +346,15 @@ stay on the worktree's current branch (`cloverleaf/<TASK-ID>`).
 
 Plan: invoke `/cloverleaf-run <TASK-ID>`.
 
-**DO NOT invoke `/cloverleaf-merge`**. Fast lane stops after `/cloverleaf-review`
-lands the task at `automated-gates`. Full pipeline stops after QA/UI-Review
-lands the task at `final-gate`. Report status + summaries at that point and
-exit cleanly. The walker runs in the primary repo on `main` and performs the
-real `git merge --no-ff` itself after human approval — the worktree's main
-branch can't be checked out concurrently, which is why the walker owns the
-merge. If `/cloverleaf-run` would normally invoke `/cloverleaf-merge`
-internally (fast-lane orchestrator), interrupt before that step and exit.
+**DO NOT invoke `/cloverleaf-merge`**. Delivery lands the task at `final-gate`; do NOT invoke `/cloverleaf-merge`; report status + summaries at that point and exit cleanly. The walker runs in the primary repo on `main` and performs the real `git merge --no-ff` itself after human approval — the worktree's main branch can't be checked out concurrently, which is why the walker owns the merge.
 
-All four v0.5.2+v0.5.3+v0.5.4+v0.5.5 dogfood fixes are in place:
-- /cloverleaf-merge actor: human final_approval_gate full_pipeline.
+All v0.5.2+v0.5.3+v0.5.4+v0.5.5 dogfood fixes are in place:
+- /cloverleaf-merge actor: human final_approval_gate.
 - cloverleaf-cli prep-worktree is idempotent.
 - Documenter runs `git status --porcelain` and stages every modified doc.
 - cloverleaf-ui-review uses /cloverleaf-approve-baselines (fully-qualified).
 
-Expected: zero interventions until you reach automated-gates / final-gate,
-then exit.
+Expected: zero interventions until you reach final-gate, then exit.
 
 Do not push. Do not publish. Report merge + state commit SHAs on completion.
 ```
@@ -395,4 +383,4 @@ The concrete policy JSON is the same one used during the CLV-16..CLV-20 dogfood 
 
 **RFC-direct task participation in RFC auto-advance.** Tasks with no `parent` field but with `context.rfc` set (created via `/cloverleaf-new-task --rfc=<RFC-ID>`) are *first-class* participants in the `can_auto_advance_rfc` check. They block the advance when in-flight; they count toward delivery when merged. See `cloverleaf-cli rfc-tasks <repo_root> <RFC-ID>` for the categorized view this dispatch reads from, or `reference-impl/README.md` § "Plans vs RFC-direct tasks" for the user-facing pattern docs.
 
-**Security-review escalations.** When a task's effective `security_class` is high, `/cloverleaf-run` routes it through `security-review` off the automated-gates hub. A `blocker` finding (e.g. a leaked credential) advances the task to `escalated`, which surfaces through the walker's existing escalation path — expect and surface these like any other escalation; do not auto-retry a security blocker.
+**Security-review escalations.** When a task's effective `security_class` is high, `/cloverleaf-run` routes it through `security-review` as a council member. A `blocker` finding (e.g. a leaked credential) advances the task to `escalated`, which surfaces through the walker's existing escalation path — expect and surface these like any other escalation; do not auto-retry a security blocker.

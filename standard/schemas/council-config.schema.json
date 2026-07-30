@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cloverleaf.example/schemas/council-config.schema.json",
+  "title": "CouncilConfig",
+  "description": "A project's review-council configuration (.cloverleaf/config/council.json): named profiles and per-gate bindings. Kind-homogeneity (all members in a profile share one kind, and a bound profile's kind matches the gate's kind) is a cross-field invariant checked by the council-config validator, not by this schema.",
+  "type": "object",
+  "required": ["profiles", "gates"],
+  "properties": {
+    "profiles": {
+      "type": "object",
+      "description": "Named council profiles.",
+      "additionalProperties": { "$ref": "#/$defs/profile" }
+    },
+    "gates": {
+      "type": "object",
+      "description": "Gate key (e.g. 'task.review', 'plan.task_batch', 'rfc.strategy_gate') to profile binding.",
+      "additionalProperties": { "$ref": "#/$defs/binding" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "kind": { "type": "string", "enum": ["code", "rfc", "plan"] },
+    "when": { "type": "string", "enum": ["always", "security_class:high", "ui_changes"] },
+    "thresholdRule": {
+      "oneOf": [
+        { "type": "string", "enum": ["any-veto", "unanimous", "majority", "weighted"] },
+        { "type": "object", "required": ["quorum"], "properties": { "quorum": { "type": "integer", "minimum": 1 } }, "additionalProperties": false }
+      ]
+    },
+    "member": {
+      "type": "object",
+      "required": ["member"],
+      "properties": {
+        "member": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string", "minLength": 1, "description": "Custom-role prompt filename under .cloverleaf/prompts/. Omit for a built-in member." },
+        "kind": { "$ref": "#/$defs/kind", "description": "Artifact kind this member reviews. Default 'code'." },
+        "when": { "$ref": "#/$defs/when" },
+        "blocking": { "type": "boolean" },
+        "weight": { "type": "number", "exclusiveMinimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "profile": {
+      "type": "object",
+      "required": ["rounds", "aggregation"],
+      "properties": {
+        "rounds": {
+          "type": "array",
+          "items": { "type": "array", "items": { "$ref": "#/$defs/member" } }
+        },
+        "aggregation": { "oneOf": [ { "$ref": "#/$defs/thresholdRule" }, { "const": "chair" } ] },
+        "chair": {
+          "type": "object",
+          "properties": { "prompt": { "type": "string", "minLength": 1 } },
+          "additionalProperties": false
+        },
+        "on_round_bounce": { "type": "string", "enum": ["stop", "continue"] }
+      },
+      "additionalProperties": false
+    },
+    "binding": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "required": ["profile"],
+          "properties": {
+            "profile": { "type": "string", "minLength": 1 },
+            "mode": { "type": "string", "enum": ["decisive", "advisory"] }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["by", "map"],
+          "properties": {
+            "by": { "type": "string", "minLength": 1 },
+            "map": { "type": "object", "additionalProperties": { "type": ["string", "null"] } }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

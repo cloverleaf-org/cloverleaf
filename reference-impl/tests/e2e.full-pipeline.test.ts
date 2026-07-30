@@ -23,7 +23,7 @@ function run(args: string[]): { stdout: string; stderr: string; exitCode: number
   }
 }
 
-describe('full_pipeline orchestration (CLI-level)', () => {
+describe('collapsed council orchestration (CLI-level)', () => {
   let repoRoot: string;
 
   function seedTask(riskClass: 'low' | 'high'): void {
@@ -61,22 +61,21 @@ describe('full_pipeline orchestration (CLI-level)', () => {
   });
 
   // advance-status positional signature: <repoRoot> <taskId> <toStatus> <actor> [gate] [path]
-  // For path-tagged transitions without a gate, pass '' as the gate positional arg.
+  // The collapsed council FSM no longer has fast_lane/full_pipeline paths; the
+  // delivery council runs at the `council` state and the single human gate is
+  // final_approval_gate at final-gate.
 
-  it('drives a task through the full pipeline ending in merged', () => {
+  it('drives a task through the collapsed council pipeline ending in merged', () => {
     seedTask('high');
 
     const calls: string[][] = [
       ['advance-status', repoRoot, 'DEMO-001', 'tactical-plan', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'implementing', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'documenting', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'review', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'automated-gates', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'ui-review', 'agent', '', 'full_pipeline'],
-      ['advance-status', repoRoot, 'DEMO-001', 'qa', 'agent', '', 'full_pipeline'],
-      ['advance-status', repoRoot, 'DEMO-001', 'final-gate', 'agent', '', 'full_pipeline'],
+      ['advance-status', repoRoot, 'DEMO-001', 'council', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'final-gate', 'agent'],
       ['emit-gate-decision', repoRoot, 'DEMO-001', 'final_approval_gate', 'approve', 'human'],
-      ['advance-status', repoRoot, 'DEMO-001', 'merged', 'human', 'final_approval_gate', 'full_pipeline'],
+      ['advance-status', repoRoot, 'DEMO-001', 'merged', 'human', 'final_approval_gate'],
     ];
 
     for (const args of calls) {
@@ -90,21 +89,21 @@ describe('full_pipeline orchestration (CLI-level)', () => {
     expect(task.status).toBe('merged');
 
     const events = readdirSync(join(repoRoot, '.cloverleaf', 'events'));
-    expect(events.length).toBeGreaterThanOrEqual(10);
+    expect(events.length).toBeGreaterThanOrEqual(6);
   });
 
-  it('drives a task through a review bounce and recovers', () => {
+  it('drives a task through a council bounce and recovers', () => {
     seedTask('high');
 
     const calls: string[][] = [
       ['advance-status', repoRoot, 'DEMO-001', 'tactical-plan', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'implementing', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'documenting', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'review', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'implementing', 'agent'], // review bounce
+      ['advance-status', repoRoot, 'DEMO-001', 'council', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'implementing', 'agent'], // council bounce
       ['advance-status', repoRoot, 'DEMO-001', 'documenting', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'review', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'automated-gates', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'council', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'final-gate', 'agent'],
     ];
 
     for (const args of calls) {
@@ -115,20 +114,20 @@ describe('full_pipeline orchestration (CLI-level)', () => {
     const task = JSON.parse(
       readFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'), 'utf-8')
     );
-    expect(task.status).toBe('automated-gates');
+    expect(task.status).toBe('final-gate');
   });
 
-  it('fast_lane drives a task with risk_class=low end-to-end', () => {
+  it('drives a task with risk_class=low end-to-end through the council', () => {
     seedTask('low');
 
     const calls: string[][] = [
       ['advance-status', repoRoot, 'DEMO-001', 'tactical-plan', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'implementing', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'documenting', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'review', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'automated-gates', 'agent'],
-      ['emit-gate-decision', repoRoot, 'DEMO-001', 'human_merge', 'approve', 'human'],
-      ['advance-status', repoRoot, 'DEMO-001', 'merged', 'human', 'human_merge', 'fast_lane'],
+      ['advance-status', repoRoot, 'DEMO-001', 'council', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'final-gate', 'agent'],
+      ['emit-gate-decision', repoRoot, 'DEMO-001', 'final_approval_gate', 'approve', 'human'],
+      ['advance-status', repoRoot, 'DEMO-001', 'merged', 'human', 'final_approval_gate'],
     ];
 
     for (const args of calls) {
@@ -142,32 +141,34 @@ describe('full_pipeline orchestration (CLI-level)', () => {
     expect(merged.status).toBe('merged');
   });
 
-  it('skips ui-review when affected-routes is empty, advances to qa', () => {
+  it('runs the delivery-full council WITHOUT the ui member when affected-routes is empty, passing to final-gate', () => {
     seedTask('high');
 
-    const warmup: string[][] = [
+    // With no affected routes (empty diff), the delivery-full profile's ui member
+    // (when: ui_changes) is inactive; only reviewer + security(+qa) run. The council
+    // still passes and the task reaches final-gate.
+    const plan = JSON.parse(
+      run(['council-plan', repoRoot, 'DEMO-001', 'task.review', '--changed-files=']).stdout
+    );
+    expect(plan.profile).toBe('delivery-full');
+    const members = plan.rounds.flat().map((m: { member: string }) => m.member);
+    expect(members).not.toContain('ui');
+
+    const calls: string[][] = [
       ['advance-status', repoRoot, 'DEMO-001', 'tactical-plan', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'implementing', 'agent'],
       ['advance-status', repoRoot, 'DEMO-001', 'documenting', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'review', 'agent'],
-      ['advance-status', repoRoot, 'DEMO-001', 'automated-gates', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'council', 'agent'],
+      ['advance-status', repoRoot, 'DEMO-001', 'final-gate', 'agent'],
     ];
-    for (const args of warmup) {
-      const { exitCode } = run(args);
-      expect(exitCode).toBe(0);
+    for (const args of calls) {
+      const { exitCode, stderr } = run(args);
+      expect(exitCode, `cli ${args.join(' ')} failed: ${stderr}`).toBe(0);
     }
-
-    // The real skill would invoke `affected-routes`; here we simulate the empty-set
-    // outcome by advancing automated-gates → qa directly with path=full_pipeline,
-    // matching the skill's step-5 skip-path.
-    const skip = run([
-      'advance-status', repoRoot, 'DEMO-001', 'qa', 'agent', '', 'full_pipeline',
-    ]);
-    expect(skip.exitCode, `cli skip failed: ${skip.stderr}`).toBe(0);
 
     const task = JSON.parse(
       readFileSync(join(repoRoot, '.cloverleaf', 'tasks', 'DEMO-001.json'), 'utf-8')
     );
-    expect(task.status).toBe('qa');
+    expect(task.status).toBe('final-gate');
   });
 });

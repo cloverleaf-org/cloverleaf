@@ -4,8 +4,7 @@ const ALLOWED: Record<GateDecisionEvent['gate'], Set<GateDecisionEvent['decision
   rfc_strategy_gate: new Set(['approve', 'reject', 'revise', 'abandon']),
   task_batch_gate:   new Set(['approve', 'reject', 'revise', 'split']),
   per_task_plan_review: new Set(['approve', 'reject']),
-  final_approval_gate: new Set(['approve', 'reject', 'escalate']),
-  human_merge:       new Set(['approve', 'escalate'])
+  final_approval_gate: new Set(['approve', 'reject', 'escalate'])
 };
 
 /**
@@ -13,6 +12,17 @@ const ALLOWED: Record<GateDecisionEvent['gate'], Set<GateDecisionEvent['decision
  */
 export function validateGateDecisionValidity(event: GateDecisionEvent): ValidationResult {
   const allowed = ALLOWED[event.gate];
+  if (!allowed) {
+    return {
+      ok: false,
+      violations: [{
+        rule: 'gate-decision-validity',
+        message: `Unknown gate '${event.gate}'.`,
+        severity: 'error',
+        workItemId: event.work_item_id
+      }]
+    };
+  }
   if (!allowed.has(event.decision)) {
     return {
       ok: false,

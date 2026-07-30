@@ -1,0 +1,8 @@
+{
+  "gate": "task.review",
+  "final_verdict": "approve",
+  "rule": "any-veto",
+  "rationale": "x",
+  "members": [],
+  "walk": ["council"]
+}

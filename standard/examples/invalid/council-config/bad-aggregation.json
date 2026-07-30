@@ -1,0 +1,4 @@
+{
+  "profiles": { "p": { "rounds": [ [ { "member": "reviewer" } ] ], "aggregation": "supermajority" } },
+  "gates": { "task.review": "p" }
+}

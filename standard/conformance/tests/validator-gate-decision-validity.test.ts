@@ -33,7 +33,8 @@ describe('validator: gate-decision-validity', () => {
     expect(validateGateDecisionValidity(evt('task_batch_gate', 'abandon')).ok).toBe(false);
   });
 
-  it('rejects human_merge + reject', () => {
-    expect(validateGateDecisionValidity(evt('human_merge', 'reject')).ok).toBe(false);
+  it('treats human_merge as an unknown gate (removed in 0.8.0)', () => {
+    // human_merge was retired when the fast lane unified under final_approval_gate.
+    expect(validateGateDecisionValidity(evt('human_merge' as never, 'approve')).ok).toBe(false);
   });
 });

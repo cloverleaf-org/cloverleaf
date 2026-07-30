@@ -4,8 +4,8 @@
   "occurred_at": "2026-04-17T10:32:00Z",
   "work_item_id": { "project": "ACME", "id": "ACME-200" },
   "work_item_type": "task",
-  "from_status": "review",
-  "to_status": "automated-gates",
-  "actor": { "kind": "agent", "id": "reviewer" },
-  "reason": "Code review passed; advancing to automated gates."
+  "from_status": "documenting",
+  "to_status": "council",
+  "actor": { "kind": "agent", "id": "implementer" },
+  "reason": "Docs complete; advancing into the delivery council phase."
 }

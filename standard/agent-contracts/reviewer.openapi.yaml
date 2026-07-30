@@ -10,6 +10,9 @@ info:
     Returns a structured feedback envelope (feedback.schema.json) carrying
     the verdict and, on non-pass verdicts, a human summary and programmatically
     actionable findings.
+
+    As a council member, the Reviewer reviews an artifact of a given kind
+    (code | rfc | plan); the code Reviewer is the built-in code-kind member.
 servers:
   - url: https://example.com/cloverleaf/reviewer
     description: Implementation-defined; placeholder.

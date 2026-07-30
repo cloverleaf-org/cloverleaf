@@ -31,6 +31,8 @@ export const SCHEMA_LEVEL: Readonly<Record<string, Level>> = {
   'status-transitions': 'L2',
   'dependency-dag': 'L2',
   // L3 — Host
+  'council-config': 'L3',
+  'council-result': 'L3',
   'gate-decision-event': 'L3',
   extensions: 'L3',
   'path-rules': 'L3',
@@ -51,10 +53,11 @@ export const VALIDATOR_LEVEL: Readonly<Record<string, Level>> = {
   'security-gate': 'L2',
   // L3
   'gate-decision-validity': 'L3',
+  'council-config': 'L3',
 };
 
 // Agent contract file name (sans `.openapi.yaml`) → level.
-// All 7 agents are L3 (full methodology orchestration).
+// All 8 agents are L3 (full methodology orchestration).
 export const CONTRACT_LEVEL: Readonly<Record<string, Level>> = {
   researcher: 'L3',
   plan: 'L3',
@@ -63,6 +66,7 @@ export const CONTRACT_LEVEL: Readonly<Record<string, Level>> = {
   reviewer: 'L3',
   'ui-reviewer': 'L3',
   qa: 'L3',
+  chair: 'L3',
 };
 
 // State machine file name (sans `.json`) → level.
