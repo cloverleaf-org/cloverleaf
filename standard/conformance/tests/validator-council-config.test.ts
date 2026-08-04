@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { validateCouncilConfig } from '../../validators/council-config.js';
 
-const GD = { 'task.review': { kind: 'code' }, 'plan.task_batch': { kind: 'plan' } };
+const GD: Record<string, { kind?: 'code' | 'rfc' | 'plan' }> = {
+  'task.review': { kind: 'code' },
+  'plan.task_batch': { kind: 'plan' },
+};
 
 describe('validator: council-config', () => {
   it('accepts a kind-homogeneous code profile bound to a code gate', () => {
