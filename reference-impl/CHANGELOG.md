@@ -16,6 +16,9 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 - Advisory discovery-gate councils: `cloverleaf-discover` runs an opt-in council at `rfc.strategy_gate` / `plan.task_batch` before the human gate.
 - A decisive `plan_review` council (agent bounce `tactical-plan → pending`).
 
+### Fixed
+- `package.json` — `@cloverleaf/standard` dependency and peerDependency ranges corrected to `^0.8.0`. The previous `^0.7.x` ranges excluded the 0.8.0 collapsed-FSM Standard that 0.13.0 requires, so a fresh install would have resolved 0.7.1 and failed at `documenting → council`. A new `tests/package-contract.test.ts` pins the range against `standard/VERSION`.
+
 ## 0.12.0 — 2026-07-18
 
 ### Added
