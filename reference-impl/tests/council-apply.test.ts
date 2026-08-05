@@ -69,13 +69,16 @@ describe('applyCouncilVerdict — decisive delivery (task.review at council)', (
     expect(loadTask(r, 'DEMO-001').status).toBe('escalated');
   });
   it('high-security pass with security OMITTED still reaches final-gate + backstop set (topology-B)', () => {
-    const r = repoWithCouncilTask('high', 'high'); // security-HIGH task, no security member
+    const r = repoWithCouncilTask('high', 'high'); // security-HIGH task; no security verdict reported
     applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
     const res = readCouncilResult(r, 'DEMO-001', 'task.review');
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
     expect(loadTask(r, 'DEMO-001').security_review_verdict).toBe('pass');
     expect(res?.security?.member_verdict).toBe('absent');
-    expect(res?.security?.basis).toContain('no security member');
+    // The shipped delivery-full profile DOES configure a security member for a
+    // security_class:high task, so "no security member configured" would be false here —
+    // one was configured and simply never reported.
+    expect(res?.security?.basis).toBe('security member configured for this task but did not run; no security verdict recorded');
     expect(res?.security?.gating_verdict_set).toBe('pass');
   });
   it('high-security pass with security OUT-VOTED records the override + still sets backstop', () => {
@@ -209,5 +212,116 @@ describe('applyCouncilVerdict — gate-aware routing (Slice 4)', () => {
     const plan = resolveCouncilPlan(r, 'DEMO-001', 'task.final_gate', { changedFiles: [] });
     expect(plan.mode).toBe('advisory');
     expect(plan.profile).toBe('fg');
+  });
+});
+
+// `council.members` names only the members that *ran*, so a missing security verdict
+// used to render identically whether the profile configured a security member or not.
+// The basis is now classified against the profile's resolved plan.
+describe('applyCouncilVerdict — security.basis states only what the run can prove', () => {
+  const NOT_CONFIGURED = 'no security member configured; advanced under council authority';
+
+  it('distinguishes a configured-but-unreached security member from an unconfigured one', () => {
+    // delivery-full (risk high) puts a blocking security member in round 2 for a
+    // security_class:high task; a round-1 bounce with on_round_bounce=stop means it never ran.
+    const r = repoWithCouncilTask('high', 'high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('bounce', [{ member: 'reviewer', verdict: 'bounce' }]));
+    expect(res.security?.member_verdict).toBe('absent');
+    expect(res.security?.basis).not.toContain('no security member configured');
+    expect(res.security?.basis).toMatch(/not reached|did not run/i);
+    expect(res.security?.basis).toMatch(/earlier round/i);
+    // the artifact on disk is the record a human reads; it must say the same thing
+    expect(readCouncilResult(r, 'DEMO-001', 'task.review')?.security?.basis).toBe(res.security?.basis);
+  });
+
+  it('does not blame an earlier round when every member that ran passed', () => {
+    // Same profile, so security is planned and absent — but nothing bounced, so the
+    // stop-on-round-bounce explanation would be a fabrication.
+    const r = repoWithCouncilTask('high', 'high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
+    expect(res.security?.basis).toMatch(/did not run/i);
+    expect(res.security?.basis).not.toMatch(/earlier round/i);
+  });
+
+  it('names the escalate short-circuit when a member escalated', () => {
+    const r = repoWithCouncilTask('high', 'high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('escalate', [{ member: 'reviewer', verdict: 'escalate' }]));
+    expect(loadTask(r, 'DEMO-001').status).toBe('escalated');
+    expect(res.security?.basis).toMatch(/not reached/i);
+    expect(res.security?.basis).toMatch(/escalated and the council short-circuited/i);
+  });
+
+  it('does not blame an earlier round when only a NON-blocking member bounced', () => {
+    // A non-blocking bounce does not stop the council (only a blocking one does), so it
+    // cannot explain the security member's absence — and must not be offered as if it did.
+    const r = repoWithCouncilTask('high', 'high');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [
+      { member: 'reviewer', verdict: 'pass' },
+      { member: 'ui', verdict: 'bounce', blocking: false },
+    ]));
+    expect(res.security?.basis).toMatch(/did not run/i);
+    expect(res.security?.basis).not.toMatch(/earlier round|short-circuit/i);
+  });
+
+  it('does not blame an earlier round when the profile continues past a bounce', () => {
+    const r = repoWithCouncilTask('high', 'high');
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { keepgoing: {
+        rounds: [[{ member: 'reviewer' }], [{ member: 'security' }]],
+        aggregation: 'any-veto', on_round_bounce: 'continue',
+      } },
+      gates: { 'task.review': 'keepgoing' },
+    }));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('bounce', [{ member: 'reviewer', verdict: 'bounce' }]));
+    expect(res.security?.basis).toMatch(/did not run/i);
+    expect(res.security?.basis).not.toMatch(/earlier round/i);
+  });
+
+  it('keeps the unconfigured wording when the profile really has no security member', () => {
+    const r = repoWithCouncilTask('high', 'high');
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { lean: { rounds: [[{ member: 'reviewer' }]], aggregation: 'any-veto' } },
+      gates: { 'task.review': 'lean' },
+    }));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('bounce', [{ member: 'reviewer', verdict: 'bounce' }]));
+    expect(res.security?.basis).toBe(NOT_CONFIGURED);
+  });
+
+  it('reads a when-excluded security member as unconfigured (the plan filters `when` out)', () => {
+    // delivery-fast's security member carries `when: security_class:high`, so on a
+    // low-security task it is not in the resolved plan at all. The plan cannot tell that
+    // apart from a profile that never listed one, and both are honestly "no security
+    // member for this task" — so they deliberately share one string.
+    const r = repoWithCouncilTask('low', 'low');
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
+    expect(res.security?.basis).toBe(NOT_CONFIGURED);
+  });
+
+  it('says the plan was unresolvable rather than guessing, and still completes the apply', () => {
+    const r = repoWithCouncilTask('high', 'high');
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { typo: { rounds: [[{ member: 'reviwer' }]], aggregation: 'any-veto' } }, // unknown member id
+      gates: { 'task.review': 'typo' },
+    }));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
+    expect(loadTask(r, 'DEMO-001').status).toBe('final-gate'); // a bad council.json cannot break the apply
+    expect(res.security?.basis).toMatch(/could not be resolved/i);
+    expect(res.security?.basis).not.toContain(NOT_CONFIGURED);
+  });
+
+  it('leaves the basis for a security member that did run untouched', () => {
+    const r = repoWithCouncilTask('high', 'high');
+    const passed = applyCouncilVerdict(r, 'DEMO-001', 'task.review',
+      V('pass', [{ member: 'reviewer', verdict: 'pass' }, { member: 'security', verdict: 'pass' }]));
+    expect(passed.security?.basis).toBe('security member passed');
+    const r2 = repoWithCouncilTask('high', 'high');
+    const outvoted = applyCouncilVerdict(r2, 'DEMO-001', 'task.review', {
+      verdict: 'pass', rule: 'majority', rationale: 'majority',
+      members: [{ member: 'reviewer', verdict: 'pass' }, { member: 'security', verdict: 'bounce' }],
+    });
+    expect(outvoted.security?.basis).toBe(`security member returned 'bounce'; council pass by rule "majority"`);
   });
 });

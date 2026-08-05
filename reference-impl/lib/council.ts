@@ -325,6 +325,9 @@ function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, co
   }
   const securityMember = council.members.find((m) => m.member === 'security');
   const highSecurity = task.security_class === 'high';
+  // No security verdict to report? Ask the profile what it intended — before any
+  // transition mutates the task the gate binding selects a profile from.
+  const plannedSecurity = securityMember === undefined ? resolvePlannedSecurity(repoRoot, taskId, gate) : null;
   const walk: string[] = ['council'];
 
   if (council.verdict === 'escalate') {
@@ -357,7 +360,7 @@ function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, co
       member_verdict: securityMember ? securityMember.verdict : 'absent',
       gating_verdict_set: council.verdict === 'pass' && highSecurity ? 'pass' : null,
       basis: !securityMember
-        ? 'no security member configured; advanced under council authority'
+        ? securityBasisWhenAbsent(plannedSecurity, council)
         : securityMember.verdict === 'pass'
           ? 'security member passed'
           : `security member returned '${securityMember.verdict}'; council ${council.verdict} by rule ${JSON.stringify(council.rule)}`,
@@ -365,6 +368,67 @@ function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, co
   };
   writeCouncilResult(repoRoot, taskId, result);
   return result;
+}
+
+/** What this gate's profile planned for the `security` member, for basis classification. */
+interface PlannedSecurity {
+  planned: boolean;
+  stopsOnRoundBounce: boolean;
+}
+
+/**
+ * Resolve what the profile bound to `gate` planned for the `security` member on this task.
+ *
+ * `council.members` names only the members that actually *ran*, so a missing security
+ * verdict is ambiguous on its own. The resolved plan disambiguates it — with one honest
+ * limitation: `resolveCouncilPlan` filters `when`-inactive members out, so a member
+ * excluded by its `when` predicate and a profile that never listed one both come back
+ * `planned: false`. Both are truthfully "no security member for this task", so they share
+ * one basis string rather than a distinction this cannot actually make.
+ *
+ * Two deliberate properties:
+ * - Returns null rather than throwing. Plan resolution reads consumer config and can fail
+ *   on, say, a mistyped member id; an audit string is not worth failing a terminal apply
+ *   step over, and a run whose plan will not resolve says exactly that.
+ * - Called only when there is no security verdict to explain: for a task-kind gate
+ *   `resolveCouncilPlan` runs a `git diff`, so this adds one git invocation to the apply
+ *   path, and it should stay at most one.
+ */
+function resolvePlannedSecurity(repoRoot: string, taskId: string, gate: string): PlannedSecurity | null {
+  try {
+    const plan = resolveCouncilPlan(repoRoot, taskId, gate);
+    return {
+      planned: plan.rounds.some((round) => round.some((m) => m.member === 'security')),
+      stopsOnRoundBounce: plan.on_round_bounce === 'stop',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The `security.basis` for a run that recorded no security verdict. Each string states
+ * only what that run can prove, and a cause is named only when the run satisfies one of
+ * the council's two stop rules: an `escalate` from any member short-circuits the council
+ * immediately, and a **blocking** `bounce` stops it before the next round when the profile
+ * sets `on_round_bounce: stop`. A planned member absent for any other reason — a
+ * non-blocking bounce, a member the runner simply never dispatched — is a runner anomaly,
+ * and the artifact reports it as unexplained rather than inventing a cause for it.
+ */
+function securityBasisWhenAbsent(planned: PlannedSecurity | null, council: CouncilVerdict): string {
+  if (planned === null) {
+    return 'no security member ran; the council plan could not be resolved, so whether one was configured is unknown';
+  }
+  if (!planned.planned) {
+    return 'no security member configured; advanced under council authority';
+  }
+  if (council.members.some((m) => m.verdict === 'escalate')) {
+    return 'security member configured for this task but not reached: an earlier member escalated and the council short-circuited; no security verdict recorded';
+  }
+  if (planned.stopsOnRoundBounce && council.members.some((m) => m.verdict === 'bounce' && m.blocking !== false)) {
+    return "security member configured for this task but not reached: an earlier round's blocking member bounced and the profile stops on a round bounce; no security verdict recorded";
+  }
+  return 'security member configured for this task but did not run; no security verdict recorded';
 }
 
 /** Decisive plan-review council (task.plan_review at tactical-plan). */
