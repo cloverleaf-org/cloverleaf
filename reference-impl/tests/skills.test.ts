@@ -325,6 +325,23 @@ describe('cloverleaf-run skill — council review path (§7) polish (0.9.0)', ()
   });
 });
 
+describe('cloverleaf-run SKILL.md prose contracts', () => {
+  const body = readSkill('cloverleaf-run');
+
+  it('§7.2 applies per-member substitutions from the plan rather than a fixed token list', () => {
+    expect(body).toContain('substitutions');
+    expect(body).not.toMatch(/Substitute `\{\{task\}\}`, `\{\{branch\}\}`[^\n]*`\{\{diff\}\}`\s*\(/);
+  });
+
+  it('§3a does not claim a tactical-plan checkpoint the implement skill cannot provide', () => {
+    expect(body).not.toContain('to the tactical-plan checkpoint');
+  });
+
+  it('§2 validates the task before dispatching any agent', () => {
+    expect(body).toMatch(/validate|schema-valid/i);
+  });
+});
+
 describe('cloverleaf-ui-review skill (v0.4)', () => {
   const body = readFileSync(resolve(__dirname, '..', 'skills', 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
 
