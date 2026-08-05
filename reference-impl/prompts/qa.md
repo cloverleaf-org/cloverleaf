@@ -43,7 +43,7 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 
 3. If no rules match (e.g., the diff only changes `.cloverleaf/**` or tests unrelated to any package), skip with a `pass` verdict — nothing testable in this diff:
    ```json
-   {"verdict": "pass", "summary": "No testable packages changed.", "findings": [], "results": {"passed": 0, "failed": 0, "total": 0}}
+   {"verdict": "pass", "summary": "No testable packages changed. Test counts: passed 0, failed 0, total 0.", "findings": []}
    ```
 
 4. For each queued command:
@@ -54,7 +54,7 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
      - When the output format is recognized, also extract counts, e.g. Vitest (`Tests N passed | M failed`), pytest (`N passed, M failed`), or a plain build/lint (exit 0 → `{passed: 1, failed: 0, total: 1}`).
    - On failure, collect up to 10 failure names/messages as findings with `severity: "error"` and `rule: "qa.<suite>.<test-name>"`
 
-5. Aggregate results: sum `passed`, `failed`, `total` across all runs.
+5. Aggregate results: sum `passed`, `failed`, `total` across all runs, and state them at the end of `summary`. Do not add a top-level `results` key — the feedback envelope schema forbids properties beyond `verdict`, `summary` and `findings`.
 
 6. Compute verdict:
    - `pass` — every command exited 0 AND aggregated `failed === 0`
@@ -115,7 +115,7 @@ Respond with exactly one JSON object and nothing else:
 ```json
 {
   "verdict": "pass" | "bounce" | "escalate",
-  "summary": "<one-sentence summary>",
+  "summary": "<one-sentence summary, ending with the aggregate counts, e.g. 'Test counts: passed 153, failed 0, total 153.'>",
   "findings": [
     {
       "severity": "error",
@@ -123,11 +123,6 @@ Respond with exactly one JSON object and nothing else:
       "message": "<test failure message>",
       "location": "<file:line if known>"
     }
-  ],
-  "results": {
-    "passed": <integer>,
-    "failed": <integer>,
-    "total": <integer>
-  }
+  ]
 }
 ```
