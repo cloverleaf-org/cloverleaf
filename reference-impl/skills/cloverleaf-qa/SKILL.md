@@ -59,11 +59,11 @@ and reports the verdict. **It does not advance the FSM** — the council or a hu
 
    **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
 
-8. Parse response: expect `{"verdict": "pass"|"bounce"|"escalate", "summary", "findings", "results"}`.
+8. Parse response: expect `{"verdict": "pass"|"bounce"|"escalate", "summary", "findings"}`. There is no separate `results` field — the aggregate test counts are folded into the end of `summary` (e.g., "Test counts: passed 153, failed 0, total 153.").
 
 9. **Emit the envelope + report the verdict (no FSM advance).**
 
-   Persist the feedback envelope (with the test results) so the council/human can read it, regardless of verdict:
+   Persist the feedback envelope — verdict, summary (including the aggregate test counts), and findings — so the council/human can read it, regardless of verdict:
    1. Write the feedback envelope: `echo '<json>' > /tmp/cloverleaf-fb-q.json`
    2. `cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/cloverleaf-fb-q.json --prefix=q`
    3. Commit the persisted feedback file:
@@ -75,11 +75,11 @@ and reports the verdict. **It does not advance the FSM** — the council or a hu
 
    Then report the verdict — do **NOT** run `advance-status`:
 
-   **Pass:** "✓ QA verdict: **pass** (`<passed>/<total>` tests). Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. This is one council member's verdict — the delivery council (`/cloverleaf-run <TASK-ID>`) or a human applies the aggregated verdict (`apply-council-verdict`, a council pass advances `council → final-gate`); this skill does not advance the FSM."
+   **Pass:** "✓ QA verdict: **pass** — `<summary>`. Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. This is one council member's verdict — the delivery council (`/cloverleaf-run <TASK-ID>`) or a human applies the aggregated verdict (`apply-council-verdict`, a council pass advances `council → final-gate`); this skill does not advance the FSM."
 
-   **Bounce:** "✗ QA verdict: **bounce**. `<failed>/<total>` tests failed. Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. The delivery council or a human applies the verdict (a council bounce loops the task back to `implementing`); this skill does not advance the FSM."
+   **Bounce:** "✗ QA verdict: **bounce** — `<summary>`. Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. The delivery council or a human applies the verdict (a council bounce loops the task back to `implementing`); this skill does not advance the FSM."
 
-   **Escalate:** "✗ QA verdict: **escalate** (infrastructure issue). Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. The council or a human applies the verdict (a council escalate → `escalated`); this skill does not advance the FSM. Review infrastructure and retry manually."
+   **Escalate:** "✗ QA verdict: **escalate** (infrastructure issue) — `<summary>`. Feedback emitted to `.cloverleaf/feedback/<TASK-ID>-q<N>.json`. The council or a human applies the verdict (a council escalate → `escalated`); this skill does not advance the FSM. Review infrastructure and retry manually."
 
 ## Rules
 
