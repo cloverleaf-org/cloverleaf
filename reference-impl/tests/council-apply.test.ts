@@ -219,7 +219,11 @@ describe('applyCouncilVerdict — gate-aware routing (Slice 4)', () => {
 // used to render identically whether the profile configured a security member or not.
 // The basis is now classified against the profile's resolved plan.
 describe('applyCouncilVerdict — security.basis states only what the run can prove', () => {
-  const NOT_CONFIGURED = 'no security member configured; advanced under council authority';
+  // A security member the plan does not name is either absent from the profile or excluded
+  // by its `when` predicate; the plan cannot tell those apart, so the string claims only
+  // what it knows — that none is in *this task's* resolved plan. The trailing clause states
+  // what the council actually did, since on a bounce nothing advanced.
+  const NOT_IN_PLAN = "no security member in this task's resolved council plan";
 
   it('distinguishes a configured-but-unreached security member from an unconfigured one', () => {
     // delivery-full (risk high) puts a blocking security member in round 2 for a
@@ -252,15 +256,51 @@ describe('applyCouncilVerdict — security.basis states only what the run can pr
   });
 
   it('does not blame an earlier round when only a NON-blocking member bounced', () => {
-    // A non-blocking bounce does not stop the council (only a blocking one does), so it
-    // cannot explain the security member's absence — and must not be offered as if it did.
+    // reviewer is in round 1 of delivery-full, strictly earlier than security's round 2, so
+    // only the blocking flag stands between this and a causal claim. A non-blocking bounce
+    // does not stop the council, so it cannot explain the absence.
     const r = repoWithCouncilTask('high', 'high');
-    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [
-      { member: 'reviewer', verdict: 'pass' },
-      { member: 'ui', verdict: 'bounce', blocking: false },
-    ]));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review',
+      V('pass', [{ member: 'reviewer', verdict: 'bounce', blocking: false }]));
     expect(res.security?.basis).toMatch(/did not run/i);
     expect(res.security?.basis).not.toMatch(/earlier round|short-circuit/i);
+  });
+
+  it('does not blame a stop rule fired by a member in the SAME round as security', () => {
+    // Round 0 dispatches reviewer and security concurrently. A blocking reviewer bounce stops
+    // the council "before the next round" — it cannot un-dispatch security, which was already
+    // running. So the absence is an anomaly (a lost envelope), and blaming an earlier round
+    // points the auditor away from it.
+    const r = repoWithCouncilTask('high', 'high');
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { samestop: {
+        rounds: [[{ member: 'reviewer' }, { member: 'security' }]],
+        aggregation: 'any-veto', on_round_bounce: 'stop',
+      } },
+      gates: { 'task.review': 'samestop' },
+    }));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('bounce', [{ member: 'reviewer', verdict: 'bounce' }]));
+    expect(res.security?.basis).toMatch(/did not run/i);
+    expect(res.security?.basis).not.toMatch(/earlier round/i);
+  });
+
+  it('does not blame an escalate from a round AFTER security', () => {
+    // If round 2 ran at all, security's round 1 completed — so a round-2 escalate cannot
+    // explain a missing security verdict, and naming it hides the real anomaly.
+    const r = repoWithCouncilTask('high', 'high');
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { late: {
+        rounds: [[{ member: 'reviewer' }], [{ member: 'security' }], [{ member: 'qa' }]],
+        aggregation: 'any-veto', on_round_bounce: 'stop',
+      } },
+      gates: { 'task.review': 'late' },
+    }));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review',
+      V('escalate', [{ member: 'reviewer', verdict: 'pass' }, { member: 'qa', verdict: 'escalate' }]));
+    expect(res.security?.basis).toMatch(/did not run/i);
+    expect(res.security?.basis).not.toMatch(/short-circuit/i);
   });
 
   it('does not blame an earlier round when the profile continues past a bounce', () => {
@@ -278,7 +318,8 @@ describe('applyCouncilVerdict — security.basis states only what the run can pr
     expect(res.security?.basis).not.toMatch(/earlier round/i);
   });
 
-  it('keeps the unconfigured wording when the profile really has no security member', () => {
+  it('reports a bounce as a bounce when no security member is in the plan', () => {
+    // The task walks council → implementing, so the basis must not claim it advanced.
     const r = repoWithCouncilTask('high', 'high');
     mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
     writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
@@ -286,17 +327,32 @@ describe('applyCouncilVerdict — security.basis states only what the run can pr
       gates: { 'task.review': 'lean' },
     }));
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('bounce', [{ member: 'reviewer', verdict: 'bounce' }]));
-    expect(res.security?.basis).toBe(NOT_CONFIGURED);
+    expect(loadTask(r, 'DEMO-001').status).toBe('implementing');
+    expect(res.security?.basis).toBe(`${NOT_IN_PLAN}; council bounced to implementing`);
   });
 
-  it('reads a when-excluded security member as unconfigured (the plan filters `when` out)', () => {
+  it('reports an escalate as an escalate when no security member is in the plan', () => {
+    const r = repoWithCouncilTask('high', 'high');
+    mkdirSync(join(r, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(join(r, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { lean: { rounds: [[{ member: 'reviewer' }]], aggregation: 'any-veto' } },
+      gates: { 'task.review': 'lean' },
+    }));
+    const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('escalate', [{ member: 'reviewer', verdict: 'escalate' }]));
+    expect(loadTask(r, 'DEMO-001').status).toBe('escalated');
+    expect(res.security?.basis).toBe(`${NOT_IN_PLAN}; council escalated`);
+  });
+
+  it('claims council authority only on a pass, when no security member is in the plan', () => {
     // delivery-fast's security member carries `when: security_class:high`, so on a
     // low-security task it is not in the resolved plan at all. The plan cannot tell that
-    // apart from a profile that never listed one, and both are honestly "no security
-    // member for this task" — so they deliberately share one string.
+    // apart from a profile that never listed one — which is why the string says "not in
+    // this task's resolved plan" rather than the false "no security member configured".
     const r = repoWithCouncilTask('low', 'low');
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
-    expect(res.security?.basis).toBe(NOT_CONFIGURED);
+    expect(loadTask(r, 'DEMO-001').status).toBe('final-gate');
+    expect(res.security?.basis).toBe(`${NOT_IN_PLAN}; advanced under council authority`);
+    expect(res.security?.basis).not.toContain('no security member configured');
   });
 
   it('says the plan was unresolvable rather than guessing, and still completes the apply', () => {
@@ -309,7 +365,7 @@ describe('applyCouncilVerdict — security.basis states only what the run can pr
     const res = applyCouncilVerdict(r, 'DEMO-001', 'task.review', V('pass', [{ member: 'reviewer', verdict: 'pass' }]));
     expect(loadTask(r, 'DEMO-001').status).toBe('final-gate'); // a bad council.json cannot break the apply
     expect(res.security?.basis).toMatch(/could not be resolved/i);
-    expect(res.security?.basis).not.toContain(NOT_CONFIGURED);
+    expect(res.security?.basis).not.toContain(NOT_IN_PLAN);
   });
 
   it('leaves the basis for a security member that did run untouched', () => {

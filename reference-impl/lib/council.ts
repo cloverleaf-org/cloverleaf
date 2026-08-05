@@ -372,7 +372,14 @@ function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, co
 
 /** What this gate's profile planned for the `security` member, for basis classification. */
 interface PlannedSecurity {
-  planned: boolean;
+  /** Round the `security` member is planned in, or null when it is not in the plan at all. */
+  securityRound: number | null;
+  /**
+   * Earliest planned round per member id. A stop rule explains security's absence only if
+   * it fired in a round that could actually have preceded security's own, so the round
+   * ordering — not merely the presence of a bouncing member — is what the basis checks.
+   */
+  memberRounds: Map<string, number>;
   stopsOnRoundBounce: boolean;
 }
 
@@ -397,35 +404,68 @@ interface PlannedSecurity {
 function resolvePlannedSecurity(repoRoot: string, taskId: string, gate: string): PlannedSecurity | null {
   try {
     const plan = resolveCouncilPlan(repoRoot, taskId, gate);
+    // Earliest occurrence wins: if a member is planned twice, the first round is the
+    // earliest point the council could have run it.
+    const memberRounds = new Map<string, number>();
+    plan.rounds.forEach((round, index) => {
+      for (const m of round) if (!memberRounds.has(m.member)) memberRounds.set(m.member, index);
+    });
     return {
-      planned: plan.rounds.some((round) => round.some((m) => m.member === 'security')),
+      securityRound: memberRounds.get('security') ?? null,
+      memberRounds,
       stopsOnRoundBounce: plan.on_round_bounce === 'stop',
     };
-  } catch {
+  } catch (err) {
+    process.stderr.write(
+      `apply-council-verdict: could not resolve the council plan for gate '${gate}' on ${taskId} (${err instanceof Error ? err.message : String(err)}); the result artifact will record the security basis as unknown.\n`,
+    );
     return null;
   }
 }
 
 /**
- * The `security.basis` for a run that recorded no security verdict. Each string states
- * only what that run can prove, and a cause is named only when the run satisfies one of
- * the council's two stop rules: an `escalate` from any member short-circuits the council
- * immediately, and a **blocking** `bounce` stops it before the next round when the profile
- * sets `on_round_bounce: stop`. A planned member absent for any other reason — a
- * non-blocking bounce, a member the runner simply never dispatched — is a runner anomaly,
- * and the artifact reports it as unexplained rather than inventing a cause for it.
+ * The `security.basis` for a run that recorded no security verdict. Each string states only
+ * what that run can prove, so a cause is named only when the run satisfies one of the
+ * council's two stop rules *in a round that could have preceded security's own*:
+ *
+ * - an `escalate` from any member stops the council immediately, so an escalator in an
+ *   earlier round — or in security's own round, cutting off a concurrently dispatched
+ *   member — explains the absence; one in a *later* round cannot, since that round ran only
+ *   because security's round completed;
+ * - a **blocking** `bounce` stops the council "before the next round" under
+ *   `on_round_bounce: stop`, so it explains the absence only from a *strictly earlier*
+ *   round. A same-round bounce cannot un-dispatch a member already running alongside it.
+ *
+ * Anything else — a non-blocking bounce, a stop rule that fired too late, a member the
+ * runner never dispatched or whose envelope was lost — leaves the absence unexplained, and
+ * the artifact says so rather than naming a cause that would point the auditor away from
+ * the real anomaly.
  */
 function securityBasisWhenAbsent(planned: PlannedSecurity | null, council: CouncilVerdict): string {
   if (planned === null) {
     return 'no security member ran; the council plan could not be resolved, so whether one was configured is unknown';
   }
-  if (!planned.planned) {
-    return 'no security member configured; advanced under council authority';
+  const securityRound = planned.securityRound;
+  if (securityRound === null) {
+    // Covers both a profile with no security member and one excluded by its `when`
+    // predicate — indistinguishable here, and the wording claims no more than that.
+    const outcome =
+      council.verdict === 'bounce' ? 'council bounced to implementing'
+      : council.verdict === 'escalate' ? 'council escalated'
+      : 'advanced under council authority';
+    return `no security member in this task's resolved council plan; ${outcome}`;
   }
-  if (council.members.some((m) => m.verdict === 'escalate')) {
-    return 'security member configured for this task but not reached: an earlier member escalated and the council short-circuited; no security verdict recorded';
+  // Did a stop rule fire in a round at/before `latestRound`? A member the plan does not
+  // name cannot be ordered against security's round, so it never explains the absence.
+  const stoppedBy = (verdict: CouncilVerdict['verdict'], latestRound: number, blockingOnly: boolean): boolean =>
+    council.members.some((m) => {
+      const round = planned.memberRounds.get(m.member);
+      return m.verdict === verdict && round !== undefined && round <= latestRound && (!blockingOnly || m.blocking !== false);
+    });
+  if (stoppedBy('escalate', securityRound, false)) {
+    return 'security member configured for this task but not reached: another member escalated and the council short-circuited; no security verdict recorded';
   }
-  if (planned.stopsOnRoundBounce && council.members.some((m) => m.verdict === 'bounce' && m.blocking !== false)) {
+  if (planned.stopsOnRoundBounce && stoppedBy('bounce', securityRound - 1, true)) {
     return "security member configured for this task but not reached: an earlier round's blocking member bounced and the profile stops on a round bounce; no security verdict recorded";
   }
   return 'security member configured for this task but did not run; no security verdict recorded';
