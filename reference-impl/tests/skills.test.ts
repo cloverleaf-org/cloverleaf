@@ -270,7 +270,7 @@ describe('cloverleaf-run skill — universal council delivery (Slice 4)', () => 
     expect(body).toMatch(/>=\s*3|max.*3/i);
   });
 
-  it('auto-runs a decisive plan_review when bound', () => {
+  it('mentions the task.plan_review gate and its plan_review_bounces counter (reserved — see §3a/§3b) (fix round 2)', () => {
     expect(body).toContain('task.plan_review');
     expect(body).toContain('plan_review_bounces');
   });

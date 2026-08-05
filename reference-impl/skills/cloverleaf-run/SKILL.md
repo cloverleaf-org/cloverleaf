@@ -101,7 +101,7 @@ On a chair **bounce**, the result artifact's `forward` array names the members w
 3. Otherwise dispatch `plan.rounds` per §7.2 (parallel within a round), reviewing `{{diff}}` = `git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`, and reach a verdict per §7.3 (chair) or §7.4-style `aggregate-verdicts` (deterministic). Then `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.final_gate '<council-verdict-json>'`. This **posts** the advisory result to `.cloverleaf/runs/<TASK-ID>/council/task.final_gate.json` + a feedback envelope and **drives no transition** (the task stays at `final-gate`). Commit: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> advisory final_gate council (<verdict>)")`.
 4. Surface the council verdict + rationale to the human at the merge confirmation. The human still drives `/cloverleaf-merge` (merge) or reject; the advisory council never merges.
 
-`task.plan_review` (decisive, at `tactical-plan`) is driven automatically at step 3b when a profile is bound; `task.final_gate` is advisory-only and post-only.
+`task.plan_review` (decisive, at `tactical-plan`) is **not currently wired** (see §3a/§3b); `task.final_gate` is advisory-only and post-only.
 
 ## Rules
 
