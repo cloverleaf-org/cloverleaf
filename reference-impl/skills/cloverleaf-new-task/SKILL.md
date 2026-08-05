@@ -43,6 +43,7 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
    **`context.rfc` injection:**
 
    - If the brief includes `--rfc=<RFC-ID>` (e.g. `/cloverleaf-new-task --rfc=CLV-9 "Brief text..."`), read `<repo_root>/.cloverleaf/rfcs/<RFC-ID>.json` and inject the workItemRef shape:
+     <!-- cloverleaf-schema: task.schema.json#/properties/context -->
      ```json
      "context": { "rfc": { "project": "<rfc-project-field>", "id": "<RFC-ID>" } }
      ```

@@ -172,11 +172,13 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 12. **Write ui-review state sidecar** — after all browser passes complete and before teardown, determine whether any `compareVisual` call returned `new-baseline` or `dimension-mismatch` across all routes, viewports, and browsers in this run.
 
     - If **yes**: write `{{repo_root}}/.cloverleaf/runs/{{taskId}}/ui-review/state.json` containing:
+      <!-- cloverleaf-schema: none -->
       ```json
       {"baselines_pending": true}
       ```
       (Create intermediate directories as needed.)
     - If **no**: write `{{repo_root}}/.cloverleaf/runs/{{taskId}}/ui-review/state.json` containing:
+      <!-- cloverleaf-schema: none -->
       ```json
       {"baselines_pending": false}
       ```

@@ -94,6 +94,7 @@ The CLI creates the output directory.
 
 In the feedback you emit, include the report as an attachment on a single info-level finding (or on whichever summary finding you already emit):
 
+<!-- cloverleaf-schema: feedback.schema.json#/$defs/finding -->
 ```json
 {
   "severity": "info",
