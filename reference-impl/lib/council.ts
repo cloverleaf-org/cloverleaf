@@ -11,6 +11,8 @@ import { resolveChairPrompt } from './chair.js';
 import { classifyTaskSecurity } from './security-classify.js';
 import { writeFeedback } from './feedback.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
+import { loadQaRulesDocument } from './qa-rules.js';
+import { loadUiReviewConfig } from './ui-review-config.js';
 import { getPluginRoot } from './plugin-path.js';
 
 export interface ResolvedMember {
@@ -18,6 +20,14 @@ export interface ResolvedMember {
   blocking: boolean;
   weight: number;
   promptPath: string;
+  /**
+   * Tokens this member's prompt declares beyond the five the runner always supplies
+   * (task, branch, base_branch, repo_root, diff), resolved here rather than described
+   * in skill prose. Values are the literal strings to substitute. Empty for members
+   * whose prompt needs nothing extra, and for any token planning cannot resolve
+   * without side effects (see MEMBER_TOKENS).
+   */
+  substitutions: Record<string, string>;
 }
 
 export interface CouncilPlan {
@@ -140,6 +150,74 @@ export function resolveMemberPrompt(member: CouncilMember, repoRoot: string): st
   return join(getPluginRoot(), 'prompts', builtin);
 }
 
+/**
+ * Extra tokens each built-in member's prompt declares, beyond the five the runner
+ * always supplies. Kept adjacent to the resolver so a prompt gaining a token is a
+ * one-line change in TS with a test behind it, rather than silent drift in skill prose.
+ *
+ * `preview_port` is listed because `ui-reviewer.md` genuinely declares it — but it is
+ * deliberately not resolved (see `resolveSubstitutions`). This map is the prompts'
+ * contract; the resolver is the subset planning can answer honestly.
+ */
+const MEMBER_TOKENS: Record<string, readonly string[]> = {
+  reviewer: ['test_rules'],
+  security: [],
+  qa: ['qa_rules'],
+  ui: ['affected_routes', 'preview_port', 'ui_review_config'],
+};
+
+interface SubstitutionContext {
+  /**
+   * Routes this work item's diff affects, in the same `string[] | 'all'` encoding
+   * `cloverleaf-cli affected-routes` prints. Undefined for the discovery gates
+   * (plan/rfc), where no code diff is in scope.
+   */
+  affectedRoutes?: string[] | 'all';
+}
+
+/**
+ * Resolve a member's extra prompt tokens. Side-effect free by contract: it reads
+ * config and reuses values the plan already computed, and never allocates, writes,
+ * or starts anything — `council-plan` is a query, and callers re-run it freely.
+ *
+ * A token that cannot be answered honestly at planning time is **omitted** rather
+ * than filled with a placeholder. An absent key leaves a visible `{{token}}` for
+ * whoever dispatches the member; a fabricated value is silently wrong, which is the
+ * exact failure mode this map exists to prevent.
+ */
+function resolveSubstitutions(
+  memberId: string,
+  repoRoot: string,
+  ctx: SubstitutionContext,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const token of MEMBER_TOKENS[memberId] ?? []) {
+    switch (token) {
+      // Both carry the qa-rules *document* (`{ rules: [...] }`) — the shape
+      // reviewer.md and qa.md document — not loadQaRulesConfig()'s bare array.
+      case 'test_rules':
+      case 'qa_rules':
+        out[token] = JSON.stringify(loadQaRulesDocument(repoRoot));
+        break;
+      case 'ui_review_config':
+        out[token] = JSON.stringify(loadUiReviewConfig(repoRoot));
+        break;
+      case 'affected_routes':
+        // Diff-dependent, so available only on a code gate; the plan already
+        // computed it to evaluate the `ui_changes` predicate.
+        if (ctx.affectedRoutes !== undefined) out[token] = JSON.stringify(ctx.affectedRoutes);
+        break;
+      case 'preview_port':
+        // Deliberately unresolved: there is no configured preview port and no
+        // side-effect-free way to derive one — lib/ports.ts offers only
+        // getFreePort(), which *allocates*. Whoever dispatches the ui member
+        // allocates it there, as the standalone ui-review skill does.
+        break;
+    }
+  }
+  return out;
+}
+
 export function resolveCouncilPlan(
   repoRoot: string,
   workItemId: string,
@@ -171,12 +249,15 @@ export function resolveCouncilPlan(
   }
 
   // The when-context (security/ui) is a code-kind (task delivery) concern only.
+  // `affectedRoutes` outlives the predicate: the ui member's {{affected_routes}}
+  // token is the same value, so it is computed once and threaded to both.
   let ctx: WhenContext = { securityHigh: false, uiChanges: false };
+  let affectedRoutes: string[] | 'all' | undefined;
   if (type === 'task') {
     const changed = resolveChangedFiles(repoRoot, workItemId, opts);
     const securityHigh = classifyTaskSecurity(repoRoot, workItemId, { changedFiles: changed }).effective === 'high';
-    const affected = computeAffectedRoutes(changed, loadAffectedRoutesConfig(repoRoot));
-    ctx = { securityHigh, uiChanges: affected === 'all' || affected.length > 0 };
+    affectedRoutes = computeAffectedRoutes(changed, loadAffectedRoutesConfig(repoRoot));
+    ctx = { securityHigh, uiChanges: affectedRoutes === 'all' || affectedRoutes.length > 0 };
   }
 
   const rounds: ResolvedMember[][] = [];
@@ -188,6 +269,7 @@ export function resolveCouncilPlan(
         blocking: member.blocking !== false,
         weight: member.weight ?? 1,
         promptPath: resolveMemberPrompt(member, repoRoot),
+        substitutions: resolveSubstitutions(member.member, repoRoot, { affectedRoutes }),
       }));
     if (active.length > 0) rounds.push(active);
   }

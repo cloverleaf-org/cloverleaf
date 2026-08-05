@@ -213,3 +213,126 @@ describe('resolveChangedFiles git path — hardened against spaces in repoRoot',
     expect(resolveChangedFiles(repoRoot, 'DEMO-001')).toEqual(['b.txt']);
   });
 });
+
+// The runner substitutes a fixed five tokens ({{task}}, {{branch}}, {{base_branch}},
+// {{repo_root}}, {{diff}}) into every member prompt — a set complete only for
+// security-reviewer.md. reviewer.md declares {{test_rules}}, qa.md {{qa_rules}}, and
+// ui-reviewer.md {{affected_routes}} / {{preview_port}} / {{ui_review_config}}. These
+// pin the per-member map that carries them, so a prompt gaining a token is a change
+// in TS with a test behind it rather than silent drift in skill prose.
+describe('resolveCouncilPlan — per-member prompt substitutions', () => {
+  let repoRoot: string;
+  afterEach(() => rmSync(repoRoot, { recursive: true, force: true }));
+
+  const memberOf = (plan: ReturnType<typeof resolveCouncilPlan>, id: string) =>
+    plan.rounds.flat().find((m) => m.member === id);
+
+  it('gives the reviewer member its test_rules token', () => {
+    repoRoot = makeRepo();
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    const reviewer = memberOf(plan, 'reviewer');
+    expect(reviewer).toBeDefined();
+    expect(Object.keys(reviewer!.substitutions)).toContain('test_rules');
+    expect(() => JSON.parse(reviewer!.substitutions.test_rules)).not.toThrow();
+  });
+
+  it('gives the qa member its qa_rules token', () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    const qa = memberOf(plan, 'qa');
+    expect(qa).toBeDefined();
+    expect(Object.keys(qa!.substitutions)).toContain('qa_rules');
+  });
+
+  // reviewer.md and qa.md both document their token as a JSON *object* `{ rules: [...] }`.
+  // 0.10.1 shipped a fix because qa.md had described it as a bare array, and an agent
+  // iterating a non-existent top-level array is the bug that fix closed. Emitting
+  // loadQaRulesConfig()'s QaRule[] here would silently re-open it.
+  it('emits test_rules/qa_rules as the { rules: [...] } object, never a bare array', () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    for (const [id, token] of [['reviewer', 'test_rules'], ['qa', 'qa_rules']] as const) {
+      const doc = JSON.parse(memberOf(plan, id)!.substitutions[token]);
+      expect(Array.isArray(doc)).toBe(false);
+      expect(Array.isArray(doc.rules)).toBe(true);
+    }
+  });
+
+  // Same precedence the standalone cloverleaf-review / cloverleaf-qa skills use:
+  // the consumer's .cloverleaf/config/qa-rules.json wins over the shipped default.
+  // This is the 0.10.0 test-runner agnosticism that F3 left inert on the council path.
+  it('honors a consumer qa-rules.json override for both tokens', () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'config', 'qa-rules.json'),
+      JSON.stringify({ rules: [{ cwd: 'api', match: ['**/*.py'], command: 'pytest -q' }] }),
+    );
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(JSON.parse(memberOf(plan, 'reviewer')!.substitutions.test_rules).rules[0].command).toBe('pytest -q');
+    expect(JSON.parse(memberOf(plan, 'qa')!.substitutions.qa_rules).rules[0].command).toBe('pytest -q');
+  });
+
+  it('does not give the security member tokens its prompt has no placeholder for', () => {
+    repoRoot = makeRepo({ security_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    const security = memberOf(plan, 'security');
+    expect(security).toBeDefined();
+    expect(security!.substitutions).toEqual({});
+  });
+
+  it('gives the ui member affected_routes + ui_review_config', () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/pages/faq.astro'] });
+    const ui = memberOf(plan, 'ui');
+    expect(ui).toBeDefined();
+    // Byte-identical to what `cloverleaf-cli affected-routes` prints, so the token
+    // reads the same on the council path and the standalone path.
+    expect(ui!.substitutions.affected_routes).toBe('["/faq/"]');
+    expect(JSON.parse(ui!.substitutions.ui_review_config).viewports.desktop).toEqual({ width: 1280, height: 800 });
+  });
+
+  it("encodes a global-pattern change as the \"all\" sentinel, not an array", () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/components/Nav.astro'] });
+    expect(memberOf(plan, 'ui')!.substitutions.affected_routes).toBe('"all"');
+  });
+
+  // There is no configured preview port and no side-effect-free resolver for one —
+  // lib/ports.ts exposes only getFreePort(), which *allocates*. Planning stays pure,
+  // so the token is omitted rather than fabricated; the runner allocates at dispatch.
+  it('omits preview_port — planning must not allocate a port', () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/pages/faq.astro'] });
+    expect(Object.keys(memberOf(plan, 'ui')!.substitutions)).not.toContain('preview_port');
+  });
+
+  it('is deterministic — resolving twice yields identical substitutions', () => {
+    repoRoot = makeRepo({ risk_class: 'high', security_class: 'high' });
+    const opts = { changedFiles: ['src/pages/faq.astro'] };
+    const a = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', opts);
+    const b = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', opts);
+    expect(a.rounds.flat().map((m) => m.substitutions)).toEqual(b.rounds.flat().map((m) => m.substitutions));
+  });
+
+  it('gives an unknown custom member id an empty map rather than a guessed one', () => {
+    repoRoot = makeRepo();
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'prompts'), { recursive: true });
+    writeFileSync(join(repoRoot, '.cloverleaf', 'prompts', 'perf.md'), '# perf');
+    writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'council.json'), JSON.stringify({
+      profiles: { p: { rounds: [[{ member: 'perf', prompt: 'perf.md' }]], aggregation: 'any-veto' } },
+      gates: { 'task.review': 'p' },
+    }));
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    expect(plan.rounds[0][0].substitutions).toEqual({});
+  });
+
+  it('every substituted value is a string — substitution is textual', () => {
+    repoRoot = makeRepo({ risk_class: 'high', security_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/pages/faq.astro'] });
+    const values = plan.rounds.flat().flatMap((m) => Object.values(m.substitutions));
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.every((v) => typeof v === 'string')).toBe(true);
+  });
+});
