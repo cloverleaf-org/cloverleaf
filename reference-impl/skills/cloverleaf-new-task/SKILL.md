@@ -32,11 +32,29 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
      "owner": { "kind": "agent", "id": "implementer" },
      "project": "<project>",
      "title": "<concise title derived from brief>",
-     "context": <see "context.rfc injection" below>,
+     "context": { "rfc": { "project": "<rfc-project-field>", "id": "<RFC-ID>" } },
      "acceptance_criteria": ["<criterion 1>", "<criterion 2>", "..."],
      "definition_of_done": ["<terminal statement of completion>"],
      "risk_class": "low",
-     "security_class": "<see security_class inference below>"
+     "security_class": <see security_class inference below>
+   }
+   ```
+
+   A complete, schema-valid example:
+
+   ```json
+   {
+     "id": "DEMO-002",
+     "type": "task",
+     "status": "pending",
+     "owner": { "kind": "agent", "id": "implementer" },
+     "project": "DEMO",
+     "title": "Add a retry budget to the fetch helper",
+     "context": { "rfc": { "project": "DEMO", "id": "DEMO-001" } },
+     "definition_of_done": ["`fetchWithRetry` retries up to 3 times on 5xx and gives up after that."],
+     "acceptance_criteria": ["`npm test` passes.", "A test asserts the 4th attempt is not made."],
+     "risk_class": "low",
+     "security_class": "low"
    }
    ```
 
@@ -49,7 +67,7 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
      ```
      The `project` field comes from the loaded RFC document, NOT the task's own project (a task in project FOO may legitimately reference an RFC in project BAR).
    - If `<repo_root>/.cloverleaf/rfcs/<RFC-ID>.json` does not exist, abort and ask the user to verify the RFC ID. Do not write the task file.
-   - If `--rfc=<ID>` is not passed, leave `context` as `{}` — same as pre-v0.7.4 behavior.
+   - `--rfc=<RFC-ID>` is **required**. `task.schema.json` requires `context.rfc`, so a task without it is schema-invalid and will be rejected at its first `advance-status`. If the brief does not name an RFC, stop and ask the user which RFC this task belongs to — do not write the file.
 
    Derive 2-5 acceptance criteria from the brief. Each must be verifiable. Derive one or more Definition of Done strings as an array.
 
@@ -77,7 +95,7 @@ The user has invoked this skill with a brief. Your job: turn the brief into a st
 ## Rules
 
 - Do not guess at acceptance criteria. If the brief is too vague (e.g., "make it faster" with no target), ask the user a clarifying question before writing the file.
-- **`--rfc=<ID>` flag:** When the brief includes `--rfc=<RFC-ID>`, the task's `context.rfc` is populated from the on-disk RFC document (see step 4). This is the canonical way to scaffold an **RFC-direct task** (no Plan parent, no `task_batch_gate`) — used for hotfixes after a Plan has delivered, or for incremental RFC progress without forming a Plan. The walker's RFC auto-advance treats RFC-direct tasks as first-class: an in-flight one blocks RFC completion; a merged one counts toward delivery. See `reference-impl/README.md` § "Plans vs RFC-direct tasks" for the full pattern docs and when to pick this over `/cloverleaf-discover`. If `--rfc` is omitted, `context` is left empty.
+- **`--rfc=<ID>` flag:** When the brief includes `--rfc=<RFC-ID>`, the task's `context.rfc` is populated from the on-disk RFC document (see step 4). This is the canonical way to scaffold an **RFC-direct task** (no Plan parent, no `task_batch_gate`) — used for hotfixes after a Plan has delivered, or for incremental RFC progress without forming a Plan. The walker's RFC auto-advance treats RFC-direct tasks as first-class: an in-flight one blocks RFC completion; a merged one counts toward delivery. See `reference-impl/README.md` § "Plans vs RFC-direct tasks" for the full pattern docs and when to pick this over `/cloverleaf-discover`. `--rfc` is required: every task descends from an RFC. A hotfix with no Plan parent is exactly the RFC-direct pattern described above — pass the RFC it belongs to.
 - **risk_class inference:** `risk_class` determines the Delivery pipeline (`"low"` → fast lane; `"high"` → full pipeline). Rules:
   1. If the user passed `--risk=high` or `--risk=low` as a flag on the skill invocation, honor it.
   2. Otherwise, set `risk_class: "high"` when the brief OR any acceptance criterion matches (case-insensitive) any of these keywords:

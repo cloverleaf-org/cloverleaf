@@ -19,6 +19,7 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 ### Fixed
 - `package.json` — `@cloverleaf/standard` dependency and peerDependency ranges corrected to `^0.8.0`. The previous `^0.7.x` ranges excluded the 0.8.0 collapsed-FSM Standard that 0.13.0 requires, so a fresh install would have resolved 0.7.1 and failed at `documenting → council`. A new `tests/package-contract.test.ts` pins the range against `standard/VERSION`.
 - `prompts/qa.md` — removed the top-level `results` key from the documented feedback envelope. `feedback.schema.json` is `additionalProperties: false`, so a QA envelope carrying `results` was rejected by `write-feedback` and the delivery council could not complete for a high-risk task. Aggregate counts now go at the end of `summary`. The standalone `skills/cloverleaf-qa/SKILL.md` documented the same stale `results` shape and told the orchestrating agent to expect it, plus a human-report template that read `<passed>/<total>`/`<failed>/<total>` off it — both corrected to match the prompt's real, schema-valid output (counts read from `summary`) so an orchestrator following either document constructs the same envelope.
+- `skills/cloverleaf-new-task` — `--rfc=<RFC-ID>` is now required. The skill previously documented `context: {}` for its no-RFC usage, but `task.schema.json` requires `context.rfc`, so any task scaffolded that way was born schema-invalid and failed at its first `advance-status`. A concrete schema-valid example was added.
 
 ## 0.12.0 — 2026-07-18
 
