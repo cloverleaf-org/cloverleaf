@@ -63,8 +63,11 @@ The user has invoked this skill with a TASK-ID (e.g., `DEMO-001`).
    so the Implementer always ends at `implementing`. `risk_class` still selects the
    downstream council profile (delivery-fast / delivery-full); it no longer branches the walk.
 
-   The walk keeps the **tactical-plan** step distinct from the **implement** step so the
-   runner (`/cloverleaf-run` §3a/§3b) can checkpoint a decisive plan-review between them.
+   The walk still issues **tactical-plan** and **implement** as two distinct `advance-status`
+   calls (below), but both run in this one dispatch with no pause between them — this skill
+   does **not** stop at `tactical-plan`. A decisive `task.plan_review` checkpoint between them
+   is **not currently wired**: see `/cloverleaf-run` §3a/§3b, which document the limitation and
+   do not attempt to bind one against the shipped default.
 
    If the current task status is `pending`:
    ```

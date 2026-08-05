@@ -99,8 +99,10 @@ describe('cloverleaf-implement skill (Slice 4 — single delivery spine, ends at
     expect(body).toMatch(/stop at `?implementing`?|STOP here/i);
   });
 
-  it('keeps the tactical-plan step distinct so the runner can checkpoint a plan-review', () => {
-    expect(body).toMatch(/tactical-plan.*distinct|distinct.*implement|checkpoint.*plan-review|plan-review.*between/i);
+  it('keeps tactical-plan and implement as distinct advance-status calls but does not claim a plan-review checkpoint exists (fix round 1)', () => {
+    expect(body).toMatch(/distinct.*advance-status|tactical-plan.*distinct/i);
+    expect(body).not.toMatch(/can checkpoint a decisive plan-review between them/i);
+    expect(body).toMatch(/not currently wired|not wired/i);
   });
 
   it('risk_class still selects the downstream council profile (not the walk)', () => {
@@ -339,6 +341,17 @@ describe('cloverleaf-run SKILL.md prose contracts', () => {
 
   it('§2 validates the task before dispatching any agent', () => {
     expect(body).toMatch(/validate|schema-valid/i);
+  });
+
+  it('§3a states plainly that a decisive task.plan_review is not currently wired (fix round 1)', () => {
+    expect(body).toMatch(/not currently wired/i);
+    expect(body).toMatch(/apply-council-verdict[^\n]*would fail/i);
+    expect(body).not.toContain('when it reports the tactical plan is written');
+  });
+
+  it('§3b is marked reserved rather than claiming a working checkpoint (fix round 1)', () => {
+    expect(body).toMatch(/reserved/i);
+    expect(body).toMatch(/not reachable/i);
   });
 });
 
