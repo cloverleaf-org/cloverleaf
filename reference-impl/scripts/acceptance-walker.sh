@@ -101,16 +101,26 @@ JSON
 JSON
 
   COUNCIL_PLAN_OUT="$(cloverleaf-cli council-plan "$REPO" DEMO-001 task.review --changed-files=)"
-  SRC="$(python3 -c "import json,sys; d=json.loads('$COUNCIL_PLAN_OUT'.strip()); print(d.get('source',''))" 2>/dev/null || \
-    node -e "const d=JSON.parse(process.env.COUNCIL_PLAN_OUT||'{}'); process.stdout.write(d.source||'')" <<< "" )"
+  # Parse via stdin — never interpolate the payload into a quoted source
+  # literal. council-plan's output carries a per-member `substitutions` map
+  # whose values are themselves JSON-encoded strings (escaped quotes), so
+  # splicing the raw text into a Python/Node string literal corrupts the
+  # JSON before the parser ever sees it (a backslash starts an escape
+  # sequence inside a quoted literal, silently eating the quote). A parse
+  # failure here must fail loudly, not degrade to an empty string — the
+  # previous fallback read process.env.COUNCIL_PLAN_OUT, which was never
+  # exported, so it always produced ''.
+  SRC="$(printf '%s' "$COUNCIL_PLAN_OUT" | node -e '
+    const d = JSON.parse(require("fs").readFileSync(0, "utf-8"));
+    process.stdout.write(d.source || "");
+  ')" || { echo "FAIL: could not parse council-plan output as JSON"; echo "$COUNCIL_PLAN_OUT"; exit 1; }
   [ "$SRC" = "consumer" ] || { echo "FAIL: expected source=consumer, got '$SRC'"; exit 1; }
   echo "✓ council-plan reports source=consumer"
 
   VERDICT='{"verdict":"pass","rule":"any-veto","rationale":"ok","members":[{"member":"reviewer","verdict":"pass"},{"member":"qa","verdict":"pass"}]}'
   cloverleaf-cli apply-council-verdict "$REPO" DEMO-001 task.review "$VERDICT" > /dev/null
 
-  STATUS="$(python3 -c "import json,sys; d=json.load(open('$REPO/.cloverleaf/tasks/DEMO-001.json')); print(d.get('status',''))" 2>/dev/null || \
-    node -e "const d=require('$REPO/.cloverleaf/tasks/DEMO-001.json'); process.stdout.write(d.status||'')")"
+  STATUS="$(node -e "process.stdout.write(require('$REPO/.cloverleaf/tasks/DEMO-001.json').status||'')")"
   [ "$STATUS" = "final-gate" ] || { echo "FAIL: expected final-gate, got '$STATUS'"; exit 1; }
   echo "✓ apply-council-verdict advanced task to final-gate"
 

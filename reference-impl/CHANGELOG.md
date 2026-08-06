@@ -27,6 +27,7 @@ All notable changes to the Cloverleaf Reference Implementation are documented he
 - `prompts/reviewer.md` — excludes `.cloverleaf/` from its own diff so branch/base divergence is not mistaken for implementer drift; gained the same output-exclusivity clause.
 - `prompts/{implementer,reviewer,qa}.md` — documented the safe suite-capture idiom; piping a test run through `tail` masks its exit status.
 - `prompts/documenter.md` — path table corrected: `standard/src/**` does not exist; `validators/`, `state-machines/` and `agent-contracts/` were unrouted.
+- `scripts/acceptance-walker.sh` — the `council-optin` scenario's `source=consumer` check parsed `council-plan`'s output by interpolating the raw JSON text into a Python single-quoted string literal. Once `council-plan` started emitting a per-member `substitutions` map (JSON-encoded strings, carrying escaped quotes) alongside `promptPath`, that interpolation corrupted the literal and `json.loads` threw; the error was swallowed (`2>/dev/null`) and fell through to a Node fallback reading `process.env.COUNCIL_PLAN_OUT`, which was never exported — so the fallback silently produced `''` instead of failing, and the scenario reported a confusing `expected source=consumer, got ''` instead of a parse error. Both JSON extractions in that function now parse via stdin, never interpolating command output into a quoted literal, and fail loudly on a malformed payload instead of degrading to an empty string.
 
 ## 0.12.0 — 2026-07-18
 
