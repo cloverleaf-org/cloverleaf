@@ -2,7 +2,7 @@
 
 Reference implementation of the Cloverleaf methodology as a set of Claude Code skills. Lets a user drive a Task from `pending` to `merged` with state, events, and feedback recorded in the repo under `.cloverleaf/`.
 
-Implements [Cloverleaf Standard](../standard/) v0.3.0 at L2 (Exchange) conformance.
+Implements [Cloverleaf Standard](../standard/) v0.8.0 at L2 (Exchange) conformance.
 
 ## Install
 
@@ -36,17 +36,34 @@ v0.2 implements both paths of the Delivery track:
 
 ### Skills
 
+**Discovery** — RFC → Spikes → Plan → Tasks:
+
+- `/cloverleaf-new-rfc` — scaffold an RFC work item from a brief file
+- `/cloverleaf-draft-rfc` — Researcher populates the RFC body; emits a Spike per unknown
+- `/cloverleaf-spike` — run one Spike to findings + recommendation
+- `/cloverleaf-breakdown` — Plan agent decomposes the RFC into a Plan with a `task_dag`
+- `/cloverleaf-gate` — human decision on an RFC or Plan sitting at its gate
+- `/cloverleaf-discover` — end-to-end Discovery orchestrator over all of the above
+
+**Delivery** — one Task from `pending` to `merged`:
+
 - `/cloverleaf-new-task` — scaffold a Task (auto-sets `risk_class`)
-- `/cloverleaf-implement` — run Implementer
-- `/cloverleaf-document` — run Documenter *(new in v0.2)*
-- `/cloverleaf-review` — run Reviewer
-- `/cloverleaf-ui-review` — run UI Reviewer *(new in v0.2)*
-- `/cloverleaf-approve-baselines` — human baseline-approval gate; clears `baselines_pending` and advances `ui-review → qa` *(new in CLV-19)*
-- `/cloverleaf-qa` — run QA *(new in v0.2)*
-- `/cloverleaf-security-review` — Security Reviewer: deterministic secret scan + LLM vulnerability judgment; runs when `security_class` is `high`
-- `/cloverleaf-merge` — human gate (branches on state)
-- `/cloverleaf-run` — orchestrator (dispatches by `risk_class`)
-- `/cloverleaf-release` — publish a new `@cloverleaf/reference-impl` release; runs pre-flight checks then executes `git tag -a` / `git push origin main` / `git push origin <tag>` / `npm publish` / `gh release create`; accepts `[--dry-run] [--yes]` *(new in CLV-63)*
+- `/cloverleaf-implement` — Implementer; produces the feature branch
+- `/cloverleaf-document` — Documenter; doc-only commits
+- `/cloverleaf-run` — orchestrator; drives the whole walk, selecting the council profile by `risk_class`
+- `/cloverleaf-run-plan` — DAG walker; drives every Task in an approved Plan, several at a time
+
+**Council members, run standalone** — each produces a verdict and drives no state transition, so you can get one member's opinion without running a council:
+
+- `/cloverleaf-review` — Reviewer
+- `/cloverleaf-security-review` — Security Reviewer
+- `/cloverleaf-ui-review` — UI Reviewer
+- `/cloverleaf-qa` — QA
+
+**Human gates:**
+
+- `/cloverleaf-approve-baselines` — approve new or resized visual baselines and clear `baselines_pending`. Clear-only: it drives no transition. Re-run `/cloverleaf-run` afterwards so the held council pass can land.
+- `/cloverleaf-merge` — the `final-gate` approval; performs the real `git merge --no-ff` into main
 
 ### Configuration
 
