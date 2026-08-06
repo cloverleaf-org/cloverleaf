@@ -22,6 +22,13 @@ export function nextEventId(repoRoot: string, workItemId: string): number {
   // simultaneously. A global per-project counter (the pre-v0.6 scheme) produced
   // filename collisions when the walker merged sibling feature branches. Per-work-item
   // scoping means each task's counter is independent; merges union cleanly.
+  //
+  // The `(\d+)` segment is load-bearing, not cosmetic: `.cloverleaf/events/` in
+  // long-lived repos also contains pre-v0.6 files named `<PROJECT>-<NNN>-status.json`
+  // (a global counter), whose names collide with the task-id namespace — e.g.
+  // `CLV-109-status.json` is the 109th project event, not an event for task CLV-109.
+  // Loosening this regex to a bare prefix match would fold unrelated tasks' history
+  // into a task's counter, including transitions through states retired in 0.8.0.
   const re = new RegExp(`^${escapeRegex(workItemId)}-(\\d+)-(status|gate)\\.json$`);
   const nums = readdirSync(dir)
     .map((f) => f.match(re))
