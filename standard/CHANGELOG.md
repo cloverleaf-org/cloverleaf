@@ -13,6 +13,7 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 - `validators/security-gate.ts` — retained as a general primitive (a consumer FSM may still annotate `security_gate`); the default task FSM no longer uses it.
 - `package.json` — the `test` script now runs `tsc --noEmit` before `vitest run`, so type errors in conformance fixtures cannot ship undetected. `conformance/tests/validator-council-config.test.ts` gate-descriptor fixture annotated to the `Record<string, { kind?: Kind }>` contract the validator requires.
 - `docs/validators.md` — removed the stale `human_merge` row from the gate-decision matrix; the gate was retired in this release.
+- `README.md` — corrected for this release: eight agent contracts rather than seven (`chair.openapi.yaml` is new here), the `schemas/` bullet names the two council schemas, and the `state-machines/` bullet describes the collapsed task graph instead of the retired `security_gate` / `resets_security_verdict` edge annotations. The bullet also records that `validators/security-gate.ts` survives as a general primitive even though the default task FSM no longer uses it.
 
 ### Added
 - `schemas/council-config.schema.json` — validates a project's `.cloverleaf/config/council.json` (profiles + per-gate bindings; members carry an optional `kind` of `code`/`rfc`/`plan`).
