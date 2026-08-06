@@ -2,7 +2,7 @@
 
 Reference implementation of the Cloverleaf methodology as a set of Claude Code skills. Lets a user drive a Task from `pending` to `merged` with state, events, and feedback recorded in the repo under `.cloverleaf/`.
 
-Implements [Cloverleaf Standard](../standard/) v0.3.0 at L2 (Exchange) conformance.
+Implements [Cloverleaf Standard](../standard/) v0.8.0 at L2 (Exchange) conformance.
 
 ## Install
 
@@ -15,58 +15,124 @@ npm install            # pulls @cloverleaf/standard + deps
 ./install.sh --project # local install into ./.claude/plugins/cloverleaf/
 ```
 
-## Scope (v0.3)
+## How delivery works
 
-v0.2 implements both paths of the Delivery track:
+Every Task walks one path, whatever its risk:
 
-- **Fast Lane** (`risk_class: "low"`): Implementer → Reviewer → Human Merge
-- **Full Pipeline** (`risk_class: "high"`): Implementer → Documenter → Reviewer → (UI Reviewer if `site/**` changed) → QA → Final Approval
+```
+pending → tactical-plan → implementing → documenting → council → final-gate → merged
+```
+
+`council` is a single parameterized phase. Which reviewers sit on it is configuration, not control flow: `config/council.json` defines the profiles, and the Task's `risk_class` selects one.
+
+| `risk_class` | Profile | Round 1 | Round 2 |
+|---|---|---|---|
+| `low` | `delivery-fast` | Reviewer | Security, if `security_class` is `high` |
+| `high` | `delivery-full` | Reviewer | Security (if `security_class` is `high`), UI (if the diff touches UI paths), and QA — dispatched concurrently |
+
+Both shipped profiles aggregate with `any-veto`: one blocking member is enough to stop the round.
+
+The council has three exits:
+
+- **pass** → `final-gate`, where a human gives the single approval that merges the Task.
+- **bounce** → `implementing`, carrying every member's feedback in one batch.
+- **escalate** → `escalated`. Escalation is un-lowerable: no later member, chair, or aggregation rule can turn it back into a pass.
 
 ### Agents
 
 | Agent | Status | Mechanism |
 |---|---|---|
+| Researcher | Real | Subagent; drafts an RFC body from its brief and runs Spikes against its unknowns |
+| Plan | Real | Subagent; decomposes an approved RFC into a Plan with a `task_dag` |
 | Implementer | Real | Subagent, code + tests on feature branch |
-| Documenter | Real (v0.2) | Subagent, doc-only commits per file-path rules |
+| Documenter | Real | Subagent, doc-only commits per file-path rules |
 | Reviewer | Real | Subagent, read-only review of diff |
-| UI Reviewer | Real (v0.5) | Playwright + axe-core + pixelmatch; multi-browser outer loop (chromium/webkit/firefox); axe-core runs on `axe.browser` engine only (default chromium); maxCombinations cap with per-route warnings |
-| QA | Real (v0.2) | Per-package test runner via `git worktree` |
-| Plan | Stub | Deferred to v0.3 |
-| Researcher | Stub | Deferred to v0.3 |
+| Security Reviewer | Real | Deterministic secret scan + LLM vulnerability judgment |
+| UI Reviewer | Real | Playwright + axe-core + pixelmatch; multi-browser outer loop (chromium/webkit/firefox), though `ui-review.json` ships chromium-only; axe-core runs on the `axe.browser` engine only; `maxCombinations` cap with per-route warnings |
+| QA | Real | Per-package test runner via `git worktree` |
+| Chair | Real | Deliberative judge; dispatched only when a council bounces under `aggregation: "chair"` |
 
 ### Skills
 
+**Discovery** — RFC → Spikes → Plan → Tasks:
+
+- `/cloverleaf-new-rfc` — scaffold an RFC work item from a brief file
+- `/cloverleaf-draft-rfc` — Researcher populates the RFC body; emits a Spike per unknown
+- `/cloverleaf-spike` — run one Spike to findings + recommendation
+- `/cloverleaf-breakdown` — Plan agent decomposes the RFC into a Plan with a `task_dag`
+- `/cloverleaf-gate` — human decision on an RFC or Plan sitting at its gate
+- `/cloverleaf-discover` — end-to-end Discovery orchestrator over all of the above
+
+**Delivery** — one Task from `pending` to `merged`:
+
 - `/cloverleaf-new-task` — scaffold a Task (auto-sets `risk_class`)
-- `/cloverleaf-implement` — run Implementer
-- `/cloverleaf-document` — run Documenter *(new in v0.2)*
-- `/cloverleaf-review` — run Reviewer
-- `/cloverleaf-ui-review` — run UI Reviewer *(new in v0.2)*
-- `/cloverleaf-approve-baselines` — human baseline-approval gate; clears `baselines_pending` and advances `ui-review → qa` *(new in CLV-19)*
-- `/cloverleaf-qa` — run QA *(new in v0.2)*
-- `/cloverleaf-security-review` — Security Reviewer: deterministic secret scan + LLM vulnerability judgment; runs when `security_class` is `high`
-- `/cloverleaf-merge` — human gate (branches on state)
-- `/cloverleaf-run` — orchestrator (dispatches by `risk_class`)
-- `/cloverleaf-release` — publish a new `@cloverleaf/reference-impl` release; runs pre-flight checks then executes `git tag -a` / `git push origin main` / `git push origin <tag>` / `npm publish` / `gh release create`; accepts `[--dry-run] [--yes]` *(new in CLV-63)*
+- `/cloverleaf-implement` — Implementer; produces the feature branch
+- `/cloverleaf-document` — Documenter; doc-only commits
+- `/cloverleaf-run` — orchestrator; drives the whole walk, selecting the council profile by `risk_class`
+- `/cloverleaf-run-plan` — DAG walker; drives every Task in an approved Plan, several at a time
+
+**Council members, run standalone** — each produces a verdict and drives no state transition, so you can get one member's opinion without running a council:
+
+- `/cloverleaf-review` — Reviewer
+- `/cloverleaf-security-review` — Security Reviewer
+- `/cloverleaf-ui-review` — UI Reviewer
+- `/cloverleaf-qa` — QA
+
+**Human gates:**
+
+- `/cloverleaf-approve-baselines` — approve new or resized visual baselines and clear `baselines_pending`. Clear-only: it drives no transition. Re-run `/cloverleaf-run` afterwards so the held council pass can land.
+- `/cloverleaf-merge` — the `final-gate` approval; performs the real `git merge --no-ff` into main
 
 ### Configuration
 
-Two JSON config files in `config/` (overridable per consumer project):
+The package ships defaults for eight config files in `config/`. Your repo overrides any of them by placing a file of the same name at `<repoRoot>/.cloverleaf/config/<name>.json`. Consumer override is a **full replacement** — your file becomes the complete source of truth for that config.
 
-- `config/ui-paths.json` — glob patterns that trigger UI Reviewer (default: `site/**`)
-- `config/qa-rules.json` — per-package test commands
+| Config file | Purpose |
+|---|---|
+| `council.json` | Council profiles and their per-gate bindings: which reviewers run, in which rounds, under which aggregation rule |
+| `qa-rules.json` | Per-package test commands for the QA member |
+| `ui-paths.json` | Glob patterns marking a diff as UI-touching (default: `site/**`). Feeds the `ui_changes` predicate that admits the UI member to a council round |
+| `affected-routes.json` | Rules for mapping a diff to the site routes the UI member visits; includes `contentRoutes` for content-collection mapping |
+| `ui-review.json` | UI Reviewer runtime settings — browser engines, viewports, visual-diff thresholds, axe scope, `maxCombinations` |
+| `security-paths.json` | Sensitive paths and keywords that infer `security_class: high` |
+| `secret-patterns.json` | Secret regexes and placeholder excludes for the deterministic scan |
+| `discovery.json` | Discovery-track settings, including `worktree_setup_command` for non-TypeScript consumers |
 
-### Customizing for your repo
-
-The package ships with cloverleaf-flavored defaults in `config/`. Your repo overrides any of them by placing a file of the same name at `<repoRoot>/.cloverleaf/config/<name>.json`. Consumer override is a **full replacement** — your file becomes the complete source of truth for that config.
-
-Available overrides:
+One further override has no shipped default, because it only makes sense per-repo:
 
 | Override file | Purpose |
 |---|---|
-| `.cloverleaf/config/ui-paths.json` | Controls `detect-ui-paths` — which diffs trigger the `ui-review` state |
-| `.cloverleaf/config/qa-rules.json` | Per-package test commands for the QA agent |
-| `.cloverleaf/config/affected-routes.json` | Rules for mapping diffs to site routes (UI Reviewer scope); includes `contentRoutes` for content-collection mapping |
-| `.cloverleaf/config/astro-base.json` | Explicit Astro `base` path — avoids best-effort parsing of `astro.config.*` |
+| `.cloverleaf/config/astro-base.json` | Explicit Astro `base` path — the UI Reviewer reads it instead of best-effort parsing `astro.config.*` |
+
+All overrides are read fresh on every skill invocation; no caching. Edit and the next `/cloverleaf-run` picks it up.
+
+#### Council profiles
+
+`council.json` decides who reviews your code. A profile is a list of rounds; each round is a list of members dispatched concurrently. A `when` clause gates a member on a predicate, so a round can adapt to the Task in front of it:
+
+```json
+{
+  "profiles": {
+    "delivery-full": {
+      "rounds": [
+        [ { "member": "reviewer" } ],
+        [
+          { "member": "security", "when": "security_class:high" },
+          { "member": "ui", "when": "ui_changes" },
+          { "member": "qa" }
+        ]
+      ],
+      "aggregation": "any-veto",
+      "on_round_bounce": "stop"
+    }
+  },
+  "gates": {
+    "task.review": { "by": "risk_class", "map": { "low": "delivery-fast", "high": "delivery-full" } }
+  }
+}
+```
+
+A member can also be a custom role: give it a `prompt` naming a file under `<repoRoot>/.cloverleaf/prompts/`, and the council dispatches your reviewer alongside the built-ins. The path is exist-checked when the plan resolves, so a typo fails loudly rather than silently skipping a reviewer.
 
 Example `affected-routes.json` override for a Next.js project:
 
@@ -84,8 +150,6 @@ Example `astro-base.json`:
 ```json
 { "base": "/my-docs" }
 ```
-
-All overrides are read fresh on every skill invocation; no caching. Edit and the next `/cloverleaf-run` picks it up.
 
 ### Known limitations
 
@@ -201,17 +265,17 @@ Skipping the Plan = skipping `task_batch_gate`. That's the right tradeoff for ho
 
 ## Security review
 
-The **Security Reviewer** (8th agent) runs when a task's effective `security_class` is `high`, off the `automated-gates` hub in both lanes — so it covers fast-lane backend work, not just full-pipeline UI work.
+The **Security Reviewer** runs as a blocking council member whenever a Task's effective `security_class` is `high`. Both shipped profiles include it, so it covers fast-profile backend work, not only full-profile UI work.
 
-**What triggers it.** `security_class` (`low`/`high`, independent of the UI-keyed `risk_class`) is inferred at task creation from sensitive markers (keywords + paths) and re-checked against the actual diff at review time (defense in depth — a task whose brief never says "credential" but whose diff touches `engine/exchange.py` is caught). Override at creation with `--security=high|low`.
+**What triggers it.** `security_class` (`low`/`high`, independent of the UI-keyed `risk_class`) is inferred at task creation from sensitive markers (keywords + paths) and re-checked against the actual diff at council entry — defense in depth, so a task whose brief never says "credential" but whose diff touches `engine/exchange.py` is still caught. Override at creation with `--security=high|low`.
 
 **Two passes.** (A) a deterministic secret scan (`cloverleaf-cli secret-scan`) over the diff's added lines — cloud keys, tokens, PEM headers, credentialed connection strings; (B) an LLM judgment pass reasoning about injection, broken authz, unsafe deserialization, SSRF, missing input validation, weak crypto.
 
-**Routing.** Findings merge into one feedback envelope; the max severity sets the verdict — any `blocker` (e.g. a leaked credential) → `escalated` (a human must review); `error`/`warning` → `implementing` (the Implementer fixes); clean → `automated-gates` → onward.
+**Routing.** Findings merge into one feedback envelope and the maximum severity sets the member's verdict. Any `blocker` — a leaked credential, say — produces `escalate`, which is un-lowerable, so the Task lands in `escalated` for a human. An `error` or `warning` produces `bounce`, and under `any-veto` the council sends the Task back to `implementing` with the round's feedback batched. Clean produces `pass` and the council carries on.
 
 **Customizing.** Both pattern sets are consumer-overridable: `.cloverleaf/config/security-paths.json` (sensitive paths + keywords) and `.cloverleaf/config/secret-patterns.json` (secret regexes + placeholder excludes).
 
-**Mechanical enforcement (v0.8.1+).** As of v0.8.1, the security-review state is mechanically enforced via the `security_gate` annotation on the Standard 0.7.1 state machine. `advance-status` re-runs `classify-security` on every guarded transition and refuses bypass attempts with exit code 2, naming the required recovery action (advance to `security-review`, run the Security Reviewer, write a `pass` verdict, then retry). This is a belt-and-suspenders complement to the orchestrator prose — the CLI enforces the invariant even if the driving LLM omits the bookkeeping step.
+**Mechanical enforcement (v0.8.1+).** A high-security Task cannot reach `merged` without a passing security review. Standard 0.8.0 retired the `security_gate` state-machine annotation that used to carry this, so the guarantee now rests on two mechanisms. First, the `security` member is **blocking** under `any-veto` — its bounce or escalate stops the council outright. Second, `apply-council-verdict` records `security_review_verdict='pass'` on the `council → final-gate` transition for high-security Tasks, and writes a `security` block into the council audit artifact naming the member's verdict, the gating verdict it set, and the basis for both — including the case where no security member ran at all. The audit record is what makes the guarantee inspectable after the fact, rather than only enforced in the moment.
 
 ## License
 
