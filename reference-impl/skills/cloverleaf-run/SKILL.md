@@ -1,6 +1,6 @@
 ---
 name: cloverleaf-run
-description: End-to-end orchestrator. Drives every task through one universal delivery council — implement (+ optional decisive plan-review) → documenting → council → final-gate/implementing/escalated. The lane is a risk_class profile selector (delivery-fast / delivery-full); security, UI, and QA are council members. Usage — /cloverleaf-run <TASK-ID>.
+description: End-to-end orchestrator. Drives every task through one universal delivery council — implement → documenting → council → final-gate/implementing/escalated. The lane is a risk_class profile selector (delivery-fast / delivery-full); security, UI, and QA are council members. Usage — /cloverleaf-run <TASK-ID>.
 ---
 
 # Cloverleaf — run (orchestrator)
