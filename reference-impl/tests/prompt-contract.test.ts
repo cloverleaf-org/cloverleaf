@@ -9,6 +9,16 @@ import { validateOrThrow } from '../lib/validate.js';
  * be a shape the Standard's schemas actually accept. Prose that specifies an
  * output the schema forbids is the defect class this suite exists to catch.
  *
+ * ## Coverage bounds — what a green run does NOT prove
+ *
+ * This closes the *forbidden-extra-key* half of the F1/F11 class only. It cannot catch a
+ * **missing required** property. F1 itself was not catchable by this design: the invalid
+ * `context: {}` lived in `skills/cloverleaf-new-task/SKILL.md`'s prose, outside any fenced
+ * block. And CONTRACTS is a registry, not a sweep — `skills/cloverleaf-qa/SKILL.md` is
+ * absent from it yet carried a sibling of F11 in inline code, found and fixed by hand.
+ * Green means "no documented block declares a forbidden top-level key", not "the class
+ * is closed".
+ *
  * ## The `cloverleaf-schema` annotation
  *
  * By default a ```json block is checked against the schema its file is mapped to
