@@ -49,6 +49,7 @@ The Standard's QA contract requires a `preview_uri`. You were passed the sentine
 4. For each queued command:
    - Run it in `"$TMPDIR/<cwd>"`
    - Capture stdout, stderr, exit code
+   - **Capture suite results safely:** redirect output to a file and check the exit code — `<command> > /tmp/suite.log 2>&1; echo "EXIT=$?"` — and never pipe the run through `| tail` or `| head`. A pipe reports the *last* command's exit status, so a failing suite reads as success.
    - Parse test output to extract `passed`, `failed`, `total`:
      - Exit code is the universal signal: exit 0 = the command's checks passed; non-zero = failed.
      - When the output format is recognized, also extract counts, e.g. Vitest (`Tests N passed | M failed`), pytest (`N passed, M failed`), or a plain build/lint (exit 0 → `{passed: 1, failed: 0, total: 1}`).

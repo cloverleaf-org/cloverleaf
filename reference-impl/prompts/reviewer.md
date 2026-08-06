@@ -21,13 +21,13 @@ You are the Cloverleaf Reviewer agent. Your job: perform a fresh-eyes review of 
    Run this as the first executable step before anything else. Session B sessions may inherit an arbitrary `cwd` from the walker harness; this anchors you at the repo root.
 
 1. Read the task's `acceptance_criteria` and `definition_of_done`.
-2. Run `git diff <base_branch>..<branch> --stat` and `git diff <base_branch>..<branch>` to see the change.
+2. Run `git diff <base_branch>..<branch> --stat -- ':(exclude).cloverleaf/'` and `git diff <base_branch>..<branch> -- ':(exclude).cloverleaf/'` to see the change. Excluding `.cloverleaf/` matters: the orchestrator commits FSM state to `<base_branch>` while the feature branch stays behind, so an unfiltered two-dot diff shows the branch "deleting" event files and reverting the task's `status`. That is branch/base divergence, not implementer drift — never bounce a task for it.
 3. For each acceptance criterion, determine whether the diff satisfies it. Note any unsatisfied criteria as findings.
 4. Check for defects: missing tests, obvious logic errors, security issues, hygiene problems.
 5. Decide verdict:
    - `pass` if every acceptance criterion is satisfied and no blocking defects exist.
    - `bounce` otherwise.
-6. Return a feedback envelope (per `feedback.schema.json`) to stdout as JSON:
+6. Return a feedback envelope (per `feedback.schema.json`) as your final message — **exactly one JSON object and nothing else**:
 
 ```json
 {
@@ -67,6 +67,8 @@ A `pass` verdict MAY have an empty `findings` array or omit it. A `bounce` verdi
   Use `--detach` with a SHA rather than a branch name: when running inside a walker worktree, the feature branch (and main) may already be checked out in another worktree, causing `git worktree add` to fail with "fatal: branch … is already checked out". Detaching at a SHA bypasses this constraint entirely.
 
   This keeps `.cloverleaf/` on main intact.
+
+  **Capture suite results safely:** redirect output to a file and check the exit code — `<command> > /tmp/suite.log 2>&1; echo "EXIT=$?"` — and never pipe the run through `| tail` or `| head`. A pipe reports the *last* command's exit status, so a failing suite reads as success.
 - **Loading or running a module directly (TypeScript projects).** If your project is TypeScript, do not improvise `node -e "import('./lib/x.js')"` to spot-check a module — sources are `.ts` and the build emits `.mjs`, so a bare `.js` import resolves to neither. Use `npx tsx` instead (resolves `.ts` sources and `.js`-style import specifiers):
 
   ```bash

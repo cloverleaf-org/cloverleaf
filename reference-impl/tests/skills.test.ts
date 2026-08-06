@@ -1976,3 +1976,48 @@ describe('test-runner agnosticism (F2)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Task 9: agent prompt repairs — F12 (rework-aware branch), P1 (output
+// exclusivity + long-run protocol), F7 (safe suite-capture idiom), F4
+// (reviewer excludes .cloverleaf/ from its own diff), F9 (documenter path
+// table routes real standard/ directories).
+// ---------------------------------------------------------------------------
+
+describe('agent prompt contracts', () => {
+  const prompt = (n: string) =>
+    readFileSync(resolve(__dirname, '..', 'prompts', `${n}.md`), 'utf-8');
+
+  it('implementer is rework-aware and does not unconditionally recreate its branch', () => {
+    expect(prompt('implementer')).toMatch(/already exists|rework|re-implement in place/i);
+  });
+
+  it('implementer and reviewer carry the output-exclusivity clause the other prompts have', () => {
+    for (const p of ['implementer', 'reviewer']) {
+      expect(prompt(p)).toMatch(/nothing else|ONLY (the|a) /i);
+    }
+  });
+
+  it('test-running prompts forbid capturing suite results through a pipe', () => {
+    // Corrected per binding human-partner ruling: the brief's original assertion
+    // (`toMatch(/\| ?tail/)`) only proves the string is *mentioned* — a prompt saying
+    // "always use `| tail`" would pass it despite the test's name claiming it forbids
+    // the practice. This regex requires a forbidding "never ... | tail" clause, so it
+    // fails on an approving mention and passes only on a real prohibition.
+    for (const p of ['implementer', 'reviewer', 'qa']) {
+      expect(prompt(p)).toMatch(/never .{0,40}\| ?tail/i);
+    }
+  });
+
+  it('reviewer excludes .cloverleaf from its own diff', () => {
+    expect(prompt('reviewer')).toContain(":(exclude).cloverleaf/");
+  });
+
+  it('documenter routes the standard directories that actually exist', () => {
+    const d = prompt('documenter');
+    expect(d).not.toContain('standard/src/**');
+    for (const dir of ['standard/validators/**', 'standard/state-machines/**', 'standard/agent-contracts/**']) {
+      expect(d).toContain(dir);
+    }
+  });
+});
