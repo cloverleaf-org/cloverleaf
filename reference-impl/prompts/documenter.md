@@ -36,7 +36,7 @@ Inspect the diff. For each category below that matches, update the listed docs:
 
 | Diff touches | Docs to update |
 |---|---|
-| `standard/src/**`, `standard/schemas/**`, `standard/conformance/**` | `standard/CHANGELOG.md` (Unreleased), relevant `standard/docs/*.md` sections if behavior/conformance changed |
+| `standard/schemas/**`, `standard/state-machines/**`, `standard/validators/**`, `standard/agent-contracts/**`, `standard/conformance/**` | `standard/CHANGELOG.md` (Unreleased), relevant `standard/docs/*.md` sections if behavior/conformance changed |
 | `reference-impl/lib/**`, `reference-impl/skills/**`, `reference-impl/prompts/**` | `reference-impl/CHANGELOG.md` (Unreleased), `reference-impl/README.md` if public surface changed (new skill, CLI command, exported lib symbol) |
 | `site/src/**`, `site/public/**` | `site/CHANGELOG.md` ONLY if that file already exists; otherwise skip |
 | Root-level package additions, version bumps | Root `README.md`, root `CHANGELOG.md` |

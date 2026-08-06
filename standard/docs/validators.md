@@ -139,7 +139,6 @@ Violation = { rule, message, path?, workItemId?, severity: "error" | "warning" }
 | `task_batch_gate` | approve, reject, revise, split |
 | `per_task_plan_review` | approve, reject |
 | `final_approval_gate` | approve, reject, escalate |
-| `human_merge` | approve, escalate |
 
 **Reference impl:** `validators/gate-decision-validity.ts`
 

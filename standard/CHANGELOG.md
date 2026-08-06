@@ -11,6 +11,8 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 - `schemas/task.schema.json` — the `status` enum is the nine collapsed states.
 - `validators/types.ts`, `validators/gate-decision-validity.ts` — `GateDecisionEvent.gate` drops `human_merge`.
 - `validators/security-gate.ts` — retained as a general primitive (a consumer FSM may still annotate `security_gate`); the default task FSM no longer uses it.
+- `package.json` — the `test` script now runs `tsc --noEmit` before `vitest run`, so type errors in conformance fixtures cannot ship undetected. `conformance/tests/validator-council-config.test.ts` gate-descriptor fixture annotated to the `Record<string, { kind?: Kind }>` contract the validator requires.
+- `docs/validators.md` — removed the stale `human_merge` row from the gate-decision matrix; the gate was retired in this release.
 
 ### Added
 - `schemas/council-config.schema.json` — validates a project's `.cloverleaf/config/council.json` (profiles + per-gate bindings; members carry an optional `kind` of `code`/`rfc`/`plan`).

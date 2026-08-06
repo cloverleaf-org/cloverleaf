@@ -11,6 +11,8 @@ import { resolveChairPrompt } from './chair.js';
 import { classifyTaskSecurity } from './security-classify.js';
 import { writeFeedback } from './feedback.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
+import { loadQaRulesDocument } from './qa-rules.js';
+import { loadUiReviewConfig } from './ui-review-config.js';
 import { getPluginRoot } from './plugin-path.js';
 
 export interface ResolvedMember {
@@ -18,6 +20,14 @@ export interface ResolvedMember {
   blocking: boolean;
   weight: number;
   promptPath: string;
+  /**
+   * Tokens this member's prompt declares beyond the five the runner always supplies
+   * (task, branch, base_branch, repo_root, diff), resolved here rather than described
+   * in skill prose. Values are the literal strings to substitute. Empty for members
+   * whose prompt needs nothing extra, and for any token planning cannot resolve
+   * without side effects (see MEMBER_TOKENS).
+   */
+  substitutions: Record<string, string>;
 }
 
 export interface CouncilPlan {
@@ -79,7 +89,14 @@ export function resolveChangedFiles(repoRoot: string, taskId: string, opts: { ch
   }
 }
 
-const BUILTIN_PROMPTS: Record<string, string> = {
+/**
+ * The built-in council members and the shipped prompt each one resolves to.
+ * Exported as the single source of truth for "which members are built in":
+ * `tests/council.test.ts` walks it to assert every built-in prompt's declared
+ * tokens are covered by BASE_TOKENS ∪ MEMBER_TOKENS, so a prompt cannot gain a
+ * token that no one resolves.
+ */
+export const BUILTIN_PROMPTS: Record<string, string> = {
   reviewer: 'reviewer.md',
   security: 'security-reviewer.md',
   ui: 'ui-reviewer.md',
@@ -140,6 +157,113 @@ export function resolveMemberPrompt(member: CouncilMember, repoRoot: string): st
   return join(getPluginRoot(), 'prompts', builtin);
 }
 
+/**
+ * Every extra token a built-in member's prompt may declare, beyond the five the
+ * runner always supplies. A union rather than `string` so `resolveSubstitutions`'s
+ * `default:` can be an exhaustiveness check: adding a token to MEMBER_TOKENS
+ * without a matching `case` is a typecheck failure, not a silently dropped key.
+ */
+export type MemberToken =
+  | 'test_rules'
+  | 'qa_rules'
+  | 'affected_routes'
+  | 'preview_port'
+  | 'ui_review_config'
+  | 'taskId';
+
+/**
+ * Extra tokens each built-in member's prompt declares, beyond the five the runner
+ * always supplies. Kept adjacent to the resolver so a prompt gaining a token is a
+ * one-line change in TS with a test behind it, rather than silent drift in skill prose.
+ *
+ * `preview_port` is listed because `ui-reviewer.md` genuinely declares it — but it is
+ * deliberately not resolved (see `resolveSubstitutions`). This map is the prompts'
+ * contract; the resolver is the subset planning can answer honestly.
+ *
+ * `tests/council.test.ts` pins this map against the prompts themselves: every
+ * `{{token}}` a built-in prompt declares must appear here or in BASE_TOKENS. That
+ * completeness check is what makes `cloverleaf-run` §7.2's "never dispatch with an
+ * unresolved token" rule safe — otherwise a prompt-only token stalls its member.
+ */
+export const MEMBER_TOKENS: Record<string, readonly MemberToken[]> = {
+  reviewer: ['test_rules'],
+  security: [],
+  qa: ['qa_rules'],
+  ui: ['affected_routes', 'preview_port', 'ui_review_config', 'taskId'],
+};
+
+interface SubstitutionContext {
+  /**
+   * Id of the work item under review. Always known at planning time, so
+   * `{{taskId}}` — `ui-reviewer.md`'s run-artifact directory
+   * (`.cloverleaf/runs/<id>/ui-review/`) — is always resolvable.
+   */
+  workItemId: string;
+  /**
+   * Routes this work item's diff affects, in the same `string[] | 'all'` encoding
+   * `cloverleaf-cli affected-routes` prints. Undefined for the discovery gates
+   * (plan/rfc), where no code diff is in scope.
+   */
+  affectedRoutes?: string[] | 'all';
+}
+
+/**
+ * Resolve a member's extra prompt tokens. Side-effect free by contract: it reads
+ * config and reuses values the plan already computed, and never allocates, writes,
+ * or starts anything — `council-plan` is a query, and callers re-run it freely.
+ *
+ * A token that cannot be answered honestly at planning time is **omitted** rather
+ * than filled with a placeholder. An absent key leaves a visible `{{token}}` for
+ * whoever dispatches the member; a fabricated value is silently wrong, which is the
+ * exact failure mode this map exists to prevent.
+ */
+function resolveSubstitutions(
+  memberId: string,
+  repoRoot: string,
+  ctx: SubstitutionContext,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const token of MEMBER_TOKENS[memberId] ?? []) {
+    switch (token) {
+      // Both carry the qa-rules *document* (`{ rules: [...] }`) — the shape
+      // reviewer.md and qa.md document — not loadQaRulesConfig()'s bare array.
+      case 'test_rules':
+      case 'qa_rules':
+        out[token] = JSON.stringify(loadQaRulesDocument(repoRoot));
+        break;
+      case 'ui_review_config':
+        out[token] = JSON.stringify(loadUiReviewConfig(repoRoot));
+        break;
+      case 'affected_routes':
+        // Diff-dependent, so available only on a code gate; the plan already
+        // computed it to evaluate the `ui_changes` predicate.
+        if (ctx.affectedRoutes !== undefined) out[token] = JSON.stringify(ctx.affectedRoutes);
+        break;
+      case 'taskId':
+        // The run-artifact directory ui-reviewer.md writes its state.json sidecar
+        // into. A pure value already in hand, so it is always resolved: leaving it
+        // literal makes lib/ui-review-state.ts read a path that cannot exist, and
+        // the baselines-hold then fails open.
+        out[token] = ctx.workItemId;
+        break;
+      case 'preview_port':
+        // Deliberately unresolved: there is no configured preview port and no
+        // side-effect-free way to derive one — lib/ports.ts offers only
+        // getFreePort(), which *allocates*. Whoever dispatches the ui member
+        // allocates it there, as the standalone ui-review skill does.
+        break;
+      default: {
+        // Exhaustiveness guard. A token added to MEMBER_TOKENS with no case above
+        // would otherwise be dropped silently — the exact drift this map exists to
+        // prevent — so make it a compile error instead.
+        const unhandled: never = token;
+        throw new Error(`council: no resolver for member token '${String(unhandled)}'`);
+      }
+    }
+  }
+  return out;
+}
+
 export function resolveCouncilPlan(
   repoRoot: string,
   workItemId: string,
@@ -171,12 +295,15 @@ export function resolveCouncilPlan(
   }
 
   // The when-context (security/ui) is a code-kind (task delivery) concern only.
+  // `affectedRoutes` outlives the predicate: the ui member's {{affected_routes}}
+  // token is the same value, so it is computed once and threaded to both.
   let ctx: WhenContext = { securityHigh: false, uiChanges: false };
+  let affectedRoutes: string[] | 'all' | undefined;
   if (type === 'task') {
     const changed = resolveChangedFiles(repoRoot, workItemId, opts);
     const securityHigh = classifyTaskSecurity(repoRoot, workItemId, { changedFiles: changed }).effective === 'high';
-    const affected = computeAffectedRoutes(changed, loadAffectedRoutesConfig(repoRoot));
-    ctx = { securityHigh, uiChanges: affected === 'all' || affected.length > 0 };
+    affectedRoutes = computeAffectedRoutes(changed, loadAffectedRoutesConfig(repoRoot));
+    ctx = { securityHigh, uiChanges: affectedRoutes === 'all' || affectedRoutes.length > 0 };
   }
 
   const rounds: ResolvedMember[][] = [];
@@ -188,6 +315,7 @@ export function resolveCouncilPlan(
         blocking: member.blocking !== false,
         weight: member.weight ?? 1,
         promptPath: resolveMemberPrompt(member, repoRoot),
+        substitutions: resolveSubstitutions(member.member, repoRoot, { workItemId, affectedRoutes }),
       }));
     if (active.length > 0) rounds.push(active);
   }
@@ -243,6 +371,9 @@ function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, co
   }
   const securityMember = council.members.find((m) => m.member === 'security');
   const highSecurity = task.security_class === 'high';
+  // No security verdict to report? Ask the profile what it intended — before any
+  // transition mutates the task the gate binding selects a profile from.
+  const plannedSecurity = securityMember === undefined ? resolvePlannedSecurity(repoRoot, taskId, gate) : null;
   const walk: string[] = ['council'];
 
   if (council.verdict === 'escalate') {
@@ -275,7 +406,7 @@ function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, co
       member_verdict: securityMember ? securityMember.verdict : 'absent',
       gating_verdict_set: council.verdict === 'pass' && highSecurity ? 'pass' : null,
       basis: !securityMember
-        ? 'no security member configured; advanced under council authority'
+        ? securityBasisWhenAbsent(plannedSecurity, council)
         : securityMember.verdict === 'pass'
           ? 'security member passed'
           : `security member returned '${securityMember.verdict}'; council ${council.verdict} by rule ${JSON.stringify(council.rule)}`,
@@ -283,6 +414,107 @@ function applyDeliveryCouncil(repoRoot: string, taskId: string, gate: string, co
   };
   writeCouncilResult(repoRoot, taskId, result);
   return result;
+}
+
+/** What this gate's profile planned for the `security` member, for basis classification. */
+interface PlannedSecurity {
+  /** Round the `security` member is planned in, or null when it is not in the plan at all. */
+  securityRound: number | null;
+  /**
+   * Earliest planned round per member id. A stop rule explains security's absence only if
+   * it fired in a round that could actually have preceded security's own, so the round
+   * ordering — not merely the presence of a bouncing member — is what the basis checks.
+   */
+  memberRounds: Map<string, number>;
+  stopsOnRoundBounce: boolean;
+}
+
+/**
+ * Resolve what the profile bound to `gate` planned for the `security` member on this task.
+ *
+ * `council.members` names only the members that actually *ran*, so a missing security
+ * verdict is ambiguous on its own. The resolved plan disambiguates it — with one honest
+ * limitation: `resolveCouncilPlan` filters `when`-inactive members out, so a member
+ * excluded by its `when` predicate and a profile that never listed one both come back
+ * `planned: false`. Both are truthfully "no security member for this task", so they share
+ * one basis string rather than a distinction this cannot actually make.
+ *
+ * Two deliberate properties:
+ * - Returns null rather than throwing. Plan resolution reads consumer config and can fail
+ *   on, say, a mistyped member id; an audit string is not worth failing a terminal apply
+ *   step over, and a run whose plan will not resolve says exactly that.
+ * - Called only when there is no security verdict to explain: for a task-kind gate
+ *   `resolveCouncilPlan` runs a `git diff`, so this adds one git invocation to the apply
+ *   path, and it should stay at most one.
+ */
+function resolvePlannedSecurity(repoRoot: string, taskId: string, gate: string): PlannedSecurity | null {
+  try {
+    const plan = resolveCouncilPlan(repoRoot, taskId, gate);
+    // Earliest occurrence wins: if a member is planned twice, the first round is the
+    // earliest point the council could have run it.
+    const memberRounds = new Map<string, number>();
+    plan.rounds.forEach((round, index) => {
+      for (const m of round) if (!memberRounds.has(m.member)) memberRounds.set(m.member, index);
+    });
+    return {
+      securityRound: memberRounds.get('security') ?? null,
+      memberRounds,
+      stopsOnRoundBounce: plan.on_round_bounce === 'stop',
+    };
+  } catch (err) {
+    process.stderr.write(
+      `apply-council-verdict: could not resolve the council plan for gate '${gate}' on ${taskId} (${err instanceof Error ? err.message : String(err)}); the result artifact will record the security basis as unknown.\n`,
+    );
+    return null;
+  }
+}
+
+/**
+ * The `security.basis` for a run that recorded no security verdict. Each string states only
+ * what that run can prove, so a cause is named only when the run satisfies one of the
+ * council's two stop rules *in a round that could have preceded security's own*:
+ *
+ * - an `escalate` from any member stops the council immediately, so an escalator in an
+ *   earlier round — or in security's own round, cutting off a concurrently dispatched
+ *   member — explains the absence; one in a *later* round cannot, since that round ran only
+ *   because security's round completed;
+ * - a **blocking** `bounce` stops the council "before the next round" under
+ *   `on_round_bounce: stop`, so it explains the absence only from a *strictly earlier*
+ *   round. A same-round bounce cannot un-dispatch a member already running alongside it.
+ *
+ * Anything else — a non-blocking bounce, a stop rule that fired too late, a member the
+ * runner never dispatched or whose envelope was lost — leaves the absence unexplained, and
+ * the artifact says so rather than naming a cause that would point the auditor away from
+ * the real anomaly.
+ */
+function securityBasisWhenAbsent(planned: PlannedSecurity | null, council: CouncilVerdict): string {
+  if (planned === null) {
+    return 'no security member ran; the council plan could not be resolved, so whether one was configured is unknown';
+  }
+  const securityRound = planned.securityRound;
+  if (securityRound === null) {
+    // Covers both a profile with no security member and one excluded by its `when`
+    // predicate — indistinguishable here, and the wording claims no more than that.
+    const outcome =
+      council.verdict === 'bounce' ? 'council bounced to implementing'
+      : council.verdict === 'escalate' ? 'council escalated'
+      : 'advanced under council authority';
+    return `no security member in this task's resolved council plan; ${outcome}`;
+  }
+  // Did a stop rule fire in a round at/before `latestRound`? A member the plan does not
+  // name cannot be ordered against security's round, so it never explains the absence.
+  const stoppedBy = (verdict: CouncilVerdict['verdict'], latestRound: number, blockingOnly: boolean): boolean =>
+    council.members.some((m) => {
+      const round = planned.memberRounds.get(m.member);
+      return m.verdict === verdict && round !== undefined && round <= latestRound && (!blockingOnly || m.blocking !== false);
+    });
+  if (stoppedBy('escalate', securityRound, false)) {
+    return 'security member configured for this task but not reached: another member escalated and the council short-circuited; no security verdict recorded';
+  }
+  if (planned.stopsOnRoundBounce && stoppedBy('bounce', securityRound - 1, true)) {
+    return "security member configured for this task but not reached: an earlier round's blocking member bounced and the profile stops on a round bounce; no security verdict recorded";
+  }
+  return 'security member configured for this task but did not run; no security verdict recorded';
 }
 
 /** Decisive plan-review council (task.plan_review at tactical-plan). */

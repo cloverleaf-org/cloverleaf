@@ -1,6 +1,6 @@
 ---
 name: cloverleaf-run
-description: End-to-end orchestrator. Drives every task through one universal delivery council — implement (+ optional decisive plan-review) → documenting → council → final-gate/implementing/escalated. The lane is a risk_class profile selector (delivery-fast / delivery-full); security, UI, and QA are council members. Usage — /cloverleaf-run <TASK-ID>.
+description: End-to-end orchestrator. Drives every task through one universal delivery council — implement → documenting → council → final-gate/implementing/escalated. The lane is a risk_class profile selector (delivery-fast / delivery-full); security, UI, and QA are council members. Usage — /cloverleaf-run <TASK-ID>.
 ---
 
 # Cloverleaf — run (orchestrator)
@@ -21,15 +21,16 @@ These counters live in-session (not persisted). Rerunning `/cloverleaf-run` rese
 
 1. Capture TASK-ID. Initialize `council_bounces = 0`, `plan_review_bounces = 0`.
 
-2. Load task: `cloverleaf-cli load-task <repo_root> <TASK-ID>`. Verify `status === "pending"`. If not, report and stop.
+2. Load task: `cloverleaf-cli load-task <repo_root> <TASK-ID>`. Verify `status === "pending"`. If not, report and stop. **Preflight:** `load-task` does not schema-validate. Before dispatching any agent, confirm the task document is schema-valid: `context.rfc` is present, and `risk_class` / `security_class` are `low` or `high`. An invalid task otherwise clears every precondition and fails at its first real transition — after the Implementer has already produced a branch and commits.
+
+   If any `advance-status` later fails with `orphan event written to … but task save failed`, the event file it names records a transition that did not happen: delete that file before retrying, or the retry will number the next event around it.
 
 3. **Tactical plan (+ optional decisive plan-review).**
-   a. Inline `/cloverleaf-implement <TASK-ID>` to the tactical-plan checkpoint (task reaches `tactical-plan`).
-   b. `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.plan_review`. If `plan.profile !== null` and `plan.mode === "decisive"`: run `plan.rounds` per section 7.2 (reviewing the tactical plan), reach a verdict per 7.3 (chair) / 7.4 (deterministic), then `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.plan_review '<verdict>'`. Reload:
+   a. `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.plan_review`. **A decisive `task.plan_review` is not currently wired — do not bind one.** `/cloverleaf-implement <TASK-ID>` always completes both advances (`pending → tactical-plan → implementing`) in a single dispatch and stops at `implementing`; there is no point at which a plan-review verdict can be applied. If a consumer's `.cloverleaf/config/council.json` bound `plan.mode === "decisive"` for this gate anyway, §3b's `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.plan_review '<verdict>'` would fail — it requires the task to still be at `tactical-plan`, and by the time `/cloverleaf-implement` returns it is already at `implementing`. The shipped default binds no profile to `task.plan_review` (`plan.profile` is always `null` here), so this limitation does not affect the packaged pipeline; it is tracked as a follow-up, not built in this fix. Otherwise (no decisive plan-review bound — the shipped default) simply inline `/cloverleaf-implement <TASK-ID>`, which walks `pending → tactical-plan → implementing` and stops at `implementing`.
+   b. **Reserved — not reachable today.** Applying a decisive `task.plan_review` verdict requires the task to still be at `tactical-plan`, and 3a never leaves it there under the current `/cloverleaf-implement`, so skip 3b unconditionally and continue to 3c. The bullets below record the intended reload logic for when a real stop-at-`tactical-plan` mode exists:
       - `implementing` (pass) → continue to 3c.
       - `pending` (bounce) → `plan_review_bounces += 1`; if `>= 3` escalate (section 6); else return to 3a.
       - `escalated` → stop and surface.
-      Otherwise (no decisive plan-review bound) skip.
    c. Finish the Implementer (task at `implementing`), then reach `documenting` for **every** `risk_class`:
       - `risk_class: "high"` → run `/cloverleaf-document <TASK-ID>` (the Documenter adds doc commits and advances `implementing → documenting`).
       - `risk_class: "low"` (no docs) → the **runner** advances the state itself: `cloverleaf-cli advance-status <repo_root> <TASK-ID> documenting agent`, then commit (`git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> → documenting")`).
@@ -69,7 +70,12 @@ The council member-dispatch, verdict, and apply steps referenced by steps 3b / 4
 
 7.2 **Run the council members (verdict-only).** Re-run `cloverleaf-cli council-plan <repo_root> <TASK-ID> task.review` to get `plan.rounds`, `plan.aggregation`, `plan.on_round_bounce`, and (for a chair profile) `plan.chair`. For each round **in order**: dispatch **all active members in the round concurrently** — issue their Task-tool calls **in a single message** so the harness runs them in parallel — and capture each member's `{verdict, summary, findings}` envelope. Do **not** advance state (the task stays at `council` until you apply the verdict at step 4c). Rounds still run in sequence; only members *within* a round are concurrent. (Built-in members resolve to the shipped `reviewer`/`security-reviewer`/`ui-reviewer`/`qa` prompts by their `promptPath`; a custom role resolves to `.cloverleaf/prompts/<file>.md`.)
 
-   **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`).
+   **Dispatch conventions:** invoke the Task tool in foreground (default — never `run_in_background`); do not poll with foreground `sleep`. Substitute the five base tokens, plus every entry in that member's `substitutions` map from the plan:
+   - `{{task}}`, `{{branch}}` (`cloverleaf/<TASK-ID>`), `{{base_branch}}` (`main`), `{{repo_root}}`, `{{diff}}` (`git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`) — the five base tokens, always present.
+   - `{{<key>}}` for every key in `substitutions`: `council-plan` resolves each member's extra tokens beyond the five base ones (e.g. `test_rules` for `reviewer`, `qa_rules` for `qa`, `affected_routes` / `ui_review_config` / `taskId` for `ui`; `security`'s map is empty — its prompt needs no extra tokens).
+   - **`{{preview_port}}` — the one exception.** `ui-reviewer.md` declares it, but it is deliberately NOT in the plan's `substitutions`: planning must stay side-effect free and cannot allocate a port without one. When dispatching the `ui` member, the runner must allocate a free port itself and substitute `{{preview_port}}` before dispatch — the same way the standalone `cloverleaf-ui-review` skill does: `PREVIEW_PORT=$(node -e "const net=require('net');const s=net.createServer();s.listen(0,()=>{console.log(s.address().port);s.close()})")`.
+
+   Never dispatch a member with an unresolved `{{…}}` token. The three bullets above are the complete set of substitution sources: the five base tokens, every key in that member's `substitutions`, and — for `ui` only — `{{preview_port}}`. Apply all three, then scan the filled prompt text; if any `{{…}}` remains, stop and report rather than letting the member improvise. (Nothing should: `tests/council.test.ts` pins every built-in prompt's declared tokens against exactly those three sources, so a leftover means the prompt and `MEMBER_TOKENS` have drifted.)
 
    Persist each member's envelope: `echo '<envelope>' > /tmp/clv-council-<member>.json && cloverleaf-cli write-feedback <repo_root> <TASK-ID> /tmp/clv-council-<member>.json --prefix=<prefix>`, where `<prefix>` is `r`/`s`/`u`/`q` for the built-ins and the **member id** for a custom role. Collect a members array `[{ "member": "<id>", "verdict": "<pass|bounce|escalate>", "blocking": <plan member blocking>, "weight": <plan member weight> }]`.
 
@@ -95,7 +101,7 @@ On a chair **bounce**, the result artifact's `forward` array names the members w
 3. Otherwise dispatch `plan.rounds` per §7.2 (parallel within a round), reviewing `{{diff}}` = `git diff main..cloverleaf/<TASK-ID> -- ':(exclude).cloverleaf/'`, and reach a verdict per §7.3 (chair) or §7.4-style `aggregate-verdicts` (deterministic). Then `cloverleaf-cli apply-council-verdict <repo_root> <TASK-ID> task.final_gate '<council-verdict-json>'`. This **posts** the advisory result to `.cloverleaf/runs/<TASK-ID>/council/task.final_gate.json` + a feedback envelope and **drives no transition** (the task stays at `final-gate`). Commit: `git add .cloverleaf/ && (git diff --cached --quiet || git commit -m "cloverleaf: <TASK-ID> advisory final_gate council (<verdict>)")`.
 4. Surface the council verdict + rationale to the human at the merge confirmation. The human still drives `/cloverleaf-merge` (merge) or reject; the advisory council never merges.
 
-`task.plan_review` (decisive, at `tactical-plan`) is driven automatically at step 3b when a profile is bound; `task.final_gate` is advisory-only and post-only.
+`task.plan_review` (decisive, at `tactical-plan`) is **not currently wired** (see §3a/§3b); `task.final_gate` is advisory-only and post-only.
 
 ## Rules
 

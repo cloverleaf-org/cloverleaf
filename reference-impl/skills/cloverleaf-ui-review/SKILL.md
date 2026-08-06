@@ -83,8 +83,11 @@ the FSM.
     - `model`: `sonnet`
     - Prompt: contents of `$(cloverleaf-cli plugin-root)/prompts/ui-reviewer.md` with substitutions:
       - `{{task}}`, `{{diff}}`, `{{branch}}`, `{{base_branch}}`, `{{repo_root}}`, `{{preview_port}}`
+      - `{{taskId}}` → the TASK-ID from step 1 (**required** — the prompt roots its run artifacts and the `state.json` sidecar at `{{repo_root}}/.cloverleaf/runs/{{taskId}}/ui-review/`. Left unsubstituted, the sidecar lands under a literal `{{taskId}}` directory, step 12's `read-ui-review-state` finds nothing, `baselines_pending` reads `false`, and the human baseline-approval gate silently passes with unapproved baselines)
       - `{{affected_routes}}` → the value of `$AFFECTED` (verbatim — may be `"all"`, a JSON array, or `[]` but step 6 handled `[]` already)
       - `{{ui_review_config}}` → JSON-stringified result of `cloverleaf-cli ui-review-config <repo_root>` (used by the subagent to scope viewport sizes, thresholds, and axe rule overrides)
+
+    Substitute **every** `{{…}}` token above before dispatch: `ui-reviewer.md` declares exactly these nine, and none may reach the subagent literal.
 
     **Dispatch conventions:** invoke the Task tool in foreground mode (its default — do NOT pass `run_in_background: true`). The Task tool returns the subagent's final message as a string in the result. Do NOT use Bash `sleep` to poll an output file — the harness blocks foreground `sleep`, and background dispatch is unnecessary here because the foreground Task tool already blocks until the subagent finishes.
 

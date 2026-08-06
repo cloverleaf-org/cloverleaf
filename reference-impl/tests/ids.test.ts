@@ -66,6 +66,20 @@ describe('ids', () => {
       writeFileSync(join(repoRoot, '.cloverleaf', 'events', 'evt-001-status.json'), '{}');
       expect(nextEventId(repoRoot, 'ACME-001')).toBe(1);
     });
+
+    it('ignores legacy bare-counter event files that collide with a task id', () => {
+      // Legacy global-counter file whose NAME looks like task CLV-109 but whose
+      // CONTENT is an unrelated task's event. Present in real repos since pre-v0.6.
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'events', 'CLV-109-status.json'),
+        JSON.stringify({ work_item_id: { id: 'CLV-18' } })
+      );
+      writeFileSync(
+        join(repoRoot, '.cloverleaf', 'events', 'CLV-109-001-status.json'),
+        JSON.stringify({ work_item_id: { id: 'CLV-109' } })
+      );
+      expect(nextEventId(repoRoot, 'CLV-109')).toBe(2);
+    });
   });
 
   describe('nextFeedbackIteration', () => {

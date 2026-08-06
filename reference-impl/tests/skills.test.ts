@@ -99,8 +99,10 @@ describe('cloverleaf-implement skill (Slice 4 — single delivery spine, ends at
     expect(body).toMatch(/stop at `?implementing`?|STOP here/i);
   });
 
-  it('keeps the tactical-plan step distinct so the runner can checkpoint a plan-review', () => {
-    expect(body).toMatch(/tactical-plan.*distinct|distinct.*implement|checkpoint.*plan-review|plan-review.*between/i);
+  it('keeps tactical-plan and implement as distinct advance-status calls but does not claim a plan-review checkpoint exists (fix round 1)', () => {
+    expect(body).toMatch(/distinct.*advance-status|tactical-plan.*distinct/i);
+    expect(body).not.toMatch(/can checkpoint a decisive plan-review between them/i);
+    expect(body).toMatch(/not currently wired|not wired/i);
   });
 
   it('risk_class still selects the downstream council profile (not the walk)', () => {
@@ -268,7 +270,7 @@ describe('cloverleaf-run skill — universal council delivery (Slice 4)', () => 
     expect(body).toMatch(/>=\s*3|max.*3/i);
   });
 
-  it('auto-runs a decisive plan_review when bound', () => {
+  it('mentions the task.plan_review gate and its plan_review_bounces counter (reserved — see §3a/§3b) (fix round 2)', () => {
     expect(body).toContain('task.plan_review');
     expect(body).toContain('plan_review_bounces');
   });
@@ -322,6 +324,34 @@ describe('cloverleaf-run skill — council review path (§7) polish (0.9.0)', ()
   it('§7.3 chair branch handles a member escalate first (never lowers escalate to pass)', () => {
     expect(body).toContain('"verdict":"escalate","rule":"chair"');
     expect(body).toContain('none escalated');
+  });
+});
+
+describe('cloverleaf-run SKILL.md prose contracts', () => {
+  const body = readSkill('cloverleaf-run');
+
+  it('§7.2 applies per-member substitutions from the plan rather than a fixed token list', () => {
+    expect(body).toContain('substitutions');
+    expect(body).not.toMatch(/Substitute `\{\{task\}\}`, `\{\{branch\}\}`[^\n]*`\{\{diff\}\}`\s*\(/);
+  });
+
+  it('§3a does not claim a tactical-plan checkpoint the implement skill cannot provide', () => {
+    expect(body).not.toContain('to the tactical-plan checkpoint');
+  });
+
+  it('§2 validates the task before dispatching any agent', () => {
+    expect(body).toMatch(/validate|schema-valid/i);
+  });
+
+  it('§3a states plainly that a decisive task.plan_review is not currently wired (fix round 1)', () => {
+    expect(body).toMatch(/not currently wired/i);
+    expect(body).toMatch(/apply-council-verdict[^\n]*would fail/i);
+    expect(body).not.toContain('when it reports the tactical plan is written');
+  });
+
+  it('§3b is marked reserved rather than claiming a working checkpoint (fix round 1)', () => {
+    expect(body).toMatch(/reserved/i);
+    expect(body).toMatch(/not reachable/i);
   });
 });
 
@@ -1943,6 +1973,51 @@ describe('test-runner agnosticism (F2)', () => {
         // The hint must be guarded as TS-specific so a non-TS agent skips it.
         expect(md.toLowerCase()).toContain('typescript');
       }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 9: agent prompt repairs — F12 (rework-aware branch), P1 (output
+// exclusivity + long-run protocol), F7 (safe suite-capture idiom), F4
+// (reviewer excludes .cloverleaf/ from its own diff), F9 (documenter path
+// table routes real standard/ directories).
+// ---------------------------------------------------------------------------
+
+describe('agent prompt contracts', () => {
+  const prompt = (n: string) =>
+    readFileSync(resolve(__dirname, '..', 'prompts', `${n}.md`), 'utf-8');
+
+  it('implementer is rework-aware and does not unconditionally recreate its branch', () => {
+    expect(prompt('implementer')).toMatch(/already exists|rework|re-implement in place/i);
+  });
+
+  it('implementer and reviewer carry the output-exclusivity clause the other prompts have', () => {
+    for (const p of ['implementer', 'reviewer']) {
+      expect(prompt(p)).toMatch(/nothing else|ONLY (the|a) /i);
+    }
+  });
+
+  it('test-running prompts forbid capturing suite results through a pipe', () => {
+    // Corrected per binding human-partner ruling: the brief's original assertion
+    // (`toMatch(/\| ?tail/)`) only proves the string is *mentioned* — a prompt saying
+    // "always use `| tail`" would pass it despite the test's name claiming it forbids
+    // the practice. This regex requires a forbidding "never ... | tail" clause, so it
+    // fails on an approving mention and passes only on a real prohibition.
+    for (const p of ['implementer', 'reviewer', 'qa']) {
+      expect(prompt(p)).toMatch(/never .{0,40}\| ?tail/i);
+    }
+  });
+
+  it('reviewer excludes .cloverleaf from its own diff', () => {
+    expect(prompt('reviewer')).toContain(":(exclude).cloverleaf/");
+  });
+
+  it('documenter routes the standard directories that actually exist', () => {
+    const d = prompt('documenter');
+    expect(d).not.toContain('standard/src/**');
+    for (const dir of ['standard/validators/**', 'standard/state-machines/**', 'standard/agent-contracts/**']) {
+      expect(d).toContain(dir);
     }
   });
 });
