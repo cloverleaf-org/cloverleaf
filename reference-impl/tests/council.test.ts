@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync as _git } from 'node:child_process';
-import { resolveCouncilPlan, resolveBinding, evaluateWhen, resolveChangedFiles, resolveMemberPrompt } from '../lib/council.js';
+import { resolveCouncilPlan, resolveBinding, evaluateWhen, resolveChangedFiles, resolveMemberPrompt, BUILTIN_PROMPTS, MEMBER_TOKENS } from '../lib/council.js';
 
 function makeRepo(taskOverrides: Record<string, unknown> = {}): string {
   const repoRoot = mkdtempSync(join(tmpdir(), 'clv-council-'));
@@ -236,6 +236,22 @@ describe('resolveCouncilPlan — per-member prompt substitutions', () => {
     expect(() => JSON.parse(reviewer!.substitutions.test_rules)).not.toThrow();
   });
 
+  // makeRepo() writes no consumer qa-rules.json, so this is the packaged-default
+  // branch — and the *payload* matters, not just the shape. loadDefaultRules()
+  // returns [] when config/qa-rules.json is not where it expects, so a broken
+  // packaging layout ships `{"rules":[]}`: still valid JSON, still a rules array,
+  // still parses — and every shape assertion above stays green while the reviewer
+  // is told it has no test command. Same invisibility as the F2 packaging blocker.
+  it('resolves a NON-EMPTY packaged default when the consumer has no qa-rules.json', () => {
+    repoRoot = makeRepo();
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
+    const doc = JSON.parse(memberOf(plan, 'reviewer')!.substitutions.test_rules);
+    expect(Array.isArray(doc.rules)).toBe(true);
+    expect(doc.rules.length).toBeGreaterThan(0);
+    expect(typeof doc.rules[0].command).toBe('string');
+    expect(doc.rules[0].command.length).toBeGreaterThan(0);
+  });
+
   it('gives the qa member its qa_rules token', () => {
     repoRoot = makeRepo({ risk_class: 'high' });
     const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: [] });
@@ -335,4 +351,97 @@ describe('resolveCouncilPlan — per-member prompt substitutions', () => {
     expect(values.length).toBeGreaterThan(0);
     expect(values.every((v) => typeof v === 'string')).toBe(true);
   });
+
+  it("gives the ui member taskId — its state.json sidecar path", () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/pages/faq.astro'] });
+    // ui-reviewer.md writes {{repo_root}}/.cloverleaf/runs/{{taskId}}/ui-review/state.json.
+    // Left literal, lib/ui-review-state.ts reads a path that cannot exist, reports
+    // baselines_pending: false, and the human baseline gate fails open.
+    expect(memberOf(plan, 'ui')!.substitutions.taskId).toBe('DEMO-001');
+  });
+});
+
+/**
+ * The five tokens the council runner always supplies, independent of member:
+ * `skills/cloverleaf-run` §7.2 and every standalone member skill substitute these
+ * before any member-specific token.
+ */
+const BASE_TOKENS: readonly string[] = ['task', 'branch', 'base_branch', 'repo_root', 'diff'];
+
+/**
+ * Tokens the *runner* fills in at dispatch rather than `resolveCouncilPlan` at
+ * planning time, so they are legitimately absent from `substitutions`.
+ * `preview_port` is the only one: allocating a port is a side effect, and planning
+ * is a pure query (see `resolveSubstitutions`). Carved out explicitly — an
+ * unresolved token is otherwise a defect, not a convention.
+ */
+const RUNNER_SUPPLIED: Record<string, readonly string[]> = { ui: ['preview_port'] };
+
+/** Every distinct `{{token}}` a prompt declares. Single-brace `{slug}` templating is not a token. */
+function declaredTokens(body: string): string[] {
+  return [...new Set([...body.matchAll(/\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g)].map((m) => m[1]))].sort();
+}
+
+/**
+ * Completeness, not spot-checks: every token every built-in prompt declares must be
+ * one somebody actually supplies.
+ *
+ * `cloverleaf-run` §7.2 tells the runner to **stop** rather than dispatch a member
+ * carrying an unresolved `{{…}}`. That rule is only safe if this property holds — a
+ * token a prompt declares but nothing resolves either stalls its member outright, or
+ * (if the runner proceeds anyway) reaches the agent as a literal string. `{{taskId}}`
+ * was exactly that: declared by `ui-reviewer.md`, absent from `MEMBER_TOKENS.ui`, so
+ * the ui member wrote its baselines sidecar to a path with `{{taskId}}` in it and the
+ * human baseline-approval hold silently no-opped.
+ *
+ * Per-member reviews cannot catch this class — it is a property of the (prompt, map)
+ * pair across all built-ins — which is why three separate reviews walked past it.
+ */
+describe('built-in member prompts declare no token nobody resolves', () => {
+  // Only the plan-resolving case below builds a repo, so the cleanup is guarded.
+  let repoRoot = '';
+  afterEach(() => {
+    if (repoRoot) rmSync(repoRoot, { recursive: true, force: true });
+    repoRoot = '';
+  });
+
+  it('covers every built-in member', () => {
+    expect(Object.keys(BUILTIN_PROMPTS).sort()).toEqual(['qa', 'reviewer', 'security', 'ui']);
+  });
+
+  for (const member of Object.keys(BUILTIN_PROMPTS)) {
+    // repoRoot is irrelevant for a bare built-in id — resolveMemberPrompt routes to
+    // the shipped prompt under the plugin root. Using the real resolver rather than a
+    // second copy of the member → prompt mapping keeps this honest if either moves.
+    const body = readFileSync(resolveMemberPrompt({ member }, '/nonexistent'), 'utf-8');
+
+    it(`${member}: every {{token}} its prompt declares is in BASE_TOKENS ∪ MEMBER_TOKENS`, () => {
+      const known = new Set<string>([...BASE_TOKENS, ...(MEMBER_TOKENS[member] ?? [])]);
+      expect(declaredTokens(body).filter((t) => !known.has(t))).toEqual([]);
+    });
+
+    it(`${member}: MEMBER_TOKENS lists no token its prompt does not declare`, () => {
+      const declared = new Set(declaredTokens(body));
+      expect([...(MEMBER_TOKENS[member] ?? [])].filter((t) => !declared.has(t))).toEqual([]);
+    });
+
+    it(`${member}: a real plan resolves every declared token the runner does not supply`, () => {
+      // The §7.2 view: what a dispatcher actually holds is the five base tokens plus
+      // the plan's `substitutions` — MEMBER_TOKENS being complete is not enough if the
+      // resolver drops one. High risk + high security + a UI-affecting diff so the
+      // shipped delivery-full profile activates all four built-ins at once.
+      repoRoot = makeRepo({ risk_class: 'high', security_class: 'high' });
+      const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/pages/faq.astro'] });
+      const resolved = plan.rounds.flat().find((m) => m.member === member);
+      expect(resolved, `${member} inactive under delivery-full`).toBeDefined();
+
+      const available = new Set<string>([
+        ...BASE_TOKENS,
+        ...Object.keys(resolved!.substitutions),
+        ...(RUNNER_SUPPLIED[member] ?? []),
+      ]);
+      expect(declaredTokens(body).filter((t) => !available.has(t))).toEqual([]);
+    });
+  }
 });

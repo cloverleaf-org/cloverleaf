@@ -89,7 +89,14 @@ export function resolveChangedFiles(repoRoot: string, taskId: string, opts: { ch
   }
 }
 
-const BUILTIN_PROMPTS: Record<string, string> = {
+/**
+ * The built-in council members and the shipped prompt each one resolves to.
+ * Exported as the single source of truth for "which members are built in":
+ * `tests/council.test.ts` walks it to assert every built-in prompt's declared
+ * tokens are covered by BASE_TOKENS ∪ MEMBER_TOKENS, so a prompt cannot gain a
+ * token that no one resolves.
+ */
+export const BUILTIN_PROMPTS: Record<string, string> = {
   reviewer: 'reviewer.md',
   security: 'security-reviewer.md',
   ui: 'ui-reviewer.md',
@@ -151,6 +158,20 @@ export function resolveMemberPrompt(member: CouncilMember, repoRoot: string): st
 }
 
 /**
+ * Every extra token a built-in member's prompt may declare, beyond the five the
+ * runner always supplies. A union rather than `string` so `resolveSubstitutions`'s
+ * `default:` can be an exhaustiveness check: adding a token to MEMBER_TOKENS
+ * without a matching `case` is a typecheck failure, not a silently dropped key.
+ */
+export type MemberToken =
+  | 'test_rules'
+  | 'qa_rules'
+  | 'affected_routes'
+  | 'preview_port'
+  | 'ui_review_config'
+  | 'taskId';
+
+/**
  * Extra tokens each built-in member's prompt declares, beyond the five the runner
  * always supplies. Kept adjacent to the resolver so a prompt gaining a token is a
  * one-line change in TS with a test behind it, rather than silent drift in skill prose.
@@ -158,15 +179,26 @@ export function resolveMemberPrompt(member: CouncilMember, repoRoot: string): st
  * `preview_port` is listed because `ui-reviewer.md` genuinely declares it — but it is
  * deliberately not resolved (see `resolveSubstitutions`). This map is the prompts'
  * contract; the resolver is the subset planning can answer honestly.
+ *
+ * `tests/council.test.ts` pins this map against the prompts themselves: every
+ * `{{token}}` a built-in prompt declares must appear here or in BASE_TOKENS. That
+ * completeness check is what makes `cloverleaf-run` §7.2's "never dispatch with an
+ * unresolved token" rule safe — otherwise a prompt-only token stalls its member.
  */
-const MEMBER_TOKENS: Record<string, readonly string[]> = {
+export const MEMBER_TOKENS: Record<string, readonly MemberToken[]> = {
   reviewer: ['test_rules'],
   security: [],
   qa: ['qa_rules'],
-  ui: ['affected_routes', 'preview_port', 'ui_review_config'],
+  ui: ['affected_routes', 'preview_port', 'ui_review_config', 'taskId'],
 };
 
 interface SubstitutionContext {
+  /**
+   * Id of the work item under review. Always known at planning time, so
+   * `{{taskId}}` — `ui-reviewer.md`'s run-artifact directory
+   * (`.cloverleaf/runs/<id>/ui-review/`) — is always resolvable.
+   */
+  workItemId: string;
   /**
    * Routes this work item's diff affects, in the same `string[] | 'all'` encoding
    * `cloverleaf-cli affected-routes` prints. Undefined for the discovery gates
@@ -207,12 +239,26 @@ function resolveSubstitutions(
         // computed it to evaluate the `ui_changes` predicate.
         if (ctx.affectedRoutes !== undefined) out[token] = JSON.stringify(ctx.affectedRoutes);
         break;
+      case 'taskId':
+        // The run-artifact directory ui-reviewer.md writes its state.json sidecar
+        // into. A pure value already in hand, so it is always resolved: leaving it
+        // literal makes lib/ui-review-state.ts read a path that cannot exist, and
+        // the baselines-hold then fails open.
+        out[token] = ctx.workItemId;
+        break;
       case 'preview_port':
         // Deliberately unresolved: there is no configured preview port and no
         // side-effect-free way to derive one — lib/ports.ts offers only
         // getFreePort(), which *allocates*. Whoever dispatches the ui member
         // allocates it there, as the standalone ui-review skill does.
         break;
+      default: {
+        // Exhaustiveness guard. A token added to MEMBER_TOKENS with no case above
+        // would otherwise be dropped silently — the exact drift this map exists to
+        // prevent — so make it a compile error instead.
+        const unhandled: never = token;
+        throw new Error(`council: no resolver for member token '${String(unhandled)}'`);
+      }
     }
   }
   return out;
@@ -269,7 +315,7 @@ export function resolveCouncilPlan(
         blocking: member.blocking !== false,
         weight: member.weight ?? 1,
         promptPath: resolveMemberPrompt(member, repoRoot),
-        substitutions: resolveSubstitutions(member.member, repoRoot, { affectedRoutes }),
+        substitutions: resolveSubstitutions(member.member, repoRoot, { workItemId, affectedRoutes }),
       }));
     if (active.length > 0) rounds.push(active);
   }
