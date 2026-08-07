@@ -101,7 +101,15 @@ The cap enforcement helper is available in `lib/ui-browser.ts` as `applyMaxCombi
 
 ## Playwright cache
 
-The `PLAYWRIGHT_BROWSERS_PATH` environment variable is set to `~/.cache/ms-playwright` before you are invoked. Before launching each browser session, verify that the required engine binary exists in `PLAYWRIGHT_BROWSERS_PATH`. If a browser binary is absent, return `verdict: "escalate"` with a synthetic finding per missing engine:
+Playwright keeps its engine binaries in a shared cache outside the worktree, so a review never re-downloads ~300 MB. Establish that location yourself — do not assume a caller set it for you:
+
+```bash
+export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
+```
+
+This defers to a dispatcher or operator who already set the variable (a non-default cache directory is a supported override) and falls back to Playwright's own default otherwise. Write `$HOME`, not `~`: a tilde inside double quotes is not expanded, and `"~/.cache/ms-playwright"` would create a literal `~` directory.
+
+Before launching each browser session, verify that the required engine binary exists in `$PLAYWRIGHT_BROWSERS_PATH`. If a browser binary is absent, return `verdict: "escalate"` with a synthetic finding per missing engine:
 
 ```
 "Playwright {engine} not installed. Run 'npx playwright install webkit firefox' on this machine."
@@ -157,7 +165,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    - Use only the returned `routes` list for the browser passes below.
 
 7. **Verify browser binaries** — before starting any browser session:
-   - Check each engine in `{{ui_review_config}}.browsers` against `PLAYWRIGHT_BROWSERS_PATH`.
+   - Export `PLAYWRIGHT_BROWSERS_PATH` first if you have not already (see "Playwright cache"), then check each engine in `{{ui_review_config}}.browsers` against `$PLAYWRIGHT_BROWSERS_PATH`.
    - Collect all missing engines.
    - If any engine is missing, call `buildBrowserEscalationFinding(engine, process.platform)` for each, teardown the worktree (step 13), and return `verdict: "escalate"` with those findings.
 

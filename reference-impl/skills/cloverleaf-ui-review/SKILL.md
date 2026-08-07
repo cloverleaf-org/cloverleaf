@@ -76,7 +76,13 @@ the FSM.
    git diff main..cloverleaf/<TASK-ID>
    ```
 
-9. **Browser cache env var.** Before the Task-tool dispatch, ensure `PLAYWRIGHT_BROWSERS_PATH=~/.cache/ms-playwright` is exported so the subagent inherits it. This keeps Playwright from re-downloading ~300 MB of browser binaries inside the worktree.
+9. **Browser cache env var.** Before the Task-tool dispatch, export the Playwright cache location so the subagent inherits it. This keeps Playwright from re-downloading ~300 MB of browser binaries inside the worktree.
+
+   ```bash
+   export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
+   ```
+
+   Defer to a value the operator already set — `README.md` documents `PLAYWRIGHT_BROWSERS_PATH` as a supported override for a non-default cache directory, and hard-coding `~/.cache/ms-playwright` here would silently discard it. `ui-reviewer.md` runs the same expression itself, so this step is an optimisation, not a precondition the member depends on.
 
 10. Dispatch the UI Reviewer subagent via the Task tool:
     - `subagent_type`: `general-purpose`
