@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const PROMPTS = resolve(__dirname, '..', 'prompts');
+const SKILLS = resolve(__dirname, '..', 'skills');
 
 function readPrompt(name: string): string {
   return readFileSync(resolve(PROMPTS, `${name}.md`), 'utf-8');
@@ -241,47 +242,60 @@ describe('ui-reviewer prompt', () => {
 });
 
 // ---------------------------------------------------------------------------
-// CLV-36: Playwright script placement — Bug #3 regression guard
-// Symptom: agent wrote a Playwright driver script to /tmp/<name>.mjs and ran
-// it with `node /tmp/<name>.mjs`; Node ESM resolution walks up from the
-// script's own directory, so /tmp has no node_modules/playwright → import
-// fails. Fix: prompt must instruct script placement inside the worktree where
-// npm ci has installed playwright.
+// D1/D1b — the UI driver resolves its browser dependencies from the plugin root.
+//
+// History, because this replaces a guard rather than adding one. CLV-36 read the
+// symptom — a driver written to /tmp could not `import 'playwright'` — as a
+// *placement* problem, so the prompt grew a rule pinning drivers to `$WT/site/`
+// "so that Node can resolve `playwright` from `$WT/site/node_modules/`". That
+// rationale was false. `site/` declares neither `playwright` nor `axe-core`, and
+// `prep-worktree` copies node_modules only into `standard/` and
+// `reference-impl/`, so ESM resolution walking up from `$WT/site/` reaches
+// neither package: the import failed from the mandated location too. The
+// 2026-08-06 dogfood proved it behaviourally — three separate agents
+// independently routed around the rule (absolute paths, a scratch `npm init`
+// project, a filesystem-wide `find / -iname axe-core`).
+//
+// The fix anchors imports at the plugin root, where all four browser packages
+// ship as runtime `dependencies` of @cloverleaf/reference-impl. Resolution no
+// longer depends on where the driver sits, so the placement rule is retired
+// rather than patched. What the placement rule was *incidentally* providing
+// survives as an explicit obligation: a driver outside `$WT` is not swept up by
+// `git worktree remove`, so teardown must delete it.
 // ---------------------------------------------------------------------------
-describe('ui-reviewer prompt (CLV-36 — Playwright script placement bug #3)', () => {
+describe('ui-reviewer prompt (D1/D1b — driver dependency resolution)', () => {
   const body = readPrompt('ui-reviewer');
 
-  it('contains no /tmp/ references for a Playwright script path (regression guard for bug #3)', () => {
-    // The prompt must not instruct placing a script at a bare /tmp/ path.
-    // /tmp/ may not appear adjacent to .mjs or as a Playwright script location.
-    expect(body).not.toMatch(/\/tmp\/[^\s]*\.mjs/);
-    // No instruction to `node /tmp/` a script file.
-    expect(body).not.toMatch(/node\s+\/tmp\//);
+  it('anchors driver imports at the plugin root', () => {
+    expect(body).toContain('cloverleaf-cli plugin-root');
+    expect(body).toContain('createRequire');
+    // The anchor must be the plugin root — not the script's own directory,
+    // which is what a bare specifier uses and what D1 proved cannot work.
+    expect(body).toMatch(/createRequire\(PLUGIN_ROOT/);
   });
 
-  it('instructs placing standalone .mjs driver scripts inside the worktree ($WT/site/)', () => {
-    // The prompt must explicitly describe placing any driver script inside the
-    // worktree directory ($WT/site/) so Node resolves playwright from its node_modules.
-    expect(body).toMatch(/\$WT\/site\/playwright-driver\.mjs|\$WT\/site\//);
-    expect(body).toMatch(/playwright-driver\.mjs/);
+  it('imports playwright and axe-core through that anchor, never as bare specifiers', () => {
+    expect(body).toMatch(/require\('playwright'\)/);
+    expect(body).toMatch(/require\('axe-core'\)/);
+    // The pre-fix forms. A bare ESM specifier resolves from the importing
+    // file's own directory, so it fails wherever the driver is placed.
+    expect(body).not.toMatch(/import\s+[^\n]*\bfrom\s+'(playwright|axe-core)'/);
+    expect(body).not.toMatch(/import\(\s*['"](playwright|axe-core)['"]\s*\)/);
+  });
+
+  it('makes deleting the driver part of teardown', () => {
+    // The retired placement rule kept drivers inside $WT, where
+    // `git worktree remove --force` swept them up as a side effect. Location is
+    // now unconstrained, so the cleanup has to be stated outright.
+    expect(body).toContain('rm -f "$DRIVER"');
+    expect(body).toMatch(/[Dd]elete every driver script you wrote/);
   });
 
   it('uses $WT (not $TMPDIR) as the worktree variable name', () => {
-    // Renaming to $WT avoids overriding the system $TMPDIR and makes the
-    // worktree-vs-tmp distinction visually clear.
+    // Carried over from CLV-36 unchanged: this one is about not clobbering the
+    // system $TMPDIR, and is independent of the retired placement rule.
     expect(body).toContain('WT=$(mktemp -d)');
     expect(body).not.toContain('TMPDIR=$(mktemp -d)');
-  });
-
-  it('instructs running the script from within the worktree (node "$WT/site/...")', () => {
-    // The invocation command must use the worktree path, not a bare /tmp/ path.
-    expect(body).toMatch(/node "\$WT\/site\//);
-  });
-
-  it('extends the placement rule to retries / ad-hoc scripts and fix-in-place (#6 hardening)', () => {
-    // Bug #3 drift recurred on a retry (CLV-108 wrote /tmp/cl-ui-review-r2.mjs).
-    expect(body).toMatch(/including retries/i);
-    expect(body).toMatch(/fix it in place/i);
   });
 });
 
@@ -720,5 +734,72 @@ describe('chair.md — built-in council chair (Slice 2)', () => {
   });
   it('reviews verdicts, not code', () => {
     expect(body).toMatch(/verdicts,? not code/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F7/D5 — the safe command-capture idiom, pinned across every prompt that judges
+// a long command's exit status.
+//
+// F7 established `cmd > file 2>&1; echo "EXIT=$?"` because `cmd | tail` reports
+// *tail's* exit status, so a failing run reads as success. It was written into
+// implementer/reviewer/qa and pinned by no test at all — so when `ui-reviewer.md`
+// was left out, nothing noticed. The 2026-08-06 dogfood caught it behaviourally:
+// the ui member improvised `npm ci 2>&1 | tail -5` in all three council passes,
+// while reviewer and qa — same run, same agent — used the safe form every time.
+// The difference was the prompt, not the agent. Fixing only ui-reviewer.md would
+// leave the class open for the next prompt that grows a long command, so the
+// idiom becomes a contract here.
+//
+// ## Coverage bounds — what a green run does NOT prove
+//
+// CAPTURE_PROMPTS is a registry, not a sweep: a NEW prompt that runs a
+// load-bearing command is covered only once it is added here. The negative check
+// below is the sweep half, and it is deliberately narrow — it pins the exact
+// `2>&1 | tail` redirect-then-pipe signature the dogfood observed. A document
+// could still model `cmd | tail` with no redirect and pass. Nor does the sweep
+// forbid pipelines generally: `cmd 2>/dev/null | grep -q .` in
+// `skills/cloverleaf-run-plan` is a deliberate boolean test whose exit status is
+// *meant* to be the last command's. Green means "no registered prompt lost the
+// idiom, and no shipped prompt or skill models the observed anti-pattern", not
+// "no document can mis-capture an exit status".
+// ---------------------------------------------------------------------------
+describe('F7/D5 — safe command capture is modelled wherever exit status is load-bearing', () => {
+  // Prompts that instruct the agent to run a command and judge its success.
+  // documenter/chair/plan/researcher/security-reviewer run no such command.
+  const CAPTURE_PROMPTS = ['implementer', 'reviewer', 'qa', 'ui-reviewer'] as const;
+
+  for (const name of CAPTURE_PROMPTS) {
+    const body = readPrompt(name);
+
+    it(`${name}.md models the redirect-and-check-exit-code idiom`, () => {
+      expect(body).toContain('2>&1; echo "EXIT=$?"');
+    });
+
+    it(`${name}.md warns that piping the run masks its exit status`, () => {
+      expect(body).toMatch(/Capture (suite|command) results safely/);
+      expect(body).toMatch(/never pipe the run through `\| tail` or `\| head`/);
+      expect(body).toMatch(/reports the \*last\* command's exit status/);
+    });
+  }
+
+  it('no shipped prompt or skill models the redirect-then-pipe anti-pattern (`cmd 2>&1 | tail`)', () => {
+    // The exact form the ui member improvised when its own prompt offered none.
+    // Swept across skills too: a skill body is read by the same agents, so the
+    // idiom has to hold on both surfaces or the class stays open.
+    const ANTIPATTERN = /2>&1\s*\|\s*(tail|head)\b/;
+    const docs: string[] = [
+      ...readdirSync(PROMPTS)
+        .filter((f) => f.endsWith('.md'))
+        .map((f) => resolve(PROMPTS, f)),
+      ...readdirSync(SKILLS, { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => resolve(SKILLS, d.name, 'SKILL.md'))
+        .filter((p) => existsSync(p)),
+    ];
+    // Guard the guard: an empty sweep would pass vacuously.
+    expect(docs.length).toBeGreaterThan(20);
+    const offenders = docs.filter((p) => ANTIPATTERN.test(readFileSync(p, 'utf-8')));
+    expect(offenders.map((p) => p.replace(/^.*\/(?=(prompts|skills)\/)/, ''))).toEqual([]);
   });
 });
