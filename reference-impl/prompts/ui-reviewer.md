@@ -25,12 +25,52 @@ Run this as the first executable step before anything else. Session B sessions m
 
 You operate in two filesystem locations — keep them straight:
 
-- `<worktree>` — the ephemeral worktree at `$WT` (set up in step 2 of the Runtime procedure). You run the dev server here and execute Playwright here. Any standalone `.mjs` driver scripts must be placed INSIDE `$WT/site/` so that Node can resolve `playwright` from `$WT/site/node_modules/`; do NOT write them outside the worktree where no `node_modules` is present.
+- `<worktree>` — the ephemeral worktree at `$WT` (set up in step 2 of the Runtime procedure). You run the dev server here and drive Playwright against it. A standalone `.mjs` driver may live wherever you find convenient — its imports are anchored at the plugin root, not at its own directory (see "Resolving your dependencies" below) — but you MUST delete any driver you write during teardown (step 13).
 - `<repoRoot>` — the main repository root at `{{repo_root}}` (always an absolute path). This is the ONLY location where baselines, diff PNGs, candidate PNGs, and artifacts are written.
 
 **All `compareVisual` paths MUST be rooted at `{{repo_root}}`, NOT at `$WT`.**
 
 The rationale: baselines on `{{repo_root}}/.cloverleaf/baselines/` get picked up by subsequent `git add` + `git commit` steps in the UI Reviewer, which run on the feature branch. The merge skill (v0.4.1+) then merges those commits to main via `git merge --no-ff`. Writing to the worktree's `.cloverleaf/` would strand the files and `git worktree remove --force` would discard them on teardown.
+
+## Resolving your dependencies
+
+`playwright`, `axe-core`, `pixelmatch` and `pngjs` are runtime dependencies of `@cloverleaf/reference-impl`, so they are installed under the **plugin root** — never under the repository you are reviewing. The repo's UI directory declares none of them, and `prep-worktree` copies no `node_modules` into `$WT/site/`. **A bare specifier therefore cannot resolve, from any directory**: `import 'playwright'` and `import 'axe-core'` both fail with `ERR_MODULE_NOT_FOUND` regardless of where your driver sits.
+
+Export the plugin root once, before you run anything:
+
+```bash
+export CLOVERLEAF_PLUGIN_ROOT="$(npx cloverleaf-cli plugin-root)"
+```
+
+Then anchor every import at it. `createRequire` resolves each package by name from the plugin root, so you never hard-code a package's internal file layout:
+
+```javascript
+import { createRequire } from 'node:module';
+
+const PLUGIN_ROOT = process.env.CLOVERLEAF_PLUGIN_ROOT;
+const require = createRequire(PLUGIN_ROOT + '/');
+
+const { chromium, firefox, webkit } = require('playwright');
+const axe = require('axe-core');
+```
+
+Cloverleaf's own helpers are ESM, one `dist/<module>.mjs` per `lib/<module>.ts`. Import them by absolute path:
+
+```javascript
+const { compareVisual }     = await import(`${PLUGIN_ROOT}/dist/visual-diff.mjs`);
+const { slugifyRoute }      = await import(`${PLUGIN_ROOT}/dist/route-slug.mjs`);
+const { dedupeAxeFindings } = await import(`${PLUGIN_ROOT}/dist/axe-dedupe.mjs`);
+const { applyMaxCombinationsCap, buildBrowserEscalationFinding } =
+  await import(`${PLUGIN_ROOT}/dist/ui-browser.mjs`);
+```
+
+If an import fails, fix the anchor. Do **not** relocate the driver, do **not** add packages to the reviewed repo's `package.json`, and do **not** `npm install` anything into a scratch directory — none of that changes what resolves, and editing the repo's manifest would pollute the diff under review.
+
+Keep whatever path you pick for the driver in a shell variable — the steps below call it `$DRIVER` — so teardown can delete it:
+
+```bash
+DRIVER="$WT/site/ui-review-driver.mjs"   # any path works; this one is also swept up with the worktree
+```
 
 ## Scope (v0.5)
 
@@ -84,15 +124,24 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    npx cloverleaf-cli prep-worktree {{repo_root}} "$WT"
    ```
 
-3. For this repo, UI lives in `site/` (or another directory if ui-paths.json scopes it elsewhere). Install dependencies and start the dev server:
+3. For this repo, UI lives in `site/` (or another directory if ui-paths.json scopes it elsewhere). Install dependencies and start the dev server.
+
+   **Capture command results safely:** redirect output to a file and check the exit code — `<command> > /tmp/step.log 2>&1; echo "EXIT=$?"` — and never pipe the run through `| tail` or `| head`. A pipe reports the *last* command's exit status, so a failing command reads as success.
+
    ```bash
    cd "$WT/site"
-   npm ci
+   npm ci > /tmp/ui-npm-ci.log 2>&1; echo "EXIT=$?"
+   # EXIT must be 0 before you go on. On any other value, read /tmp/ui-npm-ci.log
+   # to see why and return verdict `escalate` — do NOT continue with a broken install.
    npm run dev -- --port={{preview_port}} &
    SERVER_PID=$!
    ```
 
-   > **Playwright/driver script placement (Bug #3 fix) — applies to EVERY script you write, including retries and ad-hoc fallbacks:** place any standalone `.mjs` driver **inside the worktree** (e.g., `$WT/site/playwright-driver.mjs`) and run it from there (`node "$WT/site/playwright-driver.mjs"`). Node's ESM module resolution walks up from the script's own directory — a script placed anywhere outside the worktree (e.g. `/tmp`) cannot resolve the `playwright` import (or any `node_modules` package) and fails with `ERR_MODULE_NOT_FOUND`. If a driver errors and you retry, fix it in place in `$WT/site/` — never relocate or recreate it under `/tmp`.
+   Apply the same capture rule to your driver run and to every other command whose success you judge:
+
+   ```bash
+   node "$DRIVER" > /tmp/ui-driver.log 2>&1; echo "EXIT=$?"
+   ```
 
 4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, kill it and return verdict `escalate`.
 
@@ -118,7 +167,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 
    b. **Visual-diff pass (when `visualDiff.enabled` is true):**
 
-      **Visual diffing is ONLY `compareVisual` (pixelmatch). There is no ImageMagick.** Never shell out to `convert`, `compare`, `magick`, or any external image tool to diff or convert images — they are not installed and not a dependency. Screenshot via Playwright (`page.screenshot`) → pass the buffer to `compareVisual` (`lib/visual-diff.ts`). If `compareVisual` is hard to invoke, your driver script failed to resolve — fix the script (see the placement rule), do **not** substitute an external tool.
+      **Visual diffing is ONLY `compareVisual` (pixelmatch). There is no ImageMagick.** Never shell out to `convert`, `compare`, `magick`, or any external image tool to diff or convert images — they are not installed and not a dependency. Screenshot via Playwright (`page.screenshot`) → pass the buffer to `compareVisual` (`lib/visual-diff.ts`). If `compareVisual` is hard to invoke, your driver failed to import it — fix the import anchor (see "Resolving your dependencies"), do **not** substitute an external tool.
 
       For each route in the (capped) route list × each viewport in `{{ui_review_config}}.viewports`:
       - Set Playwright viewport to `{ width, height }` from the config.
@@ -147,10 +196,10 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
       - Set Playwright viewport to `{ width, height }`.
       - For each route in the (capped) route list:
         - Navigate.
-        - Inject and run axe-core:
+        - Inject and run axe-core. `axe` is the plugin-root-anchored `require('axe-core')` from "Resolving your dependencies"; axe runs **inside the page**, so inject its source and evaluate there:
           ```javascript
-          import axe from 'axe-core';
-          const results = await axe.run(document);
+          await page.addScriptTag({ content: axe.source });
+          const results = await page.evaluate(async () => await window.axe.run(document));
           ```
         - Collect each violation as a raw tuple: `{ viewport, ruleId, target, impact, message, helpUrl }` (from `axe.run` output).
 
@@ -188,9 +237,12 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 13. Teardown:
     ```bash
     kill $SERVER_PID 2>/dev/null || true
+    rm -f "$DRIVER"
     cd {{repo_root}}
     git worktree remove --force "$WT"
     ```
+
+    Delete every driver script you wrote, wherever you put it. `git worktree remove --force` only clears what lives inside `$WT`; a driver written anywhere else survives the run and leaks into the next one.
 
 ## Tool constraints
 
