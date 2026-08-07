@@ -150,6 +150,9 @@ the FSM.
 
 - Never push.
 - Do not modify source code — UI Reviewer is read-only.
-- Always teardown preview server + worktree on error.
+- **The subagent owns preview-server and worktree teardown** (`ui-reviewer.md` step 13) — including on error. It holds the only handles: `$SERVER_PID` from the backgrounded dev server and `$WT` from `git worktree add`. Neither variable exists in your shell; you never created either resource.
+- Your own cleanup is bounded to what you can reach from the repo root: `git -C <repo_root> worktree prune` clears any worktree registration the subagent left behind.
+- **Never kill by command-line pattern.** `pkill -f "astro dev"` — or `pkill -f "port=$PREVIEW_PORT"` — also matches the command line of the shell running it, so the shell kills itself: exit 144, and every command after it in the same compound statement silently never runs. Cleanup that looked issued never ran.
+- If `$PREVIEW_PORT` is still listening after the subagent returns, report the port rather than killing blind.
 - Empty-set early-exit (step 6) skips the browser entirely — no Playwright invocation, no worktree — and emits a trivial `pass`.
 - Emit-only: never call `advance-status`. This is one council member's verdict; the council/human applies it.
