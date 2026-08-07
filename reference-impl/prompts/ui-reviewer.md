@@ -151,7 +151,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    node "$DRIVER" > /tmp/ui-driver.log 2>&1; echo "EXIT=$?"
    ```
 
-4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, kill it and return verdict `escalate`.
+4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, run teardown (step 13) — `kill $SERVER_PID`, never a command-line pattern — and return verdict `escalate`.
 
 5. Determine the site base path:
    1. Check `{{repo_root}}/.cloverleaf/config/astro-base.json`. Expected shape: `{ "base": "<path>" }`. If present, use the `base` field verbatim and skip to step 6. (Consumer override — checked before parsing astro config.)
@@ -249,6 +249,8 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
     cd {{repo_root}}
     git worktree remove --force "$WT"
     ```
+
+    Kill the server by the PID you captured in step 3, never by command-line pattern. `pkill -f "astro dev"` also matches the command line of the shell running it, so the shell kills itself: exit 144, and every command after it in the same compound statement — the `rm -f` and `git worktree remove` above — silently never runs.
 
     Delete every driver script you wrote, wherever you put it. `git worktree remove --force` only clears what lives inside `$WT`; a driver written anywhere else survives the run and leaks into the next one.
 

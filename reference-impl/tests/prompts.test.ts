@@ -914,3 +914,107 @@ describe('D2 — PLAYWRIGHT_BROWSERS_PATH is established by whoever reads it', (
     expect(offenders.map(shippedDocLabel)).toEqual([]);
   });
 });
+
+/**
+ * The fenced shell blocks of a markdown doc — the commands a doc *models*, as
+ * distinct from its prose, which may name a command precisely in order to
+ * forbid it. Untagged fences count as shell: the shipped docs open ~40 of them.
+ */
+function shellBlocks(text: string): string[] {
+  const SHELL_LANGS = new Set(['', 'bash', 'sh', 'shell']);
+  const blocks: string[] = [];
+  const fence = /```([a-z]*)\n([\s\S]*?)```/g;
+  let m: RegExpExecArray | null;
+  while ((m = fence.exec(text)) !== null) {
+    if (SHELL_LANGS.has(m[1])) blocks.push(m[2]);
+  }
+  return blocks;
+}
+
+// ---------------------------------------------------------------------------
+// D4 — an order to kill a process ships with the handle to kill by.
+//
+// Nothing in this package ever modelled `pkill`; the defect was an absence.
+// `skills/cloverleaf-ui-review` ordered the *orchestrator* to "always teardown
+// preview server + worktree on error" — but the orchestrator starts neither.
+// The subagent creates the worktree (`ui-reviewer.md` step 2) and backgrounds
+// the dev server (step 3), so `$WT` and `$SERVER_PID` live in a different
+// agent's shell. Ordered to kill something it had no handle on, the agent
+// improvised from the one anchor it did hold, the port it allocated:
+// `pkill -f "port=44953"`. That pattern also matches the command line of the
+// shell running it, so the shell kills itself — exit 144, and every command
+// after it in the same compound statement silently never runs. The 2026-08-06
+// dogfood watched this five times; three of them skipped the `rm -rf` /
+// `git worktree remove` that followed, leaving worktrees registered.
+//
+// So the fix is not a prohibition. It is supplying the missing form and
+// correcting who is being ordered: `ui-reviewer.md` already models the right
+// shape (`SERVER_PID=$!` … `kill $SERVER_PID`), and the two sites that ordered
+// a kill without naming a handle now either name one or hand the duty back to
+// the agent that holds it. The prohibition rides along as the reason.
+//
+// ## Coverage bounds — what a green run does NOT prove
+//
+// The sweep is scoped to *fenced shell blocks*, not prose. A doc that names
+// `pkill` in order to forbid it is the fix, not the defect — and the prose this
+// patch adds does exactly that, which is why a whole-file sweep would have had
+// to be weakened or would have failed on its own fix. So it pins "no shipped
+// doc MODELS a pattern kill" and says nothing about prose. It also pins only
+// the `pkill` spelling: `killall`, `kill $(pgrep -f …)`, and `fuser -k` are the
+// same mistake and would pass.
+// ---------------------------------------------------------------------------
+describe('D4 — a teardown order names the handle it kills by', () => {
+  const prompt = readPrompt('ui-reviewer');
+  const skill = readFileSync(resolve(SKILLS, 'cloverleaf-ui-review', 'SKILL.md'), 'utf-8');
+
+  it('no shipped prompt or skill models a pattern kill in a shell block', () => {
+    const docs = shippedDocs();
+    // Guard the guard, twice. This sweep passed vacuously before the fix —
+    // nothing shipped `pkill` then either — so it must be shown to be looking
+    // at a non-empty document set AND at non-empty shell blocks. A fence regex
+    // that silently matched nothing would read exactly like a pass.
+    expect(docs.length).toBeGreaterThan(20);
+    const blocks = docs.flatMap((p) => shellBlocks(readFileSync(p, 'utf-8')));
+    expect(blocks.length).toBeGreaterThan(100);
+    const offenders = docs.filter((p) =>
+      shellBlocks(readFileSync(p, 'utf-8')).some((b) => /\bpkill\b/.test(b)),
+    );
+    expect(offenders.map(shippedDocLabel)).toEqual([]);
+  });
+
+  it('ui-reviewer.md captures the server PID and tears down by it', () => {
+    // The reference form the other two sites point at. Pinned so it cannot be
+    // removed out from under them.
+    expect(prompt).toContain('SERVER_PID=$!');
+    expect(prompt).toContain('kill $SERVER_PID');
+  });
+
+  it('ui-reviewer.md says why a pattern kill would abort the rest of teardown', () => {
+    // The `rm -f "$DRIVER"` and `git worktree remove` that follow the kill are
+    // exactly what got skipped, so the reason has to travel with the form.
+    expect(prompt).toMatch(/never by command-line pattern/i);
+    expect(prompt).toMatch(/exit 144/);
+  });
+
+  it('ui-reviewer.md step 4 names the handle instead of saying "kill it"', () => {
+    // Ordering a kill at the one moment the agent doubts its PID is good is
+    // where it reaches for a pattern instead.
+    expect(prompt).not.toMatch(/fails to start in 30s, kill it/);
+    expect(prompt).toMatch(/fails to start in 30s[^\n]*\$SERVER_PID/);
+  });
+
+  it('cloverleaf-ui-review gives teardown to the agent that holds the handles', () => {
+    // The orchestrator holds neither `$SERVER_PID` nor `$WT`; its own cleanup
+    // is bounded to what it can reach from the repo root.
+    expect(skill).not.toMatch(/^- Always teardown preview server \+ worktree on error\.$/m);
+    expect(skill).toMatch(/\$SERVER_PID/);
+    expect(skill).toMatch(/worktree prune/);
+  });
+
+  it('cloverleaf-ui-review forbids the pattern kill and gives the reason', () => {
+    // Named literally: the prohibition has to fire at the moment the agent is
+    // about to type it, which a paraphrase would not do.
+    expect(skill).toMatch(/pkill -f/);
+    expect(skill).toMatch(/exit 144/);
+  });
+});
