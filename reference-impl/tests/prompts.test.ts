@@ -9,6 +9,29 @@ function readPrompt(name: string): string {
   return readFileSync(resolve(PROMPTS, `${name}.md`), 'utf-8');
 }
 
+/**
+ * Every prompt and skill body this package ships — the surface an agent reads.
+ * Sweeps that close a class of prose defect run over both: a skill body is read
+ * by the same agents as a prompt, so a rule that holds on only one surface
+ * leaves the class open.
+ */
+function shippedDocs(): string[] {
+  return [
+    ...readdirSync(PROMPTS)
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => resolve(PROMPTS, f)),
+    ...readdirSync(SKILLS, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => resolve(SKILLS, d.name, 'SKILL.md'))
+      .filter((p) => existsSync(p)),
+  ];
+}
+
+/** Repo-relative label for a shippedDocs() path, so failures name the offender. */
+function shippedDocLabel(path: string): string {
+  return path.replace(/^.*\/(?=(prompts|skills)\/)/, '');
+}
+
 describe('documenter prompt', () => {
   const body = readPrompt('documenter');
 
@@ -143,9 +166,10 @@ describe('ui-reviewer prompt', () => {
     expect(body.toLowerCase()).toMatch(/v0\.2.*(behavior|crawl)|crawl.*up to 20/);
   });
 
-  it('notes PLAYWRIGHT_BROWSERS_PATH cache resolution', () => {
-    expect(body).toContain('PLAYWRIGHT_BROWSERS_PATH');
-  });
+  // The PLAYWRIGHT_BROWSERS_PATH assertion that used to sit here pinned the
+  // prompt's *mention* of the variable, which stayed green while the sentence
+  // doing the mentioning was false on the council path. See the D2 block at the
+  // end of this file for what replaced it.
 
   it('checks .cloverleaf/config/astro-base.json before parsing astro config', () => {
     expect(body).toContain('.cloverleaf/config/astro-base.json');
@@ -788,18 +812,105 @@ describe('F7/D5 — safe command capture is modelled wherever exit status is loa
     // Swept across skills too: a skill body is read by the same agents, so the
     // idiom has to hold on both surfaces or the class stays open.
     const ANTIPATTERN = /2>&1\s*\|\s*(tail|head)\b/;
-    const docs: string[] = [
-      ...readdirSync(PROMPTS)
-        .filter((f) => f.endsWith('.md'))
-        .map((f) => resolve(PROMPTS, f)),
-      ...readdirSync(SKILLS, { withFileTypes: true })
-        .filter((d) => d.isDirectory())
-        .map((d) => resolve(SKILLS, d.name, 'SKILL.md'))
-        .filter((p) => existsSync(p)),
-    ];
+    const docs = shippedDocs();
     // Guard the guard: an empty sweep would pass vacuously.
     expect(docs.length).toBeGreaterThan(20);
     const offenders = docs.filter((p) => ANTIPATTERN.test(readFileSync(p, 'utf-8')));
-    expect(offenders.map((p) => p.replace(/^.*\/(?=(prompts|skills)\/)/, ''))).toEqual([]);
+    expect(offenders.map(shippedDocLabel)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// D2 — an environment variable is established by the document that reads it.
+//
+// `ui-reviewer.md` asserted that `PLAYWRIGHT_BROWSERS_PATH` "is set to
+// ~/.cache/ms-playwright before you are invoked" and then *acted* on it: step 7
+// verifies each engine binary underneath the variable, and a missing binary is
+// an `escalate` condition. That precondition held only on the standalone path,
+// where `skills/cloverleaf-ui-review` exports the variable before dispatch. It
+// was false on the council path — `skills/cloverleaf-run`, the path that now
+// actually dispatches the `ui` member, never mentions the variable at all. The
+// 2026-08-06 dogfood watched agents set it by hand four times.
+//
+// The guards were asymmetric the same way, which is why nothing caught it:
+// `tests/skills.test.ts` pinned the export on the standalone skill, no test
+// asserted anything about `cloverleaf-run`, and the assertion that lived in
+// `describe('ui-reviewer prompt')` pinned only the prompt's *mention* of the
+// variable — a green test holding a claim that was false on the path that runs.
+// That assertion is superseded by this block and removed with it.
+//
+// The fix makes the prompt self-sufficient (`${VAR:-default}`) instead of
+// adding a second caller that must remember, because a second caller that must
+// remember is precisely the drift that produced D2. That is also why there is
+// no council-path assertion below: under this fix the council path has no
+// obligation to discharge, and a registry of dispatchers asserting they need do
+// nothing would be guard theatre. The obligation lives in the one artifact
+// every dispatcher shares.
+//
+// The `:-` form is load-bearing beyond self-healing: `README.md` documents
+// `PLAYWRIGHT_BROWSERS_PATH` as a supported override for a non-default cache
+// directory, so a fix that hard-coded `~/.cache/ms-playwright` would silently
+// clobber it. `install.sh` already uses the same idiom.
+//
+// ## Coverage bounds — what a green run does NOT prove
+//
+// The sweep is over documents that NAME this one variable. A document that
+// reads some *other* unestablished variable passes, as does one that spells
+// this one differently. It pins the shape D2 actually had — naming an
+// environment variable while relying on an unstated upstream contract to fill
+// it — not the general class of unestablished preconditions.
+// ---------------------------------------------------------------------------
+describe('D2 — PLAYWRIGHT_BROWSERS_PATH is established by whoever reads it', () => {
+  const body = readPrompt('ui-reviewer');
+
+  it('ui-reviewer.md exports the variable itself, deferring to a caller that set it', () => {
+    expect(body).toContain(
+      'export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"',
+    );
+  });
+
+  it('ui-reviewer.md no longer claims a caller set the variable before dispatch', () => {
+    // The false precondition itself. It read as fact, so a member acting on an
+    // empty variable could return a spurious `escalate` and stop a UI task.
+    expect(body).not.toMatch(/PLAYWRIGHT_BROWSERS_PATH[^\n]*before you are invoked/);
+  });
+
+  it('no shipped prompt or skill names the variable without also setting it', () => {
+    const docs = shippedDocs();
+    // Guard the guard: an empty sweep would pass vacuously.
+    expect(docs.length).toBeGreaterThan(20);
+    const offenders = docs.filter((p) => {
+      const text = readFileSync(p, 'utf-8');
+      return text.includes('PLAYWRIGHT_BROWSERS_PATH') && !/PLAYWRIGHT_BROWSERS_PATH=/.test(text);
+    });
+    expect(offenders.map(shippedDocLabel)).toEqual([]);
+  });
+
+  it('every shipped prompt or skill that sets the variable defers to an existing value', () => {
+    // The forward-looking half of the council-path obligation. A dispatcher is
+    // free to set the variable — `cloverleaf-ui-review` does, to spare the
+    // subagent a cache lookup — but it must not overwrite an operator's
+    // non-default cache directory, which `README.md` documents as supported.
+    // `cloverleaf-ui-review` hard-coded `~/.cache/ms-playwright` and did exactly
+    // that; if `cloverleaf-run` ever grows the same step, this catches it.
+    const SAFE = 'PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-';
+    const docs = shippedDocs();
+    expect(docs.length).toBeGreaterThan(20);
+    const offenders = docs.filter((p) =>
+      readFileSync(p, 'utf-8')
+        .split('\n')
+        .some((line) => line.includes('PLAYWRIGHT_BROWSERS_PATH=') && !line.includes(SAFE)),
+    );
+    expect(offenders.map(shippedDocLabel)).toEqual([]);
+  });
+
+  it('no shipped prompt or skill assigns a tilde inside double quotes', () => {
+    // `VAR="~/x"` yields a literal `~` directory: the shell expands `~` only
+    // when it is unquoted. The obvious transcription of this fix is exactly
+    // that mistake, so the trap is swept rather than merely mentioned.
+    const docs = shippedDocs();
+    expect(docs.length).toBeGreaterThan(20);
+    const offenders = docs.filter((p) => /="~\//.test(readFileSync(p, 'utf-8')));
+    expect(offenders.map(shippedDocLabel)).toEqual([]);
   });
 });

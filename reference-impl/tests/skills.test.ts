@@ -175,8 +175,13 @@ describe('cloverleaf-ui-review skill', () => {
     expect(body).not.toMatch(/advance-status[^\n]*qa/);
   });
 
-  it('sets PLAYWRIGHT_BROWSERS_PATH before subagent dispatch', () => {
-    expect(body).toContain('PLAYWRIGHT_BROWSERS_PATH');
+  it('sets PLAYWRIGHT_BROWSERS_PATH before subagent dispatch, without clobbering an operator override', () => {
+    // README.md documents PLAYWRIGHT_BROWSERS_PATH as a supported override for
+    // a non-default browser cache directory. This step used to hard-code
+    // `~/.cache/ms-playwright`, so following it discarded that override.
+    expect(body).toContain(
+      'export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"',
+    );
   });
 
   it('passes affected_routes to subagent prompt', () => {
