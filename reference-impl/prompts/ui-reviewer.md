@@ -136,14 +136,22 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 
    **Capture command results safely:** redirect output to a file and check the exit code — `<command> > /tmp/step.log 2>&1; echo "EXIT=$?"` — and never pipe the run through `| tail` or `| head`. A pipe reports the *last* command's exit status, so a failing command reads as success.
 
+   **Disable dev-only overlay UI before the server starts.** A baseline must contain only what ships. Astro's dev server injects a dev toolbar over the bottom-centre of every page: it never reaches production, it occludes the exact region a bottom-of-page regression appears in, and it couples every baseline to the Astro version that drew it. It is in the DOM too, so the axe pass in step 8c would report the toolbar's own violations as the site's.
+
    ```bash
    cd "$WT/site"
    npm ci > /tmp/ui-npm-ci.log 2>&1; echo "EXIT=$?"
    # EXIT must be 0 before you go on. On any other value, read /tmp/ui-npm-ci.log
    # to see why and return verdict `escalate` — do NOT continue with a broken install.
+   npx astro preferences disable devToolbar > /tmp/ui-devtoolbar.log 2>&1; echo "EXIT=$?"
+   # Non-zero EXIT means this UI directory is not an Astro project — see below.
    npm run dev -- --port={{preview_port}} &
    SERVER_PID=$!
    ```
+
+   `astro preferences disable devToolbar` is **project-scoped** by default: it writes into `$WT/site/.astro/`, which step 13 deletes along with the worktree, so it turns the toolbar off for this capture alone and nothing outside this run changes. Never pass `--global` — that writes to the operator's home directory and silently changes every other Astro project on the machine. Disable it before backgrounding the server, not after: Astro decides whether to inject the toolbar when the dev server boots.
+
+   If that command exits non-zero, this UI directory is **not an Astro project**. Disable that toolchain's own dev overlay instead. If it has none you can turn off, emit an `info` finding recording that the baseline may contain dev-only UI rather than capturing a contaminated one silently.
 
    Apply the same capture rule to your driver run and to every other command whose success you judge:
 
