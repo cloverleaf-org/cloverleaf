@@ -1018,3 +1018,119 @@ describe('D4 — a teardown order names the handle it kills by', () => {
     expect(skill).toMatch(/exit 144/);
   });
 });
+
+// ---------------------------------------------------------------------------
+// D6 — a captured baseline contains only what ships.
+//
+// Step 3 started the preview with `npm run dev`, so Astro's dev server injected
+// its dev toolbar into every page the ui member screenshotted, and every tracked
+// baseline carried it: a dark pill over the bottom-centre of the frame. Dev-only
+// UI absent from production, occluding the exact region a bottom-of-page
+// regression appears in, and coupling each baseline to the Astro version that
+// drew it. Pre-existing, not a regression — the oldest tracked baselines have it.
+//
+// The fix disables the toolbar rather than changing what is served. Two other
+// routes were priced and rejected. Capturing against `npm run preview` needs a
+// prior build, and `site/package.json`'s build is `astro check && astro build`,
+// so an unrelated type error would fail a purely visual review; it also assumes
+// the UI directory has a `preview` script, which `ui-paths.json` — scoping that
+// directory to anything — does not guarantee. Setting `devToolbar: { enabled:
+// false }` in `site/astro.config.mjs` repairs only this repo's own site and
+// leaves every adopter's config untouched, which is the shape D1's fix was
+// rejected for. Astro's preference is project-scoped by default: run inside the
+// throwaway worktree it turns the toolbar off for that capture alone, writing
+// into a directory step 13 deletes, and it removes the element from the DOM
+// rather than hiding it — so the axe pass in step 8c also stops attributing the
+// toolbar's own violations to the site.
+//
+// ## Coverage bounds — what a green run does NOT prove
+//
+// No assertion here looks at a PNG. Proving "no toolbar in the baseline" needs a
+// browser, a server and a capture run; these pin the *instruction*, not the
+// pixels, and that limit is real rather than papered over.
+//
+// The sweep matches one document today, because `ui-reviewer.md` is the only
+// shipped doc that starts a dev server. It exists so the second one cannot
+// arrive without the disable. It is scoped to fenced shell blocks for the same
+// reason D4's is: `skills/cloverleaf-ui-review` names `astro dev` in prose in
+// order to forbid a pattern kill, so a whole-file sweep would demand a toolbar
+// disable from a document that starts no server. It keys on the `npm run dev` /
+// `astro dev` spellings, so a doc that starts a server as `vite`, `next dev` or
+// a Makefile target would pass.
+// ---------------------------------------------------------------------------
+describe('D6 — a captured baseline contains only what ships', () => {
+  const prompt = readPrompt('ui-reviewer');
+  const DEV_SERVER = /\b(?:npm run dev|astro dev)\b/;
+  const DISABLE = 'astro preferences disable devToolbar';
+
+  /** Every fenced shell block, across all shipped docs, that starts a dev server. */
+  function devServerBlocks(): Array<{ label: string; block: string }> {
+    return shippedDocs().flatMap((p) =>
+      shellBlocks(readFileSync(p, 'utf-8'))
+        .filter((b) => DEV_SERVER.test(b))
+        .map((block) => ({ label: shippedDocLabel(p), block })),
+    );
+  }
+
+  it('every block that starts a dev server disables the toolbar first', () => {
+    // Ordering is the rule, not mere presence: Astro decides whether to inject
+    // the toolbar when the dev server boots, so a disable issued afterwards
+    // leaves an already-running server still injecting it.
+    //
+    // Scoped to the block that starts the server rather than the file, because a
+    // file-wide check is satisfied by prose that merely *mentions* the disable
+    // while the modelled command sequence still starts the server undisabled.
+    const docs = shippedDocs();
+    // Guard the guard, twice. An empty document set and a fence matcher that
+    // silently matched nothing both read exactly like a pass.
+    expect(docs.length).toBeGreaterThan(20);
+    const blocks = devServerBlocks();
+    expect(blocks.length).toBeGreaterThan(0);
+    const offenders = blocks.filter(({ block }) => {
+      const disableAt = block.indexOf(DISABLE);
+      return disableAt === -1 || disableAt > block.search(DEV_SERVER);
+    });
+    expect(offenders.map((o) => o.label)).toEqual([]);
+  });
+
+  it('ui-reviewer.md is the doc that sweep is holding', () => {
+    // The sweep goes vacuous for the one document that matters if step 3 is ever
+    // rewritten to start the server outside a fence, or under a spelling
+    // DEV_SERVER does not know. Then `blocks.length > 0` could still pass on some
+    // future doc while ui-reviewer.md quietly slipped out of coverage.
+    expect(devServerBlocks().map((o) => o.label)).toContain('prompts/ui-reviewer.md');
+  });
+
+  it('no shipped doc models the preference globally', () => {
+    // `--global` writes to the operator's home, outside anything teardown
+    // deletes, and changes every other Astro project on the machine. The
+    // worktree-scoped default is the whole reason this route beats editing a
+    // tracked astro config, so the escape hatch is swept, not just warned about.
+    //
+    // Fenced, for D4's reason: step 3's prose forbids `--global` by naming it,
+    // because a prohibition has to fire at the moment the agent is about to type
+    // it. A whole-file sweep failed on this patch's own fix.
+    const docs = shippedDocs();
+    expect(docs.length).toBeGreaterThan(20);
+    const blocks = docs.flatMap((p) => shellBlocks(readFileSync(p, 'utf-8')));
+    expect(blocks.length).toBeGreaterThan(100);
+    const offenders = docs.filter((p) =>
+      shellBlocks(readFileSync(p, 'utf-8')).some((b) => /astro preferences[^\n]*--global/.test(b)),
+    );
+    expect(offenders.map(shippedDocLabel)).toEqual([]);
+  });
+
+  it('ui-reviewer.md carries the reason and the non-Astro fallback', () => {
+    // D4's lesson: the reason has to travel with the form, or the next agent
+    // reads the command as ceremony and drops it. And the member cannot assume
+    // its UI directory is Astro, so a failed disable needs a stated next move
+    // rather than a silently contaminated baseline.
+    expect(prompt).toMatch(/only what ships/i);
+    expect(prompt).toMatch(/project-scoped/i);
+    expect(prompt).toMatch(/not an Astro project/i);
+    // The fallback has to be an *action*, not just the condition named — the
+    // one-line fence comment satisfies the check above on its own, so without
+    // this the member could be told it is off-Astro and nothing to do about it.
+    expect(prompt).toMatch(/emit an `info` finding/);
+  });
+});
