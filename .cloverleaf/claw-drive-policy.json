@@ -1,22 +1,201 @@
 {
+  "_comment": "Cloverleaf's claw-drive dogfood policy. Tracks claw-drive's shipped starter (templates/claw-drive-policy.json, as of claw-drive commit b4cd9c4) with three deliberate divergences, each measured against the 752 Bash commands the 2026-08-05/06 council dogfood actually ran. (1) bash_composition is OMITTED: upstream's \"per_segment\" deny_silents 178 of those 752 (175 opaque, 3 malformed) without escalating to a human, including ordinary heredoc git commits. (2) Because there is no per_segment, the sudo and su auto_defer rules are un-anchored so they still fire mid-command (`cd /tmp && sudo ...`); upstream's ^-anchored forms rely on per_segment for that. (3) The device-write branch is `>\\s*/dev/(...)` rather than upstream's `> /dev/(...)`: a shell needs no space after `>`, so `cat img >/dev/sda` slipped the rule and was auto-approved. (4) The .claw-drive/ runtime-state guards match `(?:^|[\\s/'\\\"=])\\.claw-drive/` rather than upstream's `(?:^|/)\\.claw-drive/`: upstream requires the path to start the command or follow a slash, so the ordinary relative form `echo x > .claw-drive/sessions/y` was AUTO-APPROVED. Divergences 3 and 4 are upstream gaps, not cloverleaf preferences -- report them to claw-drive and drop these notes when the template carries them. Check the pairs in policy-probes.tsv after any edit. Rules are evaluated in order: auto_reject > auto_defer > auto_approve > escalate_default.",
   "auto_approve": [
-    { "tool": "Read" },
-    { "tool": "Glob" },
-    { "tool": "Grep" },
-    { "tool": "Bash", "bash_command_matches": "^git (status|diff|log|show|branch|stash list|ls-files|rev-parse|worktree list) ?" },
-    { "tool": "Bash", "bash_command_matches": "^(ls|cat|head|tail|find|file|tree|wc|pwd|echo) " },
-    { "tool": "Bash", "bash_command_matches": "^(npm|npx|node) " },
-    { "tool": "Bash", "bash_command_matches": "^cloverleaf-cli " }
-  ],
-
-  "auto_reject": [
+    {
+      "tool": "Read"
+    },
+    {
+      "tool": "Glob"
+    },
+    {
+      "tool": "Grep"
+    },
     {
       "tool": "Bash",
-      "bash_command_matches": "\\bsudo\\b|\\brm -rf\\b|\\bgit push\\b|\\bgit reset --hard\\b|> /dev/|\\bnpm publish\\b",
+      "bash_command_matches": "^git( -C \\S+)? (status|diff|log|show|branch|stash list|ls-files|rev-parse|worktree list)(\\s|$)"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "^(ls|cat|head|tail|find|file|tree|wc|pwd|echo|stat|wc|du|df) "
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "^(npm|npx) "
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "^node\\s+(?!(--eval|--print|-[a-zA-Z]*[ep])\\b)",
+      "name": "node <script> — eval/print forms (-e/--eval/-p/--print) are excluded and hit auto_defer"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "^cloverleaf-cli "
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "cloverleaf-cli ",
+      "name": "cloverleaf-cli anywhere in compound script (set -e, cd, REPO=, etc.)"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "^(set -e|cd |REPO=|export\\s|source )",
+      "name": "common shell prefixes that usually wrap a safe payload"
+    }
+  ],
+  "auto_defer": [
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bsudo\\s",
+      "name": "sudo requires human password (un-anchored: no bash_composition here)"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "(?:^|[;&|]\\s*)su\\s",
+      "name": "su requires human password (un-anchored: no bash_composition here)"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "^echo 'CLAW-GATE:",
+      "name": "review-gate convention (B asks for human OK)",
+      "severity": "medium"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "^echo \"CLAW-GATE:",
+      "name": "review-gate convention (B asks for human OK)",
+      "severity": "medium"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bchmod\\s+-R\\s+777\\b",
+      "name": "chmod -R 777 — recoverable but almost always wrong",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bchown\\s+-R\\b",
+      "name": "chown -R — recursive ownership change",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\btruncate\\b",
+      "name": "truncate — zero-out or resize (common log-rotation idiom, but destructive on DBs)",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bkill\\s+-9\\b.*?\\s(-1|0|1)(\\s|$|[;&|])",
+      "name": "kill -9 of init/everything/process-group (PID 1, -1, or 0)",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bsystemctl\\s+(--?[\\w-]+(=\\S+)?\\s+)*(stop|disable|kill|mask)\\b",
+      "name": "systemctl stop/disable/kill/mask — service teardown",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bpython[0-9.]*\\s+-c\\b",
+      "name": "python -c — runs arbitrary code the command regex can't inspect",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bnode\\s+(--eval|--print|-[a-zA-Z]*[ep])\\b",
+      "name": "node -e/--eval/-p/--print — runs arbitrary code",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bperl[0-9.]*\\s+-e\\b",
+      "name": "perl -e — runs arbitrary code",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bruby[0-9.]*\\s+-e\\b",
+      "name": "ruby -e — runs arbitrary code",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\bphp[0-9.]*\\s+-r\\b",
+      "name": "php -r — runs arbitrary code",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "(?:^|[;&|]\\s*)eval(?:\\s|$)",
+      "name": "eval — shell evaluates a constructed string",
+      "severity": "high"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\b(sh|bash|zsh)\\s+(-\\S+\\s+)*-[a-z]*c\\b",
+      "name": "sh/bash/zsh -c — inline shell string bypasses command-level inspection",
       "severity": "high"
     }
   ],
-
+  "auto_reject": [
+    {
+      "tool": "Bash",
+      "bash_command_matches": "\\brm\\s+(-[a-zA-Z]*[rR]|--recursive)|\\brm --no-preserve-root\\b|\\bgit push\\b|\\bgit reset --hard\\b|\\bgit clean -fdx\\b|\\bnpm publish\\b|\\bdd if=|\\bmkfs\\b|\\bshred\\b|\\b(fdisk|parted|gdisk|sgdisk)\\b|\\b(curl|wget)\\s.*\\|\\s*(sudo\\s+)?(bash|sh|zsh)\\b|>\\s*/dev/(sd[a-z]|nvme\\d+n\\d+|xvd[a-z]|hd[a-z]|loop\\d*|mmcblk\\d+|vd[a-z])",
+      "severity": "high",
+      "name": "irreversible / destructive"
+    },
+    {
+      "tool": "Edit",
+      "arg_matches": {
+        "file_path": "claw-drive-policy[^/]*\\.json$"
+      },
+      "severity": "high",
+      "name": "policy file (Edit) — claw-drive's own privilege boundary"
+    },
+    {
+      "tool": "Write",
+      "arg_matches": {
+        "file_path": "claw-drive-policy[^/]*\\.json$"
+      },
+      "severity": "high",
+      "name": "policy file (Write) — claw-drive's own privilege boundary"
+    },
+    {
+      "tool": "Edit",
+      "arg_matches": {
+        "file_path": "(?:^|(?<=[\\s/'\"=]))\\.claw-drive/"
+      },
+      "severity": "high",
+      "name": "claw-drive runtime state (Edit) — sessions, sockets, events"
+    },
+    {
+      "tool": "Write",
+      "arg_matches": {
+        "file_path": "(?:^|(?<=[\\s/'\"=]))\\.claw-drive/"
+      },
+      "severity": "high",
+      "name": "claw-drive runtime state (Write) — sessions, sockets, events"
+    },
+    {
+      "tool": "Bash",
+      "bash_command_matches": "(((\\bcp|\\bmv|\\brsync|\\btee)\\s+|sed\\s+-i\\s+|awk\\s+-i\\s+inplace\\s+|dd\\s+of=)[^|;&]*?(claw-drive-policy[^\\s/]*\\.json|(?:^|(?<=[\\s/'\"=]))\\.claw-drive/)|>{1,2}\\s*[^|;&]*(claw-drive-policy[^\\s/]*\\.json|(?:^|(?<=[\\s/'\"=]))\\.claw-drive/))",
+      "severity": "high",
+      "name": "bash writes to policy file or claw-drive runtime state"
+    }
+  ],
   "escalate_default": true,
-  "decision_timeout_seconds": 300
+  "decision_timeout_seconds": 3600,
+  "_budget_example": {
+    "_comment": "Run-level circuit-breaker (CD-4). RENAME this key to \"budget\" to enable it — it is OFF by default. All fields optional; an absent field is unlimited. On breach the runner reaps the session (SIGTERM then SIGKILL) with exit_reason budget_exceeded:<cap>.",
+    "max_tool_calls": 500,
+    "max_wall_clock_seconds": 3600,
+    "max_consecutive_errors": 5
+  },
+  "_rotation_example": {
+    "_comment": "context rotation. RENAME this key to \"rotation\" to enable — OFF by default. threshold_tokens: emit context_threshold_reached and allow `claw-drive rotate` once B's context reaches this. max_generations: lineage cap (absent = 10, 0 = unlimited); on breach rotation is refused (session lives on toward native auto-compact). mode: only \"manual\" in this release.",
+    "threshold_tokens": 120000,
+    "max_generations": 10,
+    "mode": "manual"
+  }
 }
