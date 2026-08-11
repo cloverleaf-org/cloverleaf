@@ -361,9 +361,14 @@ Do not push. Do not publish. Report merge + state commit SHAs on completion.
 
 ## Walker policy
 
-The walker spawns each Session B with a conservative auto-approve policy (Read/Glob/Grep, git-read, cloverleaf-cli, npm/npx/node, common compound scripts, prep-worktree, mkdir -p, etc.) and an auto-reject list covering sudo, `rm -rf /`, git push, npm publish, destructive disk ops. Anything else escalates to the walker for human-in-the-loop handling.
+The walker spawns each Session B with a conservative policy resolving every tool call to one of four outcomes:
 
-The concrete policy JSON is the same one used during the CLV-16..CLV-20 dogfood runs; see `.cloverleaf/claw-drive-policy.json` in the repo for the starting template.
+- **auto-approve** — Read/Glob/Grep, git reads (including `git -C <path> …`), `npm`/`npx`, `node <script>`, `cloverleaf-cli` anywhere in a compound script, and the usual `set -e` / `cd` / `export` / `source` prefixes.
+- **auto-defer** — pauses for a human: `sudo`/`su`, and anything that runs code the command regex cannot inspect (`node -e`/`-p`, `python -c`, `perl -e`, `sh -c`, `eval`), plus `chmod -R 777`, `chown -R`, `truncate`, `systemctl stop`.
+- **auto-reject** — recursive `rm`, `git push`, `git reset --hard`, `npm publish`, `curl … | bash`, disk-destructive ops (`dd if=`, `mkfs`, `shred`, `fdisk`), writes to real block devices, and writes to claw-drive's own policy file or `.claw-drive/` runtime state.
+- **escalate** — everything else goes to the walker for human-in-the-loop handling.
+
+The concrete policy is `.cloverleaf/claw-drive-policy.json` in this repo — a starting template, not a guarantee; tune it for your own project. It tracks claw-drive's shipped starter with a few deliberate divergences, each recorded in the file's own `_comment`. After editing it, run `node .cloverleaf/policy-check.mjs`, which asserts the decision for every command in `.cloverleaf/policy-probes.tsv` and exits non-zero on a regression.
 
 ## Rules
 
