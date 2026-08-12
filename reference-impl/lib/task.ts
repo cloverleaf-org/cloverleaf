@@ -53,7 +53,7 @@ export function advanceStatus(
   taskId: string,
   toStatus: string,
   actor: 'agent' | 'human',
-  options: { gate?: string; path?: 'fast_lane' | 'full_pipeline' } = {}
+  options: { gate?: string } = {}
 ): TaskDoc {
   let task = loadTask(repoRoot, taskId);
   const from = task.status;
@@ -96,17 +96,12 @@ export function advanceStatus(
     }
   }
 
-  const riskClass: 'low' | 'high' =
-    options.path === 'fast_lane' ? 'low'
-    : options.path === 'full_pipeline' ? 'high'
-    : (task.risk_class ?? 'low');
-
   const workItemForValidator: SMTask = {
     type: 'task',
     id: task.id,
     project: task.project,
     status: task.status,
-    risk_class: riskClass,
+    risk_class: task.risk_class ?? 'low',
     security_class: task.security_class,
     security_review_verdict: task.security_review_verdict,
     context: { rfc: { project: task.project, id: task.id } },
@@ -129,7 +124,6 @@ export function advanceStatus(
     save: (p) => saveTask(repoRoot, p as TaskDoc),
     proposed,
     gate: options.gate,
-    path: options.path,
   });
 
   return proposed;

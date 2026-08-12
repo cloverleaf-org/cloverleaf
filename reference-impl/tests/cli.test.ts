@@ -104,6 +104,21 @@ describe('cli', () => {
     expect(stderr.toLowerCase()).toMatch(/actor.*agent.*human|agent.*or.*human/);
   });
 
+  // The collapsed 0.13.0 delivery FSM has no fast_lane/full_pipeline split. The trailing
+  // `[path]` positional that selected one is gone from both places a user could read it.
+  it('the advance-status usage line offers no path argument', () => {
+    const { stderr } = run(['advance-status']);
+    expect(stderr).toContain('advance-status <repoRoot> <taskId> <toStatus> <actor> [gate]');
+    expect(stderr).not.toMatch(/advance-status .*\[path\]/);
+  });
+
+  it('an illegal transition reported by the CLI names no delivery lane', () => {
+    const { exitCode, stderr } = run(['advance-status', repoRoot, 'DEMO-001', 'merged', 'agent']);
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toMatch(/Illegal transition/);
+    expect(stderr).not.toMatch(/path=/);
+  });
+
   describe('detect-ui-paths', () => {
     beforeEach(() => {
       // Create a git repo + feature branch for diff inspection

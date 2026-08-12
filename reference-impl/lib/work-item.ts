@@ -26,7 +26,6 @@ export interface AdvanceWorkItemParams<T> {
   save: (proposed: T & { status: string }) => void;
   proposed: T;
   gate?: string;
-  path?: 'fast_lane' | 'full_pipeline';
 }
 
 export interface AdvanceWorkItemResult {
@@ -35,9 +34,9 @@ export interface AdvanceWorkItemResult {
 }
 
 export function advanceWorkItemStatus<T>(params: AdvanceWorkItemParams<T>): AdvanceWorkItemResult {
-  const { repoRoot, workItemType, project, id, from, to, actor, stateMachine, validateFixture, save, gate, path } = params;
+  const { repoRoot, workItemType, project, id, from, to, actor, stateMachine, validateFixture, save, gate } = params;
 
-  const reason = formatReason({ gate, path });
+  const reason = formatReason({ gate });
   const event = {
     event_id: randomUUID(),
     event_type: 'status_transition' as const,
@@ -74,7 +73,6 @@ export function advanceWorkItemStatus<T>(params: AdvanceWorkItemParams<T>): Adva
     to,
     actor,
     gate,
-    path,
   });
 
   try {

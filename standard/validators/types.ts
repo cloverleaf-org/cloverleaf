@@ -92,7 +92,6 @@ export interface StatusTransitions {
     to: string;
     allowed_actors?: Array<'human' | 'agent' | 'system'>;
     gate?: string;
-    path?: 'fast_lane' | 'full_pipeline';
     description?: string;
     security_gate?: boolean;
     resets_security_verdict?: boolean;
