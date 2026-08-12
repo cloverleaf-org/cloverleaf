@@ -8,7 +8,7 @@
  *   load-task <repoRoot> <taskId>
  *   infer-project <repoRoot>
  *   next-task-id <repoRoot> [--project=<p>]
- *   advance-status <repoRoot> <taskId> <toStatus> <actor> [gate] [path]
+ *   advance-status <repoRoot> <taskId> <toStatus> <actor> [gate]
  *   write-feedback <repoRoot> <taskId> <envelopeJsonPath>
  *   latest-feedback <repoRoot> <taskId>
  *   emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]
@@ -100,7 +100,7 @@ function usage(msg?: string): never {
       '  load-task <repoRoot> <taskId>\n' +
       '  infer-project <repoRoot>\n' +
       '  next-task-id <repoRoot> [--project=<p>]\n' +
-      '  advance-status <repoRoot> <taskId> <toStatus> <actor> [gate] [path]\n' +
+      '  advance-status <repoRoot> <taskId> <toStatus> <actor> [gate]\n' +
       '  write-feedback <repoRoot> <taskId> <envelopeJsonPath>\n' +
       '  latest-feedback <repoRoot> <taskId>\n' +
       '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n' +
@@ -186,16 +186,15 @@ try {
     }
 
     case 'advance-status': {
-      const [repoRoot, taskId, toStatus, actorArg, gate, path] = rest;
+      const [repoRoot, taskId, toStatus, actorArg, gate] = rest;
       if (!repoRoot || !taskId || !toStatus || !actorArg)
-        usage('advance-status requires <repoRoot> <taskId> <toStatus> <actor> [gate] [path]');
+        usage('advance-status requires <repoRoot> <taskId> <toStatus> <actor> [gate]');
       if (actorArg !== 'agent' && actorArg !== 'human') {
         die(`actor must be 'agent' or 'human' (got '${actorArg}')`, 2);
       }
       const actor: 'agent' | 'human' = actorArg;
-      const opts: { gate?: string; path?: 'fast_lane' | 'full_pipeline' } = {};
+      const opts: { gate?: string } = {};
       if (gate) opts.gate = gate;
-      if (path === 'fast_lane' || path === 'full_pipeline') opts.path = path;
       const updated = advanceStatus(repoRoot, taskId, toStatus, actor, opts);
       process.stdout.write(updated.status + '\n');
       break;

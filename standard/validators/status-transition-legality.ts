@@ -2,7 +2,10 @@ import type { StatusTransitionEvent, StatusTransitions, Task, ValidationResult }
 
 /**
  * Validator #8: Status transition is legal per the state machine for the Work Item type.
- * For Task, also checks the transition's `path` tag against the work item's risk_class.
+ *
+ * `workItem` is accepted for signature symmetry with the sibling security-gate validator
+ * and is not read by this rule. It previously resolved the transition's delivery-lane
+ * `path` tag, which was retired with the collapsed task FSM in 0.8.0.
  */
 export function validateStatusTransitionLegality(
   event: StatusTransitionEvent,
@@ -21,13 +24,8 @@ export function validateStatusTransitionLegality(
     };
   }
 
-  const itemPath = workItem && workItem.type === 'task'
-    ? (workItem.risk_class === 'low' ? 'fast_lane' : 'full_pipeline')
-    : undefined;
-
   const match = stateMachine.transitions.find((t) => {
     if (t.from !== event.from_status || t.to !== event.to_status) return false;
-    if (t.path && t.path !== itemPath) return false;
     if (t.allowed_actors && !t.allowed_actors.includes(event.actor.kind)) return false;
     return true;
   });
@@ -37,7 +35,7 @@ export function validateStatusTransitionLegality(
       ok: false,
       violations: [{
         rule: 'status-transition-legality',
-        message: `Illegal transition for type '${event.work_item_type}': ${event.from_status} → ${event.to_status}${itemPath ? ` (path=${itemPath})` : ''} by ${event.actor.kind}`,
+        message: `Illegal transition for type '${event.work_item_type}': ${event.from_status} → ${event.to_status} by ${event.actor.kind}`,
         severity: 'error',
         workItemId: event.work_item_id
       }]

@@ -8,6 +8,7 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 
 ### Changed
 - `state-machines/task.json` — collapse `review`/`automated-gates`/`security-review`/`ui-review`/`qa` into one `council` phase (exits: `final-gate` on pass, `implementing` on bounce, `escalated` on escalate; enter from `documenting`). Removed the `path` (`fast_lane`/`full_pipeline`), `security_gate`, and `resets_security_verdict` annotations. The fast lane now merges through `final-gate` under `final_approval_gate`; the `human_merge` gate is retired. `tactical-plan → pending` gains `agent` to its actors, enabling a decisive plan-review council bounce.
+- `schemas/status-transitions.schema.json` — the `path` transition tag (`fast_lane` / `full_pipeline`) is removed. It encoded the lane split this release retires, and no shipped state machine carried one, so `validators/status-transition-legality.ts` could never reject on it — while the `path` it derived from `risk_class` still appeared in every illegal-transition message a task consumer saw. The transition object already sets `additionalProperties: false`, so a stale `path` tag is now rejected rather than accepted and ignored. `validators/types.ts` drops the matching field from the transition type; the unrelated `Violation.path` (a violation location) is untouched. The validator still accepts its optional `Task` argument, now purely for signature symmetry with `validators/security-gate.ts`.
 - `schemas/task.schema.json` — the `status` enum is the nine collapsed states.
 - `validators/types.ts`, `validators/gate-decision-validity.ts` — `GateDecisionEvent.gate` drops `human_merge`.
 - `validators/security-gate.ts` — retained as a general primitive (a consumer FSM may still annotate `security_gate`); the default task FSM no longer uses it.
@@ -25,6 +26,7 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 Upgrading from 0.7.1 to 0.8.0 is a clean break (no compat shim):
 - Task documents with a `review` / `automated-gates` / `security-review` / `ui-review` / `qa` status map to `council`.
 - The `human_merge` gate is gone; fast-lane merges use `final_approval_gate` at `final-gate`.
+- A consumer state machine that tagged transitions with `path` must drop the tag: it is no longer declared, and the transition object rejects undeclared keys. The tag was only ever matched against a value derived from `risk_class` and fixed to the two lane names, so it could not express a consumer's own lanes; encode those as distinct states or `gate` values instead.
 - The `security_gate` / `resets_security_verdict` FSM annotations are retired. A high-security task's "no merge without a passing security review" guarantee is now enforced by a blocking `security` council member (any-veto) plus a recorded `security_review_verdict='pass'` on `council → final-gate`.
 - Discovery gates (`rfc.strategy_gate`, `plan.task_batch`) may bind advisory councils built from kind-homogeneous custom roles; the `plan.json` / `rfc.json` state machines are unchanged.
 

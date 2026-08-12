@@ -146,22 +146,20 @@ Violation = { rule, message, path?, workItemId?, severity: "error" | "warning" }
 
 ## #8 — Status transition legality
 
-**Purpose:** A status transition event is legal iff the state machine for the Work Item type contains a matching transition, the work item's path matches (for Tasks), and the actor kind is allowed.
-**Input:** `StatusTransitionEvent`, `StatusTransitions` (the state machine for `event.work_item_type`), optional `Task` (for path resolution)
+**Purpose:** A status transition event is legal iff the state machine for the Work Item type contains a matching transition and the actor kind is allowed.
+**Input:** `StatusTransitionEvent`, `StatusTransitions` (the state machine for `event.work_item_type`), optional `Task`
 **Returns:** Violation if no matching transition.
 
 **Algorithm:**
 1. If `event.work_item_type != stateMachine.type`, violation.
-2. For tasks, derive `path`: `risk_class: "low" → "fast_lane"`, `risk_class: "high" → "full_pipeline"`.
-3. Find transition `t` in `stateMachine.transitions` where:
+2. Find transition `t` in `stateMachine.transitions` where:
    - `t.from == event.from_status`
    - `t.to == event.to_status`
-   - If `t.path` set, `t.path == path`
    - If `t.allowed_actors` set, `event.actor.kind in t.allowed_actors`
-4. If no matching transition, violation.
+3. If no matching transition, violation.
 
 **Edge cases:**
-- Non-task types don't have `path` tags; pass no workItem or pass any.
+- The optional `Task` is accepted for signature symmetry with the security-gate validator and is not read by this rule; pass it or omit it.
 - `any → escalated` transitions are universal (listed per-state in the machine).
 
 **Reference impl:** `validators/status-transition-legality.ts`
@@ -184,11 +182,8 @@ Violation = { rule, message, path?, workItemId?, severity: "error" | "warning" }
 **Edge cases:**
 - Tasks with `security_class` absent or `"low"` are always Ok regardless of verdict.
 - A verdict of `null`, `"bounce"`, or `"escalate"` all fail the gate; only `"pass"` satisfies it.
-- The `resets_security_verdict: true` annotation on `review → automated-gates` is a data-model concern; this validator does not enforce the reset — it only checks whether the current verdict is `"pass"` at guard time.
+- The `resets_security_verdict: true` annotation is a data-model concern; this validator does not enforce the reset — it only checks whether the current verdict is `"pass"` at guard time.
 
-**Guarded transitions (as of 0.7.1):**
-- `automated-gates → ui-review` (full_pipeline)
-- `automated-gates → qa` (full_pipeline)
-- `automated-gates → merged` (fast_lane)
+**Guarded transitions:** none in the shipped machines. The collapsed task FSM annotates no transition with `security_gate` (0.8.0 moved that guarantee to a blocking security council member plus a recorded-verdict backstop). This validator is retained as a general primitive for consumer state machines that do annotate one.
 
 **Reference impl:** `validators/security-gate.ts`

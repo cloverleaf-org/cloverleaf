@@ -113,8 +113,25 @@ describe('events', () => {
 
   it('formatReason handles all combinations', () => {
     expect(formatReason({})).toBeUndefined();
-    expect(formatReason({ gate: 'human_merge' })).toBe('gate=human_merge');
-    expect(formatReason({ path: 'fast_lane' })).toBe('path=fast_lane');
-    expect(formatReason({ gate: 'human_merge', path: 'fast_lane' })).toBe('gate=human_merge; path=fast_lane');
+    expect(formatReason({ gate: 'final_approval_gate' })).toBe('gate=final_approval_gate');
+  });
+
+  // `gate` is the only reason component left: the delivery-lane `path` it used to join
+  // with was retired when the FSM collapsed, so a reason is now either absent or a gate.
+  it('formatReason drops a stale path component from an untyped caller', () => {
+    // TypeScript now rejects `path` outright. This pins the runtime half — the reference
+    // impl is consumed from plain JS too, and a stale caller must not get the retired
+    // component echoed back into an event's reason.
+    const stale = { gate: 'final_approval_gate', path: 'fast_lane' } as { gate?: string };
+    expect(formatReason(stale)).toBe('gate=final_approval_gate');
+  });
+
+  it('an emitted status transition carries a gate-only reason', () => {
+    const emitted = emitStatusTransition(repoRoot, {
+      project: 'ACME', workItemType: 'task', workItemId: 'ACME-001',
+      from: 'final-gate', to: 'merged', actor: 'human', gate: 'final_approval_gate',
+    });
+    const doc = JSON.parse(readFileSync(emitted, 'utf-8'));
+    expect(doc.reason).toBe('gate=final_approval_gate');
   });
 });

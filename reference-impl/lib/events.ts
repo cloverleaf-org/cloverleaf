@@ -13,7 +13,6 @@ export interface StatusTransitionParams {
   to: string;
   actor: 'agent' | 'human' | 'system';
   gate?: string;
-  path?: 'fast_lane' | 'full_pipeline';
 }
 
 export interface GateDecisionParams {
@@ -31,11 +30,8 @@ function actorObject(kind: 'agent' | 'human' | 'system'): { kind: string; id: st
   return { kind, id };
 }
 
-export function formatReason(opts: { gate?: string; path?: string }): string | undefined {
-  const parts: string[] = [];
-  if (opts.gate) parts.push(`gate=${opts.gate}`);
-  if (opts.path) parts.push(`path=${opts.path}`);
-  return parts.length > 0 ? parts.join('; ') : undefined;
+export function formatReason(opts: { gate?: string }): string | undefined {
+  return opts.gate ? `gate=${opts.gate}` : undefined;
 }
 
 /**
@@ -56,8 +52,8 @@ export function emitStatusTransition(repoRoot: string, params: StatusTransitionP
   const filename = `${workItemId}-${seqStr}-status.json`;
   const filePath = join(eventsDir(repoRoot), filename);
 
-  // Build reason from gate and/or path if provided (schema only allows reason, not gate/path at top level).
-  const reason = formatReason({ gate: params.gate, path: params.path });
+  // Build reason from the gate if provided (the schema allows only `reason` at top level).
+  const reason = formatReason({ gate: params.gate });
 
   const doc: Record<string, unknown> = {
     event_id: randomUUID(),
