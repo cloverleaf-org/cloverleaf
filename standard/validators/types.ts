@@ -94,7 +94,6 @@ export interface StatusTransitions {
     gate?: string;
     description?: string;
     security_gate?: boolean;
-    resets_security_verdict?: boolean;
   }>;
 }
 
