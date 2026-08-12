@@ -24,7 +24,7 @@ describe('the security_gate transition annotation is reachable through the schem
   });
 
   it('accepts a consumer machine that annotates security_gate', () => {
-    // CHANGELOG.md:14, README.md:15 and docs/validators.md:187 all promise a consumer FSM
+    // CHANGELOG.md:14, README.md:15 and docs/validators.md:186 all promise a consumer FSM
     // may annotate its own transitions with security_gate, and validators/security-gate.ts
     // enforces it. The transition object sets additionalProperties:false, so until the
     // property is declared the promise is unreachable.
@@ -50,9 +50,9 @@ describe('the security_gate transition annotation is reachable through the schem
  * `validators/types.ts` (the TS type consumers program against) and
  * `schemas/status-transitions.schema.json` (what validation actually enforces).
  * They drifted: `security_gate` was declared in the type, enforced by a shipped
- * validator, promised in three docs — and absent from the schema, whose
+ * validator, promised in three docs (since corrected) — and absent from the schema, whose
  * transition object sets `additionalProperties: false`. Nothing caught it because
- * nothing schema-validates the shipped machines and no fixture exercised the
+ * nothing schema-validated the shipped machines and no fixture exercised the
  * annotation. These assertions make the next divergence fail in either direction.
  */
 const TS_ANCHOR = 'transitions: Array<{';
