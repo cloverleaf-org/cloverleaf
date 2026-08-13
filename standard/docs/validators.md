@@ -182,8 +182,7 @@ Violation = { rule, message, path?, workItemId?, severity: "error" | "warning" }
 **Edge cases:**
 - Tasks with `security_class` absent or `"low"` are always Ok regardless of verdict.
 - A verdict of `null`, `"bounce"`, or `"escalate"` all fail the gate; only `"pass"` satisfies it.
-- The `resets_security_verdict: true` annotation is a data-model concern; this validator does not enforce the reset — it only checks whether the current verdict is `"pass"` at guard time.
 
-**Guarded transitions:** none in the shipped machines. The collapsed task FSM annotates no transition with `security_gate` (0.8.0 moved that guarantee to a blocking security council member plus a recorded-verdict backstop). This validator is retained as a general primitive for consumer state machines that do annotate one.
+**Guarded transitions:** none in the shipped machines. The collapsed task FSM annotates no transition with `security_gate` (0.8.0 moved that guarantee to a blocking security council member plus a recorded-verdict backstop). This validator is retained as a general primitive for consumer state machines that do annotate one; `schemas/status-transitions.schema.json` declares the optional `security_gate` property so such a machine validates, and `examples/valid/status-transitions/security-gate.json` is a worked example.
 
 **Reference impl:** `validators/security-gate.ts`

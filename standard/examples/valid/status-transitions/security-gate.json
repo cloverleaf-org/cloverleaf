@@ -1,0 +1,13 @@
+{
+  "type": "task",
+  "states": {
+    "initial": ["council"],
+    "terminal": ["merged", "rejected"],
+    "all": ["council", "final-gate", "merged", "rejected"]
+  },
+  "transitions": [
+    { "from": "council", "to": "final-gate", "allowed_actors": ["agent"], "description": "Council passes; the consumer machine routes to its own merge gate." },
+    { "from": "final-gate", "to": "merged", "allowed_actors": ["human"], "gate": "final_approval_gate", "security_gate": true, "description": "A consumer machine guards its own merge edge with the security-gate primitive." },
+    { "from": "final-gate", "to": "rejected", "allowed_actors": ["human"] }
+  ]
+}

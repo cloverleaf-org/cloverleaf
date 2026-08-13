@@ -37,11 +37,11 @@ describe('validator: security-gate — retired from the default FSM (0.8.0)', ()
 });
 
 describe('validator: security-gate — the primitive still enforces a synthetic flagged transition', () => {
-  const synthetic = {
+  const synthetic: StatusTransitions = {
     type: 'task',
     states: { initial: ['council'], terminal: ['merged'], all: ['council', 'merged'] },
     transitions: [{ from: 'council', to: 'merged', security_gate: true, allowed_actors: ['human'] }],
-  } as unknown as StatusTransitions;
+  };
 
   it('refuses high + null with rule "security-gate"', () => {
     const r = validateSecurityGate(evt('council', 'merged', 'human'), synthetic, task('high', null));
