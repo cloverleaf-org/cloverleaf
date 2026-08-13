@@ -107,6 +107,30 @@ function walkExamples(root: string): Array<{ schemaName: string; filePath: strin
   return out;
 }
 
+// A missing or structurally-empty corpus must not read as a pass. Each root is measured
+// by the same walk its own consumer uses, not by a raw readdirSync count on the root --
+// valid/ and invalid/ are measured by walkExamples, the same flattening walk the loops
+// below consume, because a root can contain a subdirectory yet still yield zero usable
+// fixtures (an empty schema dir, or one holding only *.meta.json sidecars). scenarios/
+// is measured by its own consumer's walk instead -- readdirSync(SCENARIOS) filtered to
+// directories -- because its fixtures live one level deeper (scenario/category/*.json),
+// so walkExamples legitimately returns 0 there even when the corpus is healthy. The
+// check runs before any --level filtering, so a level that legitimately selects no
+// fixtures cannot trip it.
+const corpora = [
+  ['examples/valid', VALID, walkExamples(VALID).length],
+  ['examples/invalid', INVALID, walkExamples(INVALID).length],
+  ['examples/scenarios', SCENARIOS,
+    existsSync(SCENARIOS)
+      ? readdirSync(SCENARIOS).filter((d) => statSync(resolve(SCENARIOS, d)).isDirectory()).length
+      : 0],
+] as const;
+for (const [label, root, fixtures] of corpora) {
+  if (!existsSync(root) || fixtures === 0) {
+    fail(`${label}: fixture corpus missing or empty — conformance cannot be proven without it`);
+  }
+}
+
 console.log('Validating valid/ examples');
 for (const { schemaName, filePath } of walkExamples(VALID)) {
   if (!schemaInLevel(schemaName)) continue;
