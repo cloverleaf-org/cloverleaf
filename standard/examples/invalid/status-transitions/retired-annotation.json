@@ -1,0 +1,12 @@
+{
+  "type": "task",
+  "states": {
+    "initial": ["pending"],
+    "terminal": ["merged"],
+    "all": ["pending", "council", "merged"]
+  },
+  "transitions": [
+    { "from": "pending", "to": "council", "allowed_actors": ["agent"] },
+    { "from": "council", "to": "merged", "allowed_actors": ["human"], "resets_security_verdict": true }
+  ]
+}
