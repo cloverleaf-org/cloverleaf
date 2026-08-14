@@ -29,7 +29,7 @@ The Delivery Track executes Tasks through one of two lanes based on deterministi
 1. **Pickup** — The Implementer Agent picks up an approved Task with its Definition of Done, Acceptance Criteria, and risk markers.
 2. **Risk Classifier** — Rules-based, deterministic. Examines the Task's touched paths against project-defined rules (e.g., changes under <Code>auth/</Code> are always Full Pipeline). Conservative by design: only escalates, never downgrades.
 3. **Fast Lane / Full Pipeline** — Fast Lane: Implementer → Reviewer → Final Approval. Full Pipeline adds: UI Reviewer (if frontend touched), QA Agent (if functional tests warranted), Documenter Agent (always).
-4. **Security Review** — Runs at the `automated-gates` hub in both lanes when a task's `security_class` is high. The Security Reviewer executes after code review and before merge/UI-review: a deterministic secret scan followed by an LLM vulnerability judgment. Blocker findings route to escalation; clean passes continue the lane.
+4. **Security Review** — Seated on the council when a task's `security_class` is high: a deterministic secret scan followed by an LLM vulnerability judgment. Blocker findings route to escalation; clean passes let the council continue.
 5. **Final Approval Gate** *(Human)* — The single human gate in Delivery. Approves merge.
 6. **Merge & Deploy** — The Implementer (or a deploy agent) merges and ships.
 
@@ -37,14 +37,13 @@ The Delivery Track executes Tasks through one of two lanes based on deterministi
   AI is good at reasoning but bad at calibrating its own risk tolerance. Hard rules prevent an agent from talking itself into shipping a Fast Lane change that should have been Full Pipeline.
 </Callout>
 
-### Security-gate enforcement
+### Security review in the council
 
-The `security_gate` and `resets_security_verdict` annotations on the Task state machine constrain the existing delivery topology without adding new states.
+A Task whose `security_class` is `high` seats the Security Reviewer as a **blocking council member**, under either profile. The council aggregates by `any-veto`, so a Security Reviewer bounce returns the Task to the Implementer — there is no ordering an orchestrator can get wrong, because the council does not report a pass until every seated member does.
 
-- **`security_gate: true`** — annotates the three outbound edges from the `automated-gates` hub (`→ ui-review`, `→ qa`, `→ merged`). When a task's `security_class` is `"high"`, `advance-status` will refuse the transition with exit code 2 unless `security_review_verdict === "pass"`. The refusal is mechanical: the CLI re-runs `classify-security` on the actual diff before checking the verdict, so a task that was classified `low` at creation but touches sensitive paths in the real diff is caught at the gate.
-- **`resets_security_verdict: true`** — annotates the `review → automated-gates` edge. When the Reviewer bounces a task back to the Implementer and rework is eventually re-submitted, the prior security pass is invalidated atomically with the status change. The Security Reviewer must run again before the guarded transitions are available.
+The guarantee is recorded rather than inferred: the `council → final-gate` transition carries a `security_review_verdict`, so the audit trail shows which review produced the pass, and a re-run after a bounce records a fresh one.
 
-These are preconditions on existing edges, not new states. The Security Reviewer still routes through `automated-gates` in both lanes.
+Releases before Standard 0.8.0 encoded this as edge annotations on a hub state. That topology is retired: the hub and its guarded edges collapsed into the council. `security_gate` survives as an optional annotation a consumer state machine may set on its own transitions, and the reset annotation is gone. See [Chapter 11 (Glossary)](/guide/11-glossary) for the mapping.
 
 **See also:** [Chapter 7 (Agents)](/guide/07-agents) · [Chapter 8 (Gates)](/guide/08-gates)
 
