@@ -143,3 +143,44 @@ describe('the site states the Standard version it ships against', () => {
     });
   }
 });
+
+/**
+ * The count drifted three separate ways. 1546a66 created the guide at 7,
+ * consistent with the matrix and the glossary. 14ffc35 changed 07-agents.mdx
+ * to 8 for the Security Reviewer and touched none of the other five sites.
+ * Meanwhile standard/agent-contracts/ reached its own eight by adding
+ * chair.openapi.yaml — a different set, since no security-reviewer contract
+ * exists. reference-impl/README.md lists the union: nine, all Real.
+ *
+ * The matrix is the roster; prose must agree with what it renders. Note
+ * 07-agents.mdx's "8th role" ordinal is deliberately not a site here — an
+ * ordinal is not a count, and that sentence no longer carries a number.
+ */
+const AGENT_CARD = /<span class="agent-name">/g;
+
+const ROSTER_SITES = [
+  { label: 'ch.7 "defines N default agent roles"', file: 'content/guide/07-agents.mdx', re: /defines (\d+) default agent roles/ },
+  { label: 'ch.7 "run all N"', file: 'content/guide/07-agents.mdx', re: /run all (\d+) by switching personas/ },
+  { label: 'glossary "recommends N by default"', file: 'content/guide/11-glossary.mdx', re: /recommends (\d+) by default/ },
+  { label: 'FAQ "The N agents"', file: 'pages/faq.astro', re: /The (\d+) agents are recommended roles/ },
+  { label: 'FAQ "N agents) is settled"', file: 'pages/faq.astro', re: /(\d+) agents\) is settled/ },
+  { label: 'start "The N default agents"', file: 'pages/start.astro', re: /The (\d+) default agents are a recommended split/ },
+  { label: 'start "run all N"', file: 'pages/start.astro', re: /run all (\d+) in a single Claude session/ },
+  { label: 'Hero stat line "N agents"', file: 'components/Hero.astro', re: /(\d+) agents/ },
+];
+
+describe('the site agrees with itself on how many agents Cloverleaf defines', () => {
+  const rosterSize = [...read('components/AgentMatrix.astro').matchAll(AGENT_CARD)].length;
+
+  it('counts a non-empty roster in AgentMatrix', () => {
+    expect(rosterSize).toBeGreaterThan(5);
+  });
+
+  for (const site of ROSTER_SITES) {
+    it(`${site.label} matches the rendered roster`, () => {
+      const m = read(site.file).match(site.re);
+      expect(m, `no count matched ${site.re} in ${site.file}`).not.toBeNull();
+      expect(m![1]).toBe(String(rosterSize));
+    });
+  }
+});
