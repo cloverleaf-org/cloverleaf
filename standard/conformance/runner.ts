@@ -107,6 +107,35 @@ function walkExamples(root: string): Array<{ schemaName: string; filePath: strin
   return out;
 }
 
+// A missing or structurally-empty corpus must not read as a pass. valid/ and invalid/
+// are measured by the fixture count their own loops below consume -- walkExamples, the
+// same flattening walk -- because a root can contain a subdirectory yet still yield zero
+// usable fixtures (an empty schema dir, or one holding only *.meta.json sidecars).
+// scenarios/ is measured by the presence of scenario directories instead --
+// readdirSync(SCENARIOS) filtered to directories, exactly what its own outer loop
+// iterates below -- because its fixtures live one level deeper (scenario/category/*.json),
+// so walkExamples legitimately returns 0 there even when the corpus is healthy. That arm
+// proves only that a scenario directory exists, not that it holds usable fixtures: a
+// scenarios/foo/ present but empty inside still passes here, and that gap surfaces later
+// as zero checks accumulating rather than as a guard failure. existsSync(SCENARIOS) below
+// stays load-bearing (readdirSync throws on a missing directory) even though a standalone
+// existsSync(root) check here would be redundant with every arm's own count. The check
+// runs before any --level filtering, so a level that legitimately selects no fixtures
+// cannot trip it.
+const corpora = [
+  ['examples/valid', walkExamples(VALID).length],
+  ['examples/invalid', walkExamples(INVALID).length],
+  ['examples/scenarios',
+    existsSync(SCENARIOS)
+      ? readdirSync(SCENARIOS).filter((d) => statSync(resolve(SCENARIOS, d)).isDirectory()).length
+      : 0],
+] as const;
+for (const [label, fixtures] of corpora) {
+  if (fixtures === 0) {
+    fail(`${label}: fixture corpus missing or empty — conformance cannot be proven without it`);
+  }
+}
+
 console.log('Validating valid/ examples');
 for (const { schemaName, filePath } of walkExamples(VALID)) {
   if (!schemaInLevel(schemaName)) continue;

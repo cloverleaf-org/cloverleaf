@@ -29,6 +29,7 @@
     "state-machines",
     "validators",
     "conformance",
+    "examples",
     "docs",
     "README.md",
     "VERSION",
