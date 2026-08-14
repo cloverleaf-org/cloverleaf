@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { resolve, join, relative } from 'node:path';
 
 const SITE = resolve(__dirname, '..', '..', 'site', 'src');
+const STANDARD_PKG = resolve(__dirname, '..', '..', 'standard', 'package.json');
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -107,4 +108,38 @@ describe('every site link resolves', () => {
     }
     expect(offenders).toEqual([]);
   });
+});
+
+/**
+ * The footer renders on every page. It said v0.3.0 while the package said
+ * 0.8.0 and npm's latest was 0.7.1 — wrong against both the repo and the world.
+ *
+ * Deliberately a guard rather than build-time derivation: site.yml deploys on
+ * any push to main touching site/**, so deriving would let a future version
+ * bump silently republish the guide against an npm release that does not exist
+ * yet. This fails loudly instead and forces the decision at bump time.
+ */
+const PKG_VERSION: string = JSON.parse(readFileSync(STANDARD_PKG, 'utf-8')).version;
+
+const VERSION_SITES = [
+  { label: 'Footer standardVersion const', file: 'components/Footer.astro', re: /const standardVersion = '([\d.]+)'/ },
+  { label: 'Hero stat line', file: 'components/Hero.astro', re: /Standard v([\d.]+)/ },
+  { label: 'FAQ "is the methodology stable"', file: 'pages/faq.astro', re: /Standard v([\d.]+)/ },
+  { label: 'FAQ "how do I cite Cloverleaf"', file: 'pages/faq.astro', re: /currently v([\d.]+)/ },
+];
+
+describe('the site states the Standard version it ships against', () => {
+  it('reads a version from standard/package.json', () => {
+    expect(PKG_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+  });
+
+  for (const site of VERSION_SITES) {
+    it(`${site.label} matches standard/package.json`, () => {
+      const m = read(site.file).match(site.re);
+      // Must find one. A reworded sentence has to fail loudly rather than
+      // quietly become one fewer thing checked.
+      expect(m, `no version matched ${site.re} in ${site.file}`).not.toBeNull();
+      expect(m![1]).toBe(PKG_VERSION);
+    });
+  }
 });
