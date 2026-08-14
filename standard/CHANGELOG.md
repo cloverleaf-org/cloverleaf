@@ -16,12 +16,14 @@ All notable changes to the Cloverleaf Interoperability Standard are documented h
 - `package.json` — the `test` script now runs `tsc --noEmit` before `vitest run`, so type errors in conformance fixtures cannot ship undetected. `conformance/tests/validator-council-config.test.ts` gate-descriptor fixture annotated to the `Record<string, { kind?: Kind }>` contract the validator requires.
 - `docs/validators.md` — removed the stale `human_merge` row from the gate-decision matrix; the gate was retired in this release.
 - `README.md` — corrected for this release: eight agent contracts rather than seven (`chair.openapi.yaml` is new here), the `schemas/` bullet names the two council schemas, and the `state-machines/` bullet describes the collapsed task graph instead of the retired `security_gate` / `resets_security_verdict` edge annotations. The bullet also records that `validators/security-gate.ts` survives as a general primitive even though the default task FSM no longer uses it.
+- `package.json`, `conformance/runner.ts` — the published package now carries the `examples/` fixture corpus. It shipped `conformance/runner.ts` and all three by-level suites without the fixtures they read, so the runner reported `8 checks, 0 failures` and exited 0 from the tarball where it reports 90 in-repo, and `docs/conformance.md` names that run as the evidence for a level claim. The runner additionally fails when a corpus root is missing or holds no usable fixtures, rather than reporting a vacuous pass — a behaviour change for any environment running it without fixtures, which previously received exit 0. Emptiness is measured per root by the same walk its own consumer uses: a fixture count for `valid/` and `invalid/`, and a scenario-directory count for `scenarios/`, whose fixtures live one level deeper.
 
 ### Added
 - `schemas/council-config.schema.json` — validates a project's `.cloverleaf/config/council.json` (profiles + per-gate bindings; members carry an optional `kind` of `code`/`rfc`/`plan`).
 - `schemas/council-result.schema.json` — validates the per-gate council audit artifact.
 - `validators/council-config.ts` — kind-homogeneity (a profile's members share one kind; a bound profile's kind matches the gate's kind) + closed aggregation/when enums.
 - `agent-contracts/chair.openapi.yaml` — the deliberative chair (judge) contract.
+- `examples/invalid/status-transitions/retired-annotation.json` — a negative fixture pinning that the transition schema rejects `resets_security_verdict`, which this release removes from the transition type. The rejection was previously asserted only in this repository's own test suite.
 
 ### Migration
 Upgrading from 0.7.1 to 0.8.0 is a clean break (no compat shim):
