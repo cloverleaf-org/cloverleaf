@@ -20,24 +20,24 @@ Risk classification is deterministic and conservative. AI never decides "is this
 
 ### Outputs
 
-A single classification: **Fast Lane** or **Full Pipeline**.
+A single `risk_class` of `low` or `high`, which selects the delivery council's profile — the fast delivery profile (`delivery-fast`) or the full one (`delivery-full`).
 
 ### Conservative principle
 
-If any rule matches Full Pipeline, the Task is Full Pipeline. Rules can only escalate; nothing in the Task or its execution can downgrade the lane after classification.
+If any rule matches `high`, the Task is `high`. Rules can only escalate; nothing in the Task or its execution can downgrade the classification afterwards.
 
 ### Example rules
 
-- Any change under <Code>auth/</Code> → Full Pipeline
-- Any schema migration → Full Pipeline
-- Any change touching > 200 LOC → Full Pipeline
-- Frontend-only change in a single component → Fast Lane
-- Documentation-only change → Fast Lane (skips QA)
+- Any change under <Code>auth/</Code> → `high`
+- Any schema migration → `high`
+- Any change touching > 200 LOC → `high`
+- Frontend-only change in a single component → `low`
+- Documentation-only change → `low` (the fast profile seats no QA member)
 
 Teams configure their own rules at project setup. The framework provides the matcher; the rules are project property.
 
 ### security_class
 
-A second risk axis, orthogonal to `risk_class`. Where `risk_class` is inferred from UI keywords and touched paths, `security_class` targets the complementary slice: backend logic, credential handling, deploy scripts, and other security-sensitive work that carries no frontend keywords. A task with `security_class: high` routes through the Security Reviewer at `automated-gates` regardless of which lane `risk_class` selected.
+A second risk axis, orthogonal to `risk_class`. Where `risk_class` is inferred from UI keywords and touched paths, `security_class` targets the complementary slice: backend logic, credential handling, deploy scripts, and other security-sensitive work that carries no frontend keywords. A task with `security_class: high` seats the Security Reviewer on the delivery council regardless of which profile `risk_class` selected.
 
-The gap this fills: the most security-sensitive changes (secrets management, auth flows, infra scripts) would be routed fast-lane by a UI-keyed classifier alone, reaching merge without a vulnerability review. `security_class` is inferred from sensitive path prefixes and keyword markers at task creation, then re-checked against the actual diff at review time.
+The gap this fills: the most security-sensitive changes (secrets management, auth flows, infra scripts) would be classified `low` by a UI-keyed classifier alone, reaching merge without a vulnerability review. `security_class` is inferred from sensitive path prefixes and keyword markers at task creation, then re-checked against the actual diff at review time.
