@@ -20,6 +20,6 @@ The security-review requirement is enforced by the council's aggregation rule, n
 
 **Motivation.** During the v0.8.0 claw-crypto dogfood (2026-05-25), the LLM orchestrator driving `/cloverleaf-run` skipped the security-review bookkeeping — the diff triggered the security path but the state machine advance was not gated. Seating the reviewer inside the council closes that gap structurally: the ordering the orchestrator used to get wrong no longer exists.
 
-**See also:** [Chapter 5 (Delivery)](/guide/05-delivery) · [Chapter 8 (Gates)](/guide/08-gates)
+**See also:** [Chapter 5 (Delivery)](#chapter-5) · [Chapter 8 (Gates)](#chapter-8)
 
 A solo developer can run all 8 by switching personas in a single session. A 50-person team can map them to specialized teams. The methodology only requires that the *function* of each role is filled at the right phase.

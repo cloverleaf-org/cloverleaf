@@ -17,6 +17,8 @@ The Delivery Track executes every Task along one path. Deterministic risk classi
   <StepArrow />
   <StepRow variant="agent" label="Risk Classifier" />
   <StepArrow />
+  <StepRow variant="agent" label="Documentation" />
+  <StepArrow />
   <StepRow variant="agent" label="Delivery Council" meta="profile by risk" />
   <StepArrow />
   <StepRow variant="gate" label="Final Approval" />
@@ -30,9 +32,9 @@ The Delivery Track executes every Task along one path. Deterministic risk classi
 2. **Risk Classifier** — Rules-based, deterministic. Examines the Task's touched paths against project-defined rules (e.g., changes under <Code>auth/</Code> always select the full profile). Conservative by design: only escalates, never downgrades.
 3. **Documentation** — Every Task passes through a `documenting` step. For `risk_class: high` the Documenter Agent adds documentation commits; for `low` the orchestrator advances the step directly.
 4. **Delivery Council** — `risk_class` selects the profile. The fast delivery profile (`delivery-fast`) seats the Reviewer, adding the Security Reviewer when `security_class` is high. The full delivery profile (`delivery-full`) additionally seats the UI Reviewer when the diff touches UI, and QA. Aggregation is `any-veto`: one bounce returns the Task to the Implementer.
-5. **Security Review** — Seated on the council when a task's `security_class` is high: a deterministic secret scan followed by an LLM vulnerability judgment. Blocker findings route to escalation; clean passes let the council continue.
-6. **Final Approval Gate** *(Human)* — The single human gate in Delivery. Approves merge.
-7. **Merge & Deploy** — The Implementer (or a deploy agent) merges and ships.
+   - **Security Review** — Seated on the council when a task's `security_class` is high: a deterministic secret scan followed by an LLM vulnerability judgment. Blocker findings route to escalation; clean passes let the council conclude.
+5. **Final Approval Gate** *(Human)* — The single human gate in Delivery. Approves merge.
+6. **Merge & Deploy** — The Implementer (or a deploy agent) merges and ships.
 
 <Callout title="Why deterministic risk">
   AI is good at reasoning but bad at calibrating its own risk tolerance. Hard rules prevent an agent from talking itself into convening the fast profile for a change that should have convened the full one.
@@ -44,9 +46,9 @@ A Task whose `security_class` is `high` seats the Security Reviewer as a **block
 
 The guarantee is recorded rather than inferred: the `council → final-gate` transition carries a `security_review_verdict`, so the audit trail shows which review produced the pass, and a re-run after a bounce records a fresh one.
 
-Releases before Standard 0.8.0 encoded this as edge annotations on a hub state. That topology is retired: the hub and its guarded edges collapsed into the council. `security_gate` survives as an optional annotation a consumer state machine may set on its own transitions, and the reset annotation is gone. See [Chapter 11 (Glossary)](/guide/11-glossary) for the mapping.
+Releases before Standard 0.8.0 encoded this as edge annotations on a hub state. That topology is retired: the hub and its guarded edges collapsed into the council. `security_gate` survives as an optional annotation a consumer state machine may set on its own transitions, and the reset annotation is gone. See [Chapter 11 (Glossary)](#chapter-11) for the mapping.
 
-**See also:** [Chapter 7 (Agents)](/guide/07-agents) · [Chapter 8 (Gates)](/guide/08-gates)
+**See also:** [Chapter 7 (Agents)](#chapter-7) · [Chapter 8 (Gates)](#chapter-8)
 
 ### Failure handling on Delivery
 
