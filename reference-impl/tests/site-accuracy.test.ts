@@ -34,6 +34,7 @@ function read(rel: string): string {
 const MD_LINK = /\[[^\]]*\]\(([^)]+)\)/g;
 const EXTERNAL = /^(https?:\/\/|mailto:)/;
 const RAW_INTERNAL_HREF = /href\s*=\s*"(\/[^"]*)"/g;
+const CHAPTER_ANCHOR_LITERAL = /#chapter-\d+/g;
 
 function chapterAnchors(): Set<string> {
   const dir = resolve(SITE, 'content', 'guide');
@@ -74,6 +75,23 @@ describe('every site link resolves', () => {
     const offenders = links
       .filter((l) => !EXTERNAL.test(l.href) && !anchors.has(l.href))
       .map((l) => `${l.file} -> ${l.href}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('every #chapter-N literal resolves, even outside markdown link syntax', () => {
+    // MD_LINK only matches `[text](url)`. start.astro builds its chapter
+    // link as `url('/guide') + '#chapter-7'`, a JS string literal that
+    // markdown syntax never sees, so a renumbered or removed chapter would go
+    // dead there and MD_LINK would stay silent. guide.astro's own
+    // `#chapter-${c.data.chapter}` is a template expression, not a fixed
+    // literal — CHAPTER_ANCHOR_LITERAL requires a digit immediately after the
+    // dash, so it does not match and is not an offender.
+    const offenders: string[] = [];
+    for (const f of pages) {
+      for (const m of readFileSync(f, 'utf-8').matchAll(CHAPTER_ANCHOR_LITERAL)) {
+        if (!anchors.has(m[0])) offenders.push(`${relative(SITE, f)} -> ${m[0]}`);
+      }
+    }
     expect(offenders).toEqual([]);
   });
 
