@@ -60,13 +60,13 @@
   <!-- Zone 3: Outputs -->
   <div class="dg-zone dg-outputs" aria-label="Outputs">
     <div class="dg-zone-label">Output</div>
-    <div class="dg-output-item dg-fast-lane">
-      <span class="dg-output-badge">Fast Lane</span>
-      <span class="dg-output-desc">Implementer → Reviewer → Approval</span>
+    <div class="dg-output-item dg-fast-profile">
+      <span class="dg-output-badge">delivery-fast</span>
+      <span class="dg-output-desc">Reviewer → Approval</span>
     </div>
-    <div class="dg-output-item dg-full-pipeline">
-      <span class="dg-output-badge">Full Pipeline</span>
-      <span class="dg-output-desc">+ Documenter, UI Reviewer, QA</span>
+    <div class="dg-output-item dg-full-profile">
+      <span class="dg-output-badge">delivery-full</span>
+      <span class="dg-output-desc">+ UI Reviewer, QA</span>
     </div>
   </div>
 
@@ -192,8 +192,8 @@
     gap: 4px;
   }
 
-  .dg-fast-lane { border-left: 3px solid var(--color-accent); }
-  .dg-full-pipeline { border-left: 3px solid var(--color-text-muted); }
+  .dg-fast-profile { border-left: 3px solid var(--color-accent); }
+  .dg-full-profile { border-left: 3px solid var(--color-text-muted); }
 
   .dg-output-badge {
     font-family: var(--font-mono);

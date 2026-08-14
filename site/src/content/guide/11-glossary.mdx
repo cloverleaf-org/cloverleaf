@@ -10,13 +10,13 @@ title: 'Glossary'
 
 **DAG** — Directed Acyclic Graph. Cloverleaf's Task structure is a DAG: tasks have ordered dependencies but no cycles.
 
-**Delivery Track** — The per-Task execution loop. Pickup → Risk Classifier → Fast Lane / Full Pipeline → Final Approval → Merge.
+**Delivery Track** — The per-Task execution loop. Pickup → Risk Classifier → Documentation → Delivery Council → Final Approval → Merge.
 
 **Discovery Track** — The strategic planning loop. RFC → Spike → Strategy Gate → Plan & Breakdown → Task Batch Gate.
 
-**Fast Lane** — Delivery path for low-risk Tasks. Implementer → Reviewer → Final Approval.
+**Fast delivery profile** (`delivery-fast`) — The council profile selected for `risk_class: low` Tasks. Seats the Reviewer, plus the Security Reviewer when `security_class` is high.
 
-**Full Pipeline** — Delivery path for higher-risk Tasks. Adds UI Reviewer, QA, and Documenter steps.
+**Full delivery profile** (`delivery-full`) — The council profile selected for `risk_class: high` Tasks. Adds the UI Reviewer (when the diff touches UI) and QA to the fast profile's seats.
 
 **Gate** — A human approval point. Cloverleaf has three: Strategy Gate, Task Batch Gate, Final Approval Gate.
 
@@ -24,7 +24,7 @@ title: 'Glossary'
 
 **RFC** — A proposal Work Item. The starting point for any non-trivial change.
 
-**Risk Classifier** — Deterministic, rules-based mechanism that decides Fast Lane vs Full Pipeline.
+**Risk Classifier** — Deterministic, rules-based mechanism that sets a Task's `risk_class`, which selects the delivery council's profile.
 
 **Spike** — A bounded research Task attached to an RFC. Single question, single method, evidence-backed findings.
 
@@ -33,3 +33,12 @@ title: 'Glossary'
 **Work Item** — Any of the 4 mandatory artifact types: RFC, Spike, Plan, Task.
 
 This glossary expands over time—terms are added as methodology teams encounter them in real practice, not speculatively.
+
+### Retired vocabulary
+
+Terms used before Standard 0.8.0, kept so an older document or a returning reader can be mapped onto the current model.
+
+- **Fast Lane** → the fast delivery profile (`delivery-fast`).
+- **Full Pipeline** → the full delivery profile (`delivery-full`).
+- **`automated-gates`** → the `council` phase. The hub state and the three guarded edges leaving it collapsed into a single council.
+- **`security_gate` / `resets_security_verdict`** → a blocking `security` council member plus a recorded `security_review_verdict` on `council → final-gate`. `security_gate` survives as an optional annotation a consumer state machine may set on its own transitions; `resets_security_verdict` is gone.
