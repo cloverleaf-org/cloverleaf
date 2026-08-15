@@ -4,7 +4,9 @@ eyebrow: 'Reference'
 title: 'Glossary'
 ---
 
-**Agent** — A specialized AI worker with a defined role. Cloverleaf recommends 7 by default but binds at phase contracts, not at agent count.
+**Agent** — A specialized AI worker with a defined role. Cloverleaf recommends 9 by default but binds at phase contracts, not at agent count.
+
+**Chair** — A deliberative judge convened when a blocking member of a council that aggregates by `chair` bounces — a member escalation is final and bypasses it. It reads every member's verdict, renders the council verdict, and curates the feedback forwarded to the Implementer. It may raise a bounce to an escalation, never lower one.
 
 **Cloverleaf Interoperability Standard** — The machine-readable spec (JSON Schemas, OpenAPI contracts, conformance runner, reference validators) that lives in `standard/`.
 
@@ -25,6 +27,8 @@ title: 'Glossary'
 **RFC** — A proposal Work Item. The starting point for any non-trivial change.
 
 **Risk Classifier** — Deterministic, rules-based mechanism that sets a Task's `risk_class`, which selects the delivery council's profile.
+
+**Security Reviewer** — A hybrid agent: a deterministic secret scan followed by LLM vulnerability judgment. Seated as a blocking member of the delivery council when a Task's `security_class` is high.
 
 **Spike** — A bounded research Task attached to an RFC. Single question, single method, evidence-backed findings.
 

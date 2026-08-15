@@ -13,7 +13,7 @@ const items = [
   },
   {
     q: 'Can a single developer use Cloverleaf?',
-    a: 'Yes. The 7 agents are recommended roles, not staffing. A solo dev can switch personas in a single Claude session and still get the structural benefits of fresh-eyes review and typed failure handling.'
+    a: 'Yes. The 9 agents are recommended roles, not staffing. A solo dev can switch personas in a single Claude session and still get the structural benefits of fresh-eyes review and typed failure handling.'
   },
   {
     q: 'What about teams that aren\'t using AI yet?',
@@ -21,15 +21,15 @@ const items = [
   },
   {
     q: 'Is the methodology stable?',
-    a: 'Standard v0.3.0 (this version). The architecture (two tracks, 4 work items, 7 agents) is settled. Some details may evolve based on real-team feedback.'
+    a: 'Standard v0.8.0 (this version). The architecture (two tracks, 4 work items, 9 agents) is settled. Some details may evolve based on real-team feedback.'
   },
   {
     q: 'Is there a reference implementation?',
-    a: 'Yes — <code>@cloverleaf/reference-impl</code> on npm. It implements the Delivery track as Claude Code skills (Implementer, Documenter, Reviewer, UI Reviewer, QA) and dispatches them via the orchestrator <code>/cloverleaf-run</code>. The Discovery track (Plan, Researcher) is still stubbed; a v0.4 release is planned.'
+    a: 'Yes — <code>@cloverleaf/reference-impl</code> on npm. Both tracks ship as Claude Code skills. Delivery runs through the orchestrator <code>/cloverleaf-run</code>: the Implementer works the Task, then a single delivery council convenes. The Reviewer always sits; the Security Reviewer joins when the Task\'s security classification is high, and a high-risk Task additionally seats QA and — when the diff touches UI — the UI Reviewer. Documentation is a step in the Task lifecycle rather than a council seat; the Documenter writes those commits when the Task is high-risk. Discovery runs through <code>/cloverleaf-discover</code>, which sequences the RFC, Spike, gate and breakdown skills from brief to materialised Tasks.'
   },
   {
     q: 'How do I cite Cloverleaf?',
-    a: 'Cite the live guide at https://cloverleaf-org.github.io/cloverleaf/ and pin to the Standard version shown in the footer (currently v0.3.0). A DOI may follow.'
+    a: 'Cite the live guide at https://cloverleaf-org.github.io/cloverleaf/ and pin to the Standard version shown in the footer (currently v0.8.0). A DOI may follow.'
   },
   {
     q: 'When should I use a Plan vs go RFC → Task directly?',

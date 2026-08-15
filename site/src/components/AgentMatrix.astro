@@ -1,6 +1,6 @@
 ---
 // AgentMatrix: two-column phase classification for chapter 7 (Agents).
-// Discovery (2 agents) left | Delivery (5 agents) right.
+// Discovery (2 agents) left | Delivery (7 agents) right.
 // No FlowArrow — phase membership is classification, not flow.
 // Mobile (≤600px): stacked single-column cards matching SingleTrack aesthetic.
 ---
@@ -35,6 +35,11 @@
         <span class="agent-role">Code review in fresh context</span>
       </li>
       <li class="agent-card agent-card--optional">
+        <span class="agent-name">Security Reviewer</span>
+        <span class="agent-role">Secret scan, then vulnerability judgment</span>
+        <span class="agent-meta">security_class high</span>
+      </li>
+      <li class="agent-card agent-card--optional">
         <span class="agent-name">UI Reviewer</span>
         <span class="agent-role">Frontend-specific review</span>
         <span class="agent-meta">full profile, UI diffs</span>
@@ -48,6 +53,11 @@
         <span class="agent-name">Documenter</span>
         <span class="agent-role">Updates AI-facing docs after every change</span>
         <span class="agent-meta">high risk</span>
+      </li>
+      <li class="agent-card agent-card--optional">
+        <span class="agent-name">Chair</span>
+        <span class="agent-role">Judges member verdicts on a council bounce</span>
+        <span class="agent-meta">chair aggregation</span>
       </li>
     </ul>
   </div>
