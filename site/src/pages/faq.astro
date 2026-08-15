@@ -25,7 +25,7 @@ const items = [
   },
   {
     q: 'Is there a reference implementation?',
-    a: 'Yes — <code>@cloverleaf/reference-impl</code> on npm. Both tracks ship as Claude Code skills. Delivery runs through the orchestrator <code>/cloverleaf-run</code>: the Implementer works the Task, then a single delivery council convenes, seating the Reviewer, plus the Security Reviewer and QA as the Task\'s risk and security classification warrant, and the UI Reviewer when the diff touches UI. The Documenter is a step in the Task lifecycle rather than a council member. Discovery runs through <code>/cloverleaf-discover</code>, which drives RFC → Spike → Plan → Tasks across six skills.'
+    a: 'Yes — <code>@cloverleaf/reference-impl</code> on npm. Both tracks ship as Claude Code skills. Delivery runs through the orchestrator <code>/cloverleaf-run</code>: the Implementer works the Task, then a single delivery council convenes. The Reviewer always sits; the Security Reviewer joins when the Task\'s security classification is high, and a high-risk Task additionally seats QA and — when the diff touches UI — the UI Reviewer. The Documenter is a step in the Task lifecycle rather than a council member. Discovery runs through <code>/cloverleaf-discover</code>, which drives RFC → Spike → Plan → Tasks across six skills.'
   },
   {
     q: 'How do I cite Cloverleaf?',
