@@ -12,7 +12,7 @@ Cloverleaf defines 9 default agent roles. They are recommended, not mandated —
 
 The **Security Reviewer** is a hybrid two-pass agent: deterministic secret scan (cloud keys, tokens, PEM headers) followed by LLM judgment (injection, authz, deserialization, SSRF, input validation, weak crypto). It routes by severity — blocker findings escalate, error/warning findings bounce back to the Implementer, clean diffs pass. It is seated as a blocking council member when a task's `security_class` is high.
 
-The **Chair** is a deliberative judge. It is convened only when a council that aggregates by `chair` actually bounces — if every blocking member passes, or if any member escalates, the verdict resolves without it. When it is convened it reads every seated member's verdict and feedback, renders the council verdict, and curates which feedback reaches the Implementer. The Chair judges the members' verdicts rather than the code, and it may raise a bounce to an escalation but never lower one.
+The **Chair** is a deliberative judge. It is convened only when a blocking member of a council that aggregates by `chair` bounces — if every blocking member passes, or if any member escalates, the verdict resolves without it. When it is convened it reads every seated member's verdict and feedback, renders the council verdict, and curates which feedback reaches the Implementer. The Chair judges the members' verdicts rather than the code, and it may raise a bounce to an escalation but never lower one.
 
 ### Mechanical enforcement
 

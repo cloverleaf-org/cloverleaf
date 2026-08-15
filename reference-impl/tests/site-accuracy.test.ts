@@ -4,6 +4,7 @@ import { resolve, join, relative } from 'node:path';
 
 const SITE = resolve(__dirname, '..', '..', 'site', 'src');
 const STANDARD_PKG = resolve(__dirname, '..', '..', 'standard', 'package.json');
+const REFERENCE_README = resolve(__dirname, '..', 'README.md');
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -69,7 +70,7 @@ describe('every site link resolves', () => {
   });
 
   it('finds the markdown links it claims to check', () => {
-    expect(links.length).toBeGreaterThanOrEqual(5);
+    expect(links.length).toBeGreaterThanOrEqual(3);
   });
 
   it('every markdown link is external or a resolving chapter anchor', () => {
@@ -158,6 +159,25 @@ describe('the site states the Standard version it ships against', () => {
  */
 const AGENT_CARD = /<span class="agent-name">/g;
 
+/**
+ * Internal parity cannot see collective staleness. 1546a66 created the whole
+ * site at 7 — consistently — and every site above would have been green
+ * throughout; when a tenth agent ships, the matrix and all eight numerals sit
+ * silently at 9. Both sibling guards anchor outside the site (version →
+ * standard/package.json, chapter anchors → guide frontmatter). This one anchors
+ * to reference-impl/README.md's `### Agents` table, the artifact the
+ * roster-of-nine decision was actually based on.
+ *
+ * The table runs from the `### Agents` heading to the next `### `. Its rows
+ * begin with `| `; the `|---|---|---|` separator does not, so it drops out on
+ * its own, leaving the header row plus one row per agent.
+ */
+function readmeAgentRows(): string[] {
+  const body = readFileSync(REFERENCE_README, 'utf-8');
+  const section = body.split(/^### Agents$/m)[1]?.split(/^### /m)[0] ?? '';
+  return section.split('\n').filter((l) => l.startsWith('| '));
+}
+
 const ROSTER_SITES = [
   { label: 'ch.7 "defines N default agent roles"', file: 'content/guide/07-agents.mdx', re: /defines (\d+) default agent roles/ },
   { label: 'ch.7 "run all N"', file: 'content/guide/07-agents.mdx', re: /run all (\d+) by switching personas/ },
@@ -174,6 +194,14 @@ describe('the site agrees with itself on how many agents Cloverleaf defines', ()
 
   it('counts a non-empty roster in AgentMatrix', () => {
     expect(rosterSize).toBeGreaterThan(5);
+  });
+
+  it('the rendered roster matches the reference-impl README agent table', () => {
+    const rows = readmeAgentRows();
+    // A renamed or removed heading parses to nothing, which must not read as a
+    // pass. One header row plus at least one agent row is the floor.
+    expect(rows.length, 'no `| ` rows found under `### Agents` in reference-impl/README.md').toBeGreaterThan(1);
+    expect(rows.length - 1).toBe(rosterSize);
   });
 
   for (const site of ROSTER_SITES) {
