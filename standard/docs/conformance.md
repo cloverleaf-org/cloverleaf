@@ -39,7 +39,7 @@ An L3 implementer implements the agent contracts, handles gate decisions, and en
 
 - Schemas: `gate-decision-event`, `extensions`, `path-rules`, `risk-classifier-rules`
 - Validators: `gate-decision-validity`
-- Agent contracts: all seven (`researcher`, `plan`, `implementer`, `documenter`, `reviewer`, `ui-reviewer`, `qa`)
+- Agent contracts: all eight (`researcher`, `plan`, `implementer`, `documenter`, `reviewer`, `ui-reviewer`, `qa`, `chair`)
 
 ## Running the conformance suite
 
@@ -55,15 +55,21 @@ npm run validate:examples -- --level=3   # L1 + L2 + L3 (same as default)
 
 A successful run exits 0 with a line count of passing checks. A failing run prints each failure and exits nonzero.
 
+Running it from an installed copy rather than this repository needs two things. The runner's own imports (`@apidevtools/swagger-parser`, `ajv`, `ajv-formats`) arrive with the package as of 0.8.1. Executing it also needs a TypeScript runner, which the package deliberately does not depend on — `conformance/runner.ts` ships as TypeScript and `dist/` carries only the validators:
+
+```bash
+npx tsx node_modules/@cloverleaf/standard/conformance/runner.ts
+```
+
 ## Declaring a level
 
 To claim a level for your implementation:
 
-1. Run the filtered suite (`npm run validate:examples -- --level=N`) against your fixtures.
+1. Run the filtered suite (`npm run validate:examples -- --level=N`). It validates the corpus shipped inside the package; the runner's root is the package itself, so it cannot be pointed at your own fixtures.
 2. Add your own test suite that exercises your implementation against the level's schemas, validators, and contracts.
-3. Publish a conformance statement in your project's README citing the specific Cloverleaf Standard version and level — e.g. *"Implements Cloverleaf Standard 0.3.0 at L2."*
+3. Publish a conformance statement in your project's README citing the specific Cloverleaf Standard version and level — e.g. *"Implements Cloverleaf Standard 0.8.1 at L2."*
 
-There is no central registry or badge program in v0.3. Self-declaration is the mechanism; the filtered conformance suite is the evidence.
+There is no central registry or badge program. Self-declaration is the mechanism; the filtered conformance suite is the evidence.
 
 ## Adding a new schema, validator, contract, state machine, or scenario
 

@@ -2,6 +2,13 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## 0.8.1 — 2026-08-18
+
+### Fixed
+
+- `package.json` — the conformance runner's runtime imports are declared as `dependencies` rather than `devDependencies`. The package previously declared no dependencies at all, so a clean consumer install left `@apidevtools/swagger-parser`, `ajv` and `ajv-formats` absent and `conformance/runner.ts` died with `ERR_MODULE_NOT_FOUND` on its first import. This was true of every prior release, but 0.8.0 was the first to ship the `examples/` corpus, which made the missing dependencies the only remaining obstacle between a third-party implementer and the run `docs/conformance.md` names as the evidence for a conformance claim. Proved from the published tarball: a clean `npm install` crashed on import, and installing those three libraries alone took the same runner to `91 checks, 0 failures`, exit 0. The exported validators were never affected — `dist/validators/` imports nothing outside itself, so `import … from '@cloverleaf/standard'` resolved all twelve with no transitive install.
+- `docs/conformance.md` — records what running the suite from an installed copy requires, including that executing it needs a TypeScript runner the package deliberately does not depend on, since `conformance/runner.ts` ships as TypeScript and `dist/` carries only the validators. Three stale self-references are corrected: the L3 partition claimed "all seven" agent contracts when eight ship and `chair` is mapped `L3` in `conformance/level-map.ts`; the example conformance statement cited `0.3.0`; and the registry note was scoped "in v0.3". The instruction to run the filtered suite "against your fixtures" is corrected — the runner's corpus root is fixed to the package and cannot be redirected.
+
 ## 0.8.0 — 2026-08-18
 
 **Breaking: the task delivery states collapse into one generic `council` phase.** The `review`, `automated-gates`, `security-review`, `ui-review`, and `qa` states — and the fast-lane/full-pipeline split — are replaced by a single parameterized `council` phase driven by a configurable review council. This is the largest single change to the Standard; it breaks conformance for hosts built against the 0.7.x task FSM.
