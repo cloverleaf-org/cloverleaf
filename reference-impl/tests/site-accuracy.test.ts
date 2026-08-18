@@ -43,6 +43,24 @@ function everywhere(re: RegExp): RegExp {
  * Anchors are resolved against the chapter numbers actually present in guide
  * frontmatter, not merely shape-matched, so a link to a chapter that does not
  * exist fails too.
+ *
+ * The chapter sweep is deliberately not confined to markdown link syntax.
+ * CHAPTER_ANCHOR_LITERAL matches every `#chapter-N` literal wherever it
+ * appears, because start.astro builds its anchor as `url('/guide') +
+ * '#chapter-7'` — a string literal that `[text](url)` matching never sees.
+ * Restricting it to link position would mean defining link position, which is
+ * the assumption that let those anchors go unwatched to begin with. Checking
+ * more strings than strictly necessary can only ever cost a loud failure,
+ * never a silent pass, so the breadth stays.
+ *
+ * What none of this can catch is an anchor that is wrong but still valid:
+ * `#chapter-7` changed to `#chapter-9` resolves, because chapter 9 exists.
+ * Only the prose around a link knows which chapter it meant. start.astro's
+ * one paragraph shows both halves of that split: its two 9s are the agent
+ * count, pinned by the roster guard below, while its two 7s — `#chapter-7`
+ * and the "Chapter 7 of the guide" that labels it — name the agents chapter
+ * and are pinned by nothing here. Renumber that chapter and both 7s go quietly
+ * wrong while every guard in this file stays green.
  */
 const MD_LINK = /\[[^\]]*\]\(([^)]+)\)/g;
 const EXTERNAL = /^(https?:\/\/|mailto:)/;
