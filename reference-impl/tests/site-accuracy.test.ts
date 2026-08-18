@@ -123,6 +123,51 @@ describe('every site link resolves', () => {
 });
 
 /**
+ * Nav.astro renders each entry one of two ways: `external: true` emits the href
+ * verbatim with target="_blank"; `external: false` passes it through url(),
+ * which prefixes the '/cloverleaf' base. A wrong flag breaks the link silently
+ * in whichever direction it is wrong — an absolute URL sent through url()
+ * becomes '/cloverleaf/https://…', and a root-relative href marked external
+ * escapes the base and 404s.
+ *
+ * The link guard above cannot see either case. It reads href="…" attributes out
+ * of markup; these hrefs live in a frontmatter array and only become an
+ * attribute after Astro renders it.
+ */
+const NAV_LINK = /\{\s*href:\s*'([^']+)'\s*,\s*label:\s*'([^']*)'\s*,\s*external:\s*(true|false)\s*\}/g;
+
+describe('Nav entries agree with how Nav renders them', () => {
+  const entries = [...read('components/Nav.astro').matchAll(NAV_LINK)].map((m) => ({
+    href: m[1],
+    label: m[2],
+    external: m[3] === 'true',
+  }));
+
+  it('parses a non-empty link list', () => {
+    // A renamed field or a reformatted array parses to nothing, which would
+    // leave both checks below sweeping an empty set and reading as a pass.
+    expect(
+      entries.length,
+      'no { href, label, external } entries found in Nav.astro',
+    ).toBeGreaterThan(0);
+  });
+
+  it('every external entry is an absolute http(s) URL', () => {
+    const offenders = entries
+      .filter((e) => e.external && !/^https?:\/\//.test(e.href))
+      .map((e) => `${e.label} -> ${e.href}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('every internal entry is a root-relative path url() can prefix', () => {
+    const offenders = entries
+      .filter((e) => !e.external && !e.href.startsWith('/'))
+      .map((e) => `${e.label} -> ${e.href}`);
+    expect(offenders).toEqual([]);
+  });
+});
+
+/**
  * The footer renders on every page. It said v0.3.0 while the package said
  * 0.8.0 and npm's latest was 0.7.1 — wrong against both the repo and the world.
  *
