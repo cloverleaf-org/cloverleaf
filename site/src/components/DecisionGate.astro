@@ -62,11 +62,11 @@
     <div class="dg-zone-label">Output</div>
     <div class="dg-output-item dg-fast-profile">
       <span class="dg-output-badge">delivery-fast</span>
-      <span class="dg-output-desc">Reviewer → Approval</span>
+      <span class="dg-output-desc">Reviewer, plus Security Reviewer when security_class is high → Approval</span>
     </div>
     <div class="dg-output-item dg-full-profile">
       <span class="dg-output-badge">delivery-full</span>
-      <span class="dg-output-desc">+ UI Reviewer, QA</span>
+      <span class="dg-output-desc">Adds UI Reviewer when the diff touches UI, and QA</span>
     </div>
   </div>
 
@@ -178,7 +178,7 @@
   /* ── Outputs zone ── */
   .dg-outputs {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     gap: 10px;
     align-items: stretch;
   }

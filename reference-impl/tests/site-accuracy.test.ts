@@ -5,6 +5,7 @@ import { resolve, join, relative } from 'node:path';
 const SITE = resolve(__dirname, '..', '..', 'site', 'src');
 const STANDARD_PKG = resolve(__dirname, '..', '..', 'standard', 'package.json');
 const REFERENCE_README = resolve(__dirname, '..', 'README.md');
+const COUNCIL_CONFIG = resolve(__dirname, '..', 'config', 'council.json');
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -211,4 +212,139 @@ describe('the site agrees with itself on how many agents Cloverleaf defines', ()
       expect(m![1]).toBe(String(rosterSize));
     });
   }
+});
+
+
+/**
+ * DecisionGate.astro renders the two delivery council profiles inside chapter 9's
+ * diagram. Nothing else in this repo read it: the link, version and roster guards
+ * above check links, version strings and numerals, and none of them can see a
+ * prose claim inside a diagram. It shipped naming neither the Security Reviewer
+ * (which council.json seats in BOTH profiles when security_class is high) nor the
+ * ui_changes condition on the UI Reviewer — the last instance of a defect class
+ * that took three passes to correct in the guide prose surrounding it.
+ *
+ * This guard anchors EXTERNALLY, to the engine's own config/council.json. An
+ * internal anchor would only catch the site disagreeing with itself and would
+ * stay green if the config and the diagram ever went stale together — the hole
+ * the roster guard above was found to have.
+ *
+ * MEMBER_NAMES and WHEN_PROSE are checked for completeness against the config, so
+ * a member id or a `when` condition this file does not spell fails loudly instead
+ * of being silently skipped.
+ *
+ * The full profile's card is written additively ("Adds ... and QA", matching
+ * 11-glossary.mdx's "to the fast profile's seats"), so it is checked against the
+ * members full seats that fast does not — not against its entire roster.
+ */
+const MEMBER_NAMES: Record<string, RegExp> = {
+  // `Reviewer` alone must not be satisfied by `Security Reviewer` or `UI Reviewer`.
+  reviewer: /(?<!Security )(?<!UI )\bReviewer\b/,
+  security: /\bSecurity Reviewer\b/,
+  ui: /\bUI Reviewer\b/,
+  qa: /\bQA\b/,
+};
+
+const WHEN_PROSE: Record<string, RegExp> = {
+  'security_class:high': /security_class is high/,
+  ui_changes: /diff touches UI/,
+};
+
+// A card that signals it extends the other profile rather than replacing it.
+const ADDITIVE = /\bAdds\b|\badditionally\b|^\s*\+/i;
+
+type Seat = { member: string; when?: string };
+
+function councilProfiles(): Record<string, Seat[]> {
+  const cfg = JSON.parse(readFileSync(COUNCIL_CONFIG, 'utf-8'));
+  const out: Record<string, Seat[]> = {};
+  for (const [name, profile] of Object.entries<any>(cfg.profiles ?? {})) {
+    out[name] = (profile.rounds ?? []).flat() as Seat[];
+  }
+  return out;
+}
+
+const DG_CARD =
+  /<span class="dg-output-badge">([^<]+)<\/span>\s*<span class="dg-output-desc">([^<]+)<\/span>/g;
+
+function decisionGateCards(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const m of read('components/DecisionGate.astro').matchAll(DG_CARD)) {
+    out[m[1].trim()] = m[2].trim();
+  }
+  return out;
+}
+
+describe('the council diagram matches the council config it depicts', () => {
+  const profiles = councilProfiles();
+  const cards = decisionGateCards();
+
+  it('reads both profiles, each with seats, from config/council.json', () => {
+    // A renamed key or a parse that yields {} must not read as a pass.
+    expect(Object.keys(profiles).sort()).toEqual(['delivery-fast', 'delivery-full']);
+    for (const [name, seats] of Object.entries(profiles)) {
+      expect(seats.length, `${name} parsed to no seats`).toBeGreaterThan(0);
+    }
+  });
+
+  it('finds a card in DecisionGate.astro for exactly the configured profiles', () => {
+    expect(Object.keys(cards).sort()).toEqual(Object.keys(profiles).sort());
+    for (const [badge, desc] of Object.entries(cards)) {
+      expect(desc.length, `${badge} card has an empty description`).toBeGreaterThan(0);
+    }
+  });
+
+  it('spells every member id and `when` condition the config uses', () => {
+    for (const [name, seats] of Object.entries(profiles)) {
+      for (const seat of seats) {
+        expect(
+          MEMBER_NAMES[seat.member],
+          `config/council.json seats "${seat.member}" in ${name}, which MEMBER_NAMES does not spell`,
+        ).toBeDefined();
+        if (seat.when) {
+          expect(
+            WHEN_PROSE[seat.when],
+            `config/council.json gates on "${seat.when}" in ${name}, which WHEN_PROSE does not spell`,
+          ).toBeDefined();
+        }
+      }
+    }
+  });
+
+  it('the delivery-fast card names every member that profile seats', () => {
+    const desc = cards['delivery-fast'];
+    for (const seat of profiles['delivery-fast']) {
+      expect(desc, `delivery-fast seats "${seat.member}" but the card omits it`).toMatch(
+        MEMBER_NAMES[seat.member],
+      );
+      if (seat.when) {
+        expect(
+          desc,
+          `delivery-fast seats "${seat.member}" only when "${seat.when}", which the card states unconditionally`,
+        ).toMatch(WHEN_PROSE[seat.when]);
+      }
+    }
+  });
+
+  it('the delivery-full card names every member it adds to the fast profile', () => {
+    const fast = new Set(profiles['delivery-fast'].map((s) => s.member));
+    const delta = profiles['delivery-full'].filter((s) => !fast.has(s.member));
+    const desc = cards['delivery-full'];
+
+    // If full ever stops extending fast this guard is checking the wrong thing.
+    expect(delta.length, 'delivery-full adds no member to delivery-fast').toBeGreaterThan(0);
+    expect(desc, 'the delivery-full card does not read as extending delivery-fast').toMatch(ADDITIVE);
+
+    for (const seat of delta) {
+      expect(desc, `delivery-full adds "${seat.member}" but the card omits it`).toMatch(
+        MEMBER_NAMES[seat.member],
+      );
+      if (seat.when) {
+        expect(
+          desc,
+          `delivery-full seats "${seat.member}" only when "${seat.when}", which the card states unconditionally`,
+        ).toMatch(WHEN_PROSE[seat.when]);
+      }
+    }
+  });
 });
