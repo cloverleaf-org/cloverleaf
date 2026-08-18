@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.13.0 — 2026-07-20
+## 0.13.0 — 2026-08-18
 
 **Breaking: delivery runs through one generic council phase.** The reviewer / security / UI / QA gates are unified into a single configurable review council driven by the collapsed `council` task state (requires `@cloverleaf/standard@0.8.0`). The shipped default reproduces the previous fast/full pipeline exactly.
 

@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
-## 0.8.0 — 2026-07-20
+## 0.8.0 — 2026-08-18
 
 **Breaking: the task delivery states collapse into one generic `council` phase.** The `review`, `automated-gates`, `security-review`, `ui-review`, and `qa` states — and the fast-lane/full-pipeline split — are replaced by a single parameterized `council` phase driven by a configurable review council. This is the largest single change to the Standard; it breaks conformance for hosts built against the 0.7.x task FSM.
 
