@@ -2,6 +2,21 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.13.2 — 2026-08-18
+
+**Patch: `--help` is answered, and the UI reviewer's teardown reaches the server it started.**
+
+### Fixed
+- `cloverleaf-cli --help` exited 2 with `Unknown command: --help` and printed the command list to stderr, so the most reflexive thing a user types at an unfamiliar CLI both failed and left stdout empty. `--help` and `-h` now write the list to stdout and exit 0. Every error path is unchanged: an unknown command and a missing command still print to stderr and exit 2, and the list stays off stdout there, because in that context it is a diagnostic rather than the answer. The text moved into one constant so a command added for one exit cannot go missing from the other.
+- `prompts/ui-reviewer.md` — teardown released npm and nothing else. `SERVER_PID=$!` records npm's PID and `npm run dev` runs the dev server as a child, so `kill $SERVER_PID` left the server reparented to init and still holding the port, and the teardown reported success having freed nothing. Measured rather than inferred: under the old form the recorded PID was gone while its child answered HTTP 200 on the site's base URL for another minute and a half. Step 3 now starts the server under `setsid`, putting the whole tree in a process group whose id equals the recorded PID, and step 13 kills the group. The two are pinned together in one shell block, because without `setsid` a backgrounded job stays in the calling shell's group, the recorded PID is not a group id at all, and the group kill silently matches nothing behind its own `|| true` — failing straight back to the orphan. `astro preview` is deliberately not adopted despite being the form that surfaced this; D6 priced and rejected it. Step 3 also detaches stdin and captures the server's output so step 4's escalate path can say why a start failed.
+
+### Added
+- `tests/site-accuracy.test.ts` gains a guard over `Nav.astro`'s link entries. `external: true` renders the href verbatim; `external: false` sends it through `url()`, which prefixes the site base. A wrong flag breaks the link silently in whichever direction it is wrong, and the absolute-URL-marked-internal case renders as `/cloverleaf/https://…` — plausible in source, resolvable nowhere. The existing link guard cannot see either case, since it reads rendered `href="…"` attributes and these hrefs live in a frontmatter array. Not part of the published package.
+
+### Changed
+- `tests/site-accuracy.test.ts` — both parity loops now sweep every occurrence rather than the first. Each read its site with a non-global `.match()`, which returns one hit and leaves everything after it unchecked, so a second stale version or agent count added later would sit in a shipped page behind a green guard. The looseness was reported as affecting the four version sites; it affected twelve, because the roster loop carries eight more on the same construct and its patterns are the weaker ones. All twelve match exactly once today, which is why nothing was failing and the guard read as adequate. Not part of the published package.
+- `tests/site-accuracy.test.ts` — the header now states that the suite sweeps bare `#chapter-N` literals outside markdown link syntax, that the breadth is deliberate, and what the guard structurally cannot catch: a wrong-but-valid anchor, since `#chapter-7` changed to `#chapter-9` still resolves. Comment-only. Not part of the published package.
+
 ## 0.13.1 — 2026-08-18
 
 **Patch: the CLI named a file nobody can run.** The only change to the published package is the usage text `lib/cli.ts` prints.
