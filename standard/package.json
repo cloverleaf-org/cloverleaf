@@ -1,6 +1,6 @@
 {
   "name": "@cloverleaf/standard",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "The Cloverleaf Interoperability Standard — schemas, agent contracts, and conformance pack.",
   "type": "module",
   "license": "MIT",
@@ -51,7 +51,9 @@
     "./package.json": "./package.json",
     "./schemas/*": "./schemas/*",
     "./agent-contracts/*": "./agent-contracts/*",
-    "./state-machines/*": "./state-machines/*"
+    "./state-machines/*": "./state-machines/*",
+    "./examples/*": "./examples/*",
+    "./conformance/*": "./conformance/*"
   },
   "publishConfig": {
     "access": "public"

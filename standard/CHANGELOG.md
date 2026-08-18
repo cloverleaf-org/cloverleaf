@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## 0.8.2 — 2026-08-18
+
+### Fixed
+
+- `package.json` — `exports` gains `./examples/*` and `./conformance/*`. Both directories have shipped in the tarball since 0.8.0 added them to `files`, but `exports` is an allowlist the moment it is declared, so naming `@cloverleaf/standard/conformance/runner.ts` — or any fixture under `examples/` — returned `ERR_PACKAGE_PATH_NOT_EXPORTED` while `./schemas/*`, `./agent-contracts/*` and `./state-machines/*` resolved. The documented workflow was never broken: `docs/conformance.md` reaches the runner by filesystem path, which bypasses the export map entirely and still returns `91 checks, 0 failures`. This restores the idiomatic package-subpath form rather than repairing a broken run.
+
+### Added
+
+- `conformance/tests/package-contents.test.ts` — a second suite covering export resolution. `files` decides what is in the tarball and `exports` decides what a consumer may name; they are separate gates and only the first was guarded. Each subpath is resolved in a child `node` through the package's own name, so the check exercises Node's real export map rather than re-reading `package.json`. A control subpath that was already exported is asserted alongside, to separate "self-reference does not work here" from "these subpaths are not exported".
+
 ## 0.8.1 — 2026-08-18
 
 ### Fixed

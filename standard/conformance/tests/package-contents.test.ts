@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '..', '..');
@@ -53,4 +53,41 @@ describe('the published tarball carries everything the conformance runner reads'
   it('packs the worked example docs/validators.md points a reader at', () => {
     expect(packed).toContain('examples/valid/status-transitions/security-gate.json');
   });
+});
+
+/**
+ * `files` decides what lands in the tarball; `exports` decides what a consumer is
+ * allowed to name. They are separate gates and only the first was covered above.
+ * 0.8.1 packed the conformance corpus and the runner, and the export map — an
+ * allowlist the moment it exists — then refused every subpath into either.
+ *
+ * Resolution runs in a child `node`, through the package's own name, so it is Node's
+ * real export-map resolution rather than a re-reading of package.json here. Self
+ * reference works because the package declares `exports`, which is the same field
+ * under test.
+ */
+function resolveSubpath(subpath: string): { ok: boolean; err: string } {
+  const r = spawnSync(
+    process.execPath,
+    ['--input-type=module', '-e', `import.meta.resolve('@cloverleaf/standard/${subpath}')`],
+    { cwd: ROOT, encoding: 'utf-8' },
+  );
+  return { ok: r.status === 0, err: (r.stderr.match(/ERR_[A-Z_]+/) ?? [''])[0] };
+}
+
+describe('a consumer can address what the tarball ships', () => {
+  it('resolves a subpath that was already exported', () => {
+    // Discriminator, not a vacuity guard: it separates "self-reference does not work
+    // in this environment" — which would fail every case below for an unrelated
+    // reason — from "these particular subpaths are not exported".
+    expect(resolveSubpath('schemas/task.schema.json')).toEqual({ ok: true, err: '' });
+  });
+
+  for (const subpath of ['examples/valid/task/minimal.json', 'conformance/runner.ts']) {
+    it(`resolves ${subpath}`, () => {
+      // docs/conformance.md reaches the runner by filesystem path, which works and is
+      // why this went unnoticed; the package-subpath form is the idiomatic one.
+      expect(resolveSubpath(subpath)).toEqual({ ok: true, err: '' });
+    });
+  }
 });
