@@ -2,7 +2,7 @@
 /**
  * Cloverleaf CLI dispatcher.
  *
- * Usage: cli.ts <command> [args...]
+ * Usage: cloverleaf-cli <command> [args...]
  *
  * Commands:
  *   load-task <repoRoot> <taskId>
@@ -95,7 +95,7 @@ function die(msg: string, code = 1): never {
 function usage(msg?: string): never {
   if (msg) process.stderr.write(msg + '\n');
   process.stderr.write(
-    'Usage: cli.ts <command> [args...]\n' +
+    'Usage: cloverleaf-cli <command> [args...]\n' +
       'Commands:\n' +
       '  load-task <repoRoot> <taskId>\n' +
       '  infer-project <repoRoot>\n' +

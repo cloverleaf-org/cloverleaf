@@ -1257,9 +1257,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.13.0', () => {
-    // v0.13.0: Council Slice 4 (collapsed council FSM + discovery-gate councils)
-    expect(pkg.version).toBe('0.13.0');
+  it('reports version 0.13.1', () => {
+    // v0.13.1: CLI usage string names the shipped binary; council diagram guard
+    expect(pkg.version).toBe('0.13.1');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {

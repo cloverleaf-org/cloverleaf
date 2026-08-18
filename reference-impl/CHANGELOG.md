@@ -2,6 +2,17 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.13.1 — 2026-08-18
+
+**Patch: the CLI named a file nobody can run.** The only change to the published package is the usage text `lib/cli.ts` prints.
+
+### Fixed
+- `cloverleaf-cli` printed `Usage: cli.ts <command> [args...]`. `cli.ts` is not something a consumer can invoke: `bin` maps `cloverleaf-cli` to `./dist/cli.mjs`, and all 160 `cloverleaf-cli` call sites across the shipped `skills/` and `scripts/` already use that name. The usage text now names the binary that exists. Corrected at both sites — the module docblock and the live string `usage()` writes to stderr — since the two had drifted as a pair.
+- `site/src/components/DecisionGate.astro` — chapter 9's council diagram omitted the Security Reviewer from **both** delivery profiles and stated the UI Reviewer with no condition. `config/council.json` seats `security` in `delivery-fast` *and* `delivery-full` under `security_class:high`, and gates `ui` on `ui_changes`. The two cards now carry the wording the guide already used, and the output cards stack so the accurate text fits the diagram. Not part of the published package.
+
+### Added
+- `tests/site-accuracy.test.ts` gains a fourth guard, over the council diagram. It anchors to `config/council.json` rather than to the site, so it fires when the engine's configuration changes and the diagram does not — the failure an internally-anchored check cannot see. The member-id and `when`-condition vocabularies are themselves asserted against the config, so a profile that seats a member this guard does not spell fails rather than passing silently. Not part of the published package.
+
 ## 0.13.0 — 2026-08-18
 
 **Breaking: delivery runs through one generic council phase.** The reviewer / security / UI / QA gates are unified into a single configurable review council driven by the collapsed `council` task state (requires `@cloverleaf/standard@0.8.0`). The shipped default reproduces the previous fast/full pipeline exactly.
