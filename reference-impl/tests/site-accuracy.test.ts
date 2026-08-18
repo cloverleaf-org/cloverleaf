@@ -22,6 +22,16 @@ function read(rel: string): string {
 }
 
 /**
+ * matchAll throws on a non-global expression, and a non-global `.match()`
+ * returns only the FIRST hit — so a second, stale occurrence added later sits
+ * in a shipped page behind a green guard. The site lists below are swept with
+ * this rather than matched once. Flags are preserved, not replaced.
+ */
+function everywhere(re: RegExp): RegExp {
+  return re.flags.includes('g') ? re : new RegExp(re.source, re.flags + 'g');
+}
+
+/**
  * The site renders every chapter onto one page: guide.astro emits
  * `id={`chapter-${c.data.chapter}`}` per chapter, and `base: '/cloverleaf'`
  * means a raw `/guide/...` href resolves outside the base entirely. A branch
@@ -137,11 +147,12 @@ describe('the site states the Standard version it ships against', () => {
 
   for (const site of VERSION_SITES) {
     it(`${site.label} matches standard/package.json`, () => {
-      const m = read(site.file).match(site.re);
+      const all = [...read(site.file).matchAll(everywhere(site.re))];
       // Must find one. A reworded sentence has to fail loudly rather than
       // quietly become one fewer thing checked.
-      expect(m, `no version matched ${site.re} in ${site.file}`).not.toBeNull();
-      expect(m![1]).toBe(PKG_VERSION);
+      expect(all.length, `no version matched ${site.re} in ${site.file}`).toBeGreaterThan(0);
+      // And EVERY occurrence must be current, not merely the first one.
+      for (const m of all) expect(m[1]).toBe(PKG_VERSION);
     });
   }
 });
@@ -207,9 +218,9 @@ describe('the site agrees with itself on how many agents Cloverleaf defines', ()
 
   for (const site of ROSTER_SITES) {
     it(`${site.label} matches the rendered roster`, () => {
-      const m = read(site.file).match(site.re);
-      expect(m, `no count matched ${site.re} in ${site.file}`).not.toBeNull();
-      expect(m![1]).toBe(String(rosterSize));
+      const all = [...read(site.file).matchAll(everywhere(site.re))];
+      expect(all.length, `no count matched ${site.re} in ${site.file}`).toBeGreaterThan(0);
+      for (const m of all) expect(m[1]).toBe(String(rosterSize));
     });
   }
 });
