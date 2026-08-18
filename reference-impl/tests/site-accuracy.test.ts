@@ -22,6 +22,16 @@ function read(rel: string): string {
 }
 
 /**
+ * matchAll throws on a non-global expression, and a non-global `.match()`
+ * returns only the FIRST hit — so a second, stale occurrence added later sits
+ * in a shipped page behind a green guard. The site lists below are swept with
+ * this rather than matched once. Flags are preserved, not replaced.
+ */
+function everywhere(re: RegExp): RegExp {
+  return re.flags.includes('g') ? re : new RegExp(re.source, re.flags + 'g');
+}
+
+/**
  * The site renders every chapter onto one page: guide.astro emits
  * `id={`chapter-${c.data.chapter}`}` per chapter, and `base: '/cloverleaf'`
  * means a raw `/guide/...` href resolves outside the base entirely. A branch
@@ -33,6 +43,24 @@ function read(rel: string): string {
  * Anchors are resolved against the chapter numbers actually present in guide
  * frontmatter, not merely shape-matched, so a link to a chapter that does not
  * exist fails too.
+ *
+ * The chapter sweep is deliberately not confined to markdown link syntax.
+ * CHAPTER_ANCHOR_LITERAL matches every `#chapter-N` literal wherever it
+ * appears, because start.astro builds its anchor as `url('/guide') +
+ * '#chapter-7'` — a string literal that `[text](url)` matching never sees.
+ * Restricting it to link position would mean defining link position, which is
+ * the assumption that let those anchors go unwatched to begin with. Checking
+ * more strings than strictly necessary can only ever cost a loud failure,
+ * never a silent pass, so the breadth stays.
+ *
+ * What none of this can catch is an anchor that is wrong but still valid:
+ * `#chapter-7` changed to `#chapter-9` resolves, because chapter 9 exists.
+ * Only the prose around a link knows which chapter it meant. start.astro's
+ * one paragraph shows both halves of that split: its two 9s are the agent
+ * count, pinned by the roster guard below, while its two 7s — `#chapter-7`
+ * and the "Chapter 7 of the guide" that labels it — name the agents chapter
+ * and are pinned by nothing here. Renumber that chapter and both 7s go quietly
+ * wrong while every guard in this file stays green.
  */
 const MD_LINK = /\[[^\]]*\]\(([^)]+)\)/g;
 const EXTERNAL = /^(https?:\/\/|mailto:)/;
@@ -113,6 +141,51 @@ describe('every site link resolves', () => {
 });
 
 /**
+ * Nav.astro renders each entry one of two ways: `external: true` emits the href
+ * verbatim with target="_blank"; `external: false` passes it through url(),
+ * which prefixes the '/cloverleaf' base. A wrong flag breaks the link silently
+ * in whichever direction it is wrong — an absolute URL sent through url()
+ * becomes '/cloverleaf/https://…', and a root-relative href marked external
+ * escapes the base and 404s.
+ *
+ * The link guard above cannot see either case. It reads href="…" attributes out
+ * of markup; these hrefs live in a frontmatter array and only become an
+ * attribute after Astro renders it.
+ */
+const NAV_LINK = /\{\s*href:\s*'([^']+)'\s*,\s*label:\s*'([^']*)'\s*,\s*external:\s*(true|false)\s*\}/g;
+
+describe('Nav entries agree with how Nav renders them', () => {
+  const entries = [...read('components/Nav.astro').matchAll(NAV_LINK)].map((m) => ({
+    href: m[1],
+    label: m[2],
+    external: m[3] === 'true',
+  }));
+
+  it('parses a non-empty link list', () => {
+    // A renamed field or a reformatted array parses to nothing, which would
+    // leave both checks below sweeping an empty set and reading as a pass.
+    expect(
+      entries.length,
+      'no { href, label, external } entries found in Nav.astro',
+    ).toBeGreaterThan(0);
+  });
+
+  it('every external entry is an absolute http(s) URL', () => {
+    const offenders = entries
+      .filter((e) => e.external && !/^https?:\/\//.test(e.href))
+      .map((e) => `${e.label} -> ${e.href}`);
+    expect(offenders).toEqual([]);
+  });
+
+  it('every internal entry is a root-relative path url() can prefix', () => {
+    const offenders = entries
+      .filter((e) => !e.external && !e.href.startsWith('/'))
+      .map((e) => `${e.label} -> ${e.href}`);
+    expect(offenders).toEqual([]);
+  });
+});
+
+/**
  * The footer renders on every page. It said v0.3.0 while the package said
  * 0.8.0 and npm's latest was 0.7.1 — wrong against both the repo and the world.
  *
@@ -137,11 +210,12 @@ describe('the site states the Standard version it ships against', () => {
 
   for (const site of VERSION_SITES) {
     it(`${site.label} matches standard/package.json`, () => {
-      const m = read(site.file).match(site.re);
+      const all = [...read(site.file).matchAll(everywhere(site.re))];
       // Must find one. A reworded sentence has to fail loudly rather than
       // quietly become one fewer thing checked.
-      expect(m, `no version matched ${site.re} in ${site.file}`).not.toBeNull();
-      expect(m![1]).toBe(PKG_VERSION);
+      expect(all.length, `no version matched ${site.re} in ${site.file}`).toBeGreaterThan(0);
+      // And EVERY occurrence must be current, not merely the first one.
+      for (const m of all) expect(m[1]).toBe(PKG_VERSION);
     });
   }
 });
@@ -207,9 +281,9 @@ describe('the site agrees with itself on how many agents Cloverleaf defines', ()
 
   for (const site of ROSTER_SITES) {
     it(`${site.label} matches the rendered roster`, () => {
-      const m = read(site.file).match(site.re);
-      expect(m, `no count matched ${site.re} in ${site.file}`).not.toBeNull();
-      expect(m![1]).toBe(String(rosterSize));
+      const all = [...read(site.file).matchAll(everywhere(site.re))];
+      expect(all.length, `no count matched ${site.re} in ${site.file}`).toBeGreaterThan(0);
+      for (const m of all) expect(m[1]).toBe(String(rosterSize));
     });
   }
 });
