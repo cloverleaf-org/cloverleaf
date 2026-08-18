@@ -92,59 +92,74 @@ function die(msg: string, code = 1): never {
   process.exit(code);
 }
 
+/**
+ * The command list, shared by both exits below. `--help` is a request and its
+ * answer is this text, so it goes to stdout and exits 0; every error path keeps
+ * stderr and exit 2, so a caller piping stdout gets the list or nothing.
+ */
+const USAGE_TEXT =
+  'Usage: cloverleaf-cli <command> [args...]\n' +
+  'Commands:\n' +
+  '  load-task <repoRoot> <taskId>\n' +
+  '  infer-project <repoRoot>\n' +
+  '  next-task-id <repoRoot> [--project=<p>]\n' +
+  '  advance-status <repoRoot> <taskId> <toStatus> <actor> [gate]\n' +
+  '  write-feedback <repoRoot> <taskId> <envelopeJsonPath>\n' +
+  '  latest-feedback <repoRoot> <taskId>\n' +
+  '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n' +
+  '  ui-review-config --repo-root <repoRoot>\n' +
+  '  read-ui-review-state <repoRoot> <taskId>\n' +
+  '  write-ui-review-state <repoRoot> <taskId> <baselines_pending>\n' +
+  '  write-baseline <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>\n' +
+  '  plugin-root\n' +
+  '  load-rfc <repoRoot> <id>\n' +
+  '  save-rfc <repoRoot> <filePath>\n' +
+  '  advance-rfc <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
+  '  rfc-tasks <repoRoot> <rfcId> [--pretty]\n' +
+  '  load-spike <repoRoot> <id>\n' +
+  '  save-spike <repoRoot> <filePath>\n' +
+  '  advance-spike <repoRoot> <id> <toStatus> <agent|human>\n' +
+  '  load-plan <repoRoot> <id>\n' +
+  '  save-plan <repoRoot> <filePath>\n' +
+  '  advance-plan <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
+  '  materialise-tasks <repoRoot> <planId>\n' +
+  '  next-work-item-id <repoRoot> <project>\n' +
+  '  discovery-config --repo-root <repoRoot>\n' +
+  '  prep-worktree <mainRoot> <worktreePath>\n' +
+  '  qa-report <runs.json> <out.html>\n' +
+  '  dag-ready-tasks <repoRoot> <planId> <maxConcurrent>\n' +
+  '  dag-detect-cycle <repoRoot> <planId>\n' +
+  '  walk-state-read <repoRoot> <planId>\n' +
+  '  walk-state-write <repoRoot> <walkStateJsonPath>\n' +
+  '  walker-default-concurrency [--explain]\n' +
+  '  check-scope <repoRoot> <taskId> --branch <branchName>\n' +
+  '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n' +
+  '  secret-scan <repoRoot> --branch <branch>\n' +
+  '  classify-security <repoRoot> <taskId> [--branch <branch>]\n' +
+  '  council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]\n' +
+  '  aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]\n' +
+  '  apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>\n' +
+  '  chair-context <chairMemberInputsJson>\n' +
+  '  chair-verdict <chairRawJson> <membersJson>\n' +
+  '  set-task-field <repoRoot> <taskId> <field> <value>\n' +
+  '  validate-council <repoRoot>\n';
+
 function usage(msg?: string): never {
   if (msg) process.stderr.write(msg + '\n');
-  process.stderr.write(
-    'Usage: cloverleaf-cli <command> [args...]\n' +
-      'Commands:\n' +
-      '  load-task <repoRoot> <taskId>\n' +
-      '  infer-project <repoRoot>\n' +
-      '  next-task-id <repoRoot> [--project=<p>]\n' +
-      '  advance-status <repoRoot> <taskId> <toStatus> <actor> [gate]\n' +
-      '  write-feedback <repoRoot> <taskId> <envelopeJsonPath>\n' +
-      '  latest-feedback <repoRoot> <taskId>\n' +
-      '  emit-gate-decision <repoRoot> <workItemId> <gate> <decision> <actor> [--comment=<str>]\n' +
-      '  ui-review-config --repo-root <repoRoot>\n' +
-      '  read-ui-review-state <repoRoot> <taskId>\n' +
-      '  write-ui-review-state <repoRoot> <taskId> <baselines_pending>\n' +
-      '  write-baseline <repoRoot> <taskId> <browser> <slug> <viewport> <sourceFile>\n' +
-      '  plugin-root\n' +
-      '  load-rfc <repoRoot> <id>\n' +
-      '  save-rfc <repoRoot> <filePath>\n' +
-      '  advance-rfc <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
-      '  rfc-tasks <repoRoot> <rfcId> [--pretty]\n' +
-      '  load-spike <repoRoot> <id>\n' +
-      '  save-spike <repoRoot> <filePath>\n' +
-      '  advance-spike <repoRoot> <id> <toStatus> <agent|human>\n' +
-      '  load-plan <repoRoot> <id>\n' +
-      '  save-plan <repoRoot> <filePath>\n' +
-      '  advance-plan <repoRoot> <id> <toStatus> <agent|human> [gate]\n' +
-      '  materialise-tasks <repoRoot> <planId>\n' +
-      '  next-work-item-id <repoRoot> <project>\n' +
-      '  discovery-config --repo-root <repoRoot>\n' +
-      '  prep-worktree <mainRoot> <worktreePath>\n' +
-      '  qa-report <runs.json> <out.html>\n' +
-      '  dag-ready-tasks <repoRoot> <planId> <maxConcurrent>\n' +
-      '  dag-detect-cycle <repoRoot> <planId>\n' +
-      '  walk-state-read <repoRoot> <planId>\n' +
-      '  walk-state-write <repoRoot> <walkStateJsonPath>\n' +
-      '  walker-default-concurrency [--explain]\n' +
-      '  check-scope <repoRoot> <taskId> --branch <branchName>\n' +
-      '  extend-scope <repoRoot> <taskId> --add <file>... --reason <text>\n' +
-      '  secret-scan <repoRoot> --branch <branch>\n' +
-      '  classify-security <repoRoot> <taskId> [--branch <branch>]\n' +
-      '  council-plan <repoRoot> <taskId> [gateKey] [--changed-files=a,b,c]\n' +
-      '  aggregate-verdicts <membersJson> <rule> [--weighted-threshold=N]\n' +
-      '  apply-council-verdict <repoRoot> <taskId> <gate> <councilVerdictJson>\n' +
-      '  chair-context <chairMemberInputsJson>\n' +
-      '  chair-verdict <chairRawJson> <membersJson>\n' +
-      '  set-task-field <repoRoot> <taskId> <field> <value>\n' +
-      '  validate-council <repoRoot>\n'
-  );
+  process.stderr.write(USAGE_TEXT);
   process.exit(2);
 }
 
+function help(): never {
+  process.stdout.write(USAGE_TEXT);
+  process.exit(0);
+}
+
 const [, , command, ...rest] = process.argv;
+
+if (command === '--help' || command === '-h') {
+  help();
+}
 
 if (!command) {
   usage('Error: no command given');

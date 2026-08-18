@@ -1913,3 +1913,52 @@ describe('cli — validate-council', () => {
   });
 });
 
+describe('cli — help', () => {
+  // `--help` is the first thing typed at an unfamiliar CLI. It exited 2 with
+  // `Unknown command: --help` and put the command list on stderr, so the reflex
+  // both failed and produced nothing on stdout a pipe could read.
+  //
+  // The module-level `run()` cannot check this: it hardcodes `stderr: ''` on a
+  // zero exit, so "help writes nothing to stderr" would pass without being
+  // true. spawnSync reports both streams whatever the exit code.
+  function runSplit(args: string[]): { stdout: string; stderr: string; exitCode: number } {
+    const r = spawnSync('npx', ['tsx', CLI, ...args], { encoding: 'utf-8' });
+    return { stdout: r.stdout ?? '', stderr: r.stderr ?? '', exitCode: r.status ?? 1 };
+  }
+
+  it('--help prints the command list on stdout and exits 0', () => {
+    const r = runSplit(['--help']);
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toContain('Usage: cloverleaf-cli <command> [args...]');
+    expect(r.stdout).toContain('load-task <repoRoot> <taskId>');
+    // An answered request is not a diagnostic.
+    expect(r.stderr).toBe('');
+  });
+
+  it('-h is the same request as --help', () => {
+    expect(runSplit(['-h'])).toEqual(runSplit(['--help']));
+  });
+
+  it('an unknown command still fails on stderr with exit 2', () => {
+    const r = runSplit(['definitely-not-a-command']);
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr).toContain('Unknown command: definitely-not-a-command');
+    // Here the list IS a diagnostic, so it must not reach stdout.
+    expect(r.stdout).toBe('');
+  });
+
+  it('no command at all still fails on stderr with exit 2', () => {
+    const r = runSplit([]);
+    expect(r.exitCode).toBe(2);
+    expect(r.stderr).toContain('Error: no command given');
+    expect(r.stdout).toBe('');
+  });
+
+  it('both paths print one and the same command list', () => {
+    // One constant, two destinations. A command added for the error path but
+    // not for help would be invisible to every check above.
+    const help = runSplit(['--help']).stdout;
+    expect(help.length).toBeGreaterThan(0);
+    expect(runSplit(['definitely-not-a-command']).stderr).toContain(help);
+  });
+});
