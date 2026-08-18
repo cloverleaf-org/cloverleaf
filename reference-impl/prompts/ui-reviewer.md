@@ -145,9 +145,17 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    # to see why and return verdict `escalate` — do NOT continue with a broken install.
    npx astro preferences disable devToolbar > /tmp/ui-devtoolbar.log 2>&1; echo "EXIT=$?"
    # Non-zero EXIT means this UI directory is not an Astro project — see below.
-   npm run dev -- --port={{preview_port}} &
+   setsid npm run dev -- --port={{preview_port}} < /dev/null > /tmp/ui-dev-server.log 2>&1 &
    SERVER_PID=$!
    ```
+
+   `setsid` is load-bearing, not decoration. `$SERVER_PID` is **npm's** PID and
+   npm runs the dev server as a child, so `kill $SERVER_PID` reaps npm and leaves
+   the server holding the port, reparented to init. `setsid` puts the whole tree
+   in its own process group whose id equals `$SERVER_PID`, which is what lets
+   step 13 kill the group. Keep the two together: without `setsid` the group kill
+   silently matches nothing, because the job would otherwise sit in your shell's
+   group and `$SERVER_PID` would not be a group id at all.
 
    `astro preferences disable devToolbar` is **project-scoped** by default: it writes into `$WT/site/.astro/`, which step 13 deletes along with the worktree, so it turns the toolbar off for this capture alone and nothing outside this run changes. Never pass `--global` — that writes to the operator's home directory and silently changes every other Astro project on the machine. Disable it before backgrounding the server, not after: Astro decides whether to inject the toolbar when the dev server boots.
 
@@ -159,7 +167,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    node "$DRIVER" > /tmp/ui-driver.log 2>&1; echo "EXIT=$?"
    ```
 
-4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, run teardown (step 13) — `kill $SERVER_PID`, never a command-line pattern — and return verdict `escalate`.
+4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, read `/tmp/ui-dev-server.log` to see why, run teardown (step 13) — `kill -- -$SERVER_PID`, never a command-line pattern — and return verdict `escalate`.
 
 5. Determine the site base path:
    1. Check `{{repo_root}}/.cloverleaf/config/astro-base.json`. Expected shape: `{ "base": "<path>" }`. If present, use the `base` field verbatim and skip to step 6. (Consumer override — checked before parsing astro config.)
@@ -252,13 +260,15 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 
 13. Teardown:
     ```bash
-    kill $SERVER_PID 2>/dev/null || true
+    kill -- -$SERVER_PID 2>/dev/null || true
     rm -f "$DRIVER"
     cd {{repo_root}}
     git worktree remove --force "$WT"
     ```
 
-    Kill the server by the PID you captured in step 3, never by command-line pattern. `pkill -f "astro dev"` also matches the command line of the shell running it, so the shell kills itself: exit 144, and every command after it in the same compound statement — the `rm -f` and `git worktree remove` above — silently never runs.
+    Kill the process **group** you created in step 3, never by command-line pattern. The leading `-` in `-$SERVER_PID` is what makes this a group kill; `kill $SERVER_PID` without it reaps only npm and leaves the dev server orphaned on the port, which the next run then fails to bind.
+
+    `pkill -f "astro dev"` also matches the command line of the shell running it, so the shell kills itself: exit 144, and every command after it in the same compound statement — the `rm -f` and `git worktree remove` above — silently never runs.
 
     Delete every driver script you wrote, wherever you put it. `git worktree remove --force` only clears what lives inside `$WT`; a driver written anywhere else survives the run and leaks into the next one.
 

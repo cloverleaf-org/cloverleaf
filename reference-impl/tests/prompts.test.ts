@@ -982,11 +982,34 @@ describe('D4 — a teardown order names the handle it kills by', () => {
     expect(offenders.map(shippedDocLabel)).toEqual([]);
   });
 
-  it('ui-reviewer.md captures the server PID and tears down by it', () => {
+  it('ui-reviewer.md captures the server PID and tears down by its group', () => {
     // The reference form the other two sites point at. Pinned so it cannot be
     // removed out from under them.
-    expect(prompt).toContain('SERVER_PID=$!');
-    expect(prompt).toContain('kill $SERVER_PID');
+    //
+    // Scoped to shell blocks rather than the whole document, for the same
+    // reason the pkill sweep above is: the prose quotes the bare
+    // `kill $SERVER_PID` in order to explain why it is wrong, so a
+    // document-wide toContain would pass off the explanation of the defect.
+    const blocks = shellBlocks(prompt);
+    expect(blocks.length).toBeGreaterThan(0);
+    const shell = blocks.join('\n');
+    expect(shell).toContain('SERVER_PID=$!');
+    expect(shell).toContain('kill -- -$SERVER_PID');
+    // The bare PID kill reaps npm and leaves the dev server holding the port.
+    expect(shell).not.toMatch(/kill \$SERVER_PID/);
+  });
+
+  it('ui-reviewer.md starts the server in its own process group', () => {
+    // `kill -- -$SERVER_PID` is only correct because `setsid` makes the process
+    // group id equal the recorded PID. Without it the job stays in the calling
+    // shell's group, `$SERVER_PID` is not a group id at all, and the group kill
+    // silently matches nothing behind its own `|| true` — leaving exactly the
+    // orphan it was added to prevent. The two have to travel together, so they
+    // are pinned in the same block rather than as two independent facts.
+    const starter = shellBlocks(prompt).find((b) => /\bnpm run dev\b/.test(b));
+    expect(starter, 'no shell block in ui-reviewer.md starts the dev server').toBeDefined();
+    expect(starter!).toMatch(/setsid\s+npm run dev\b/);
+    expect(starter!).toContain('SERVER_PID=$!');
   });
 
   it('ui-reviewer.md says why a pattern kill would abort the rest of teardown', () => {
