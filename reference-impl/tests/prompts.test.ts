@@ -1019,7 +1019,7 @@ describe('D4 — a teardown order names the handle it kills by', () => {
     expect(prompt).toMatch(/exit 144/);
   });
 
-  it('ui-reviewer.md step 4 names the handle instead of saying "kill it"', () => {
+  it('ui-reviewer.md\'s readiness gate names the handle instead of saying "kill it"', () => {
     // Ordering a kill at the one moment the agent doubts its PID is good is
     // where it reaches for a pattern instead.
     expect(prompt).not.toMatch(/fails to start in 30s, kill it/);
@@ -1039,6 +1039,102 @@ describe('D4 — a teardown order names the handle it kills by', () => {
     // about to type it, which a paraphrase would not do.
     expect(skill).toMatch(/pkill -f/);
     expect(skill).toMatch(/exit 144/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The readiness gate judges the connection, not the status code.
+//
+// Step 4 used to wait for `http://localhost:{{preview_port}}/` to answer 200,
+// one step *before* the step that works out the site's base path. For a based
+// site that URL is a 404: this repo's own site is `base: '/cloverleaf'` and
+// answers 200 only on `/cloverleaf/` — measured, with no redirect from the
+// bare root. So the gate never saw its 200, spent the whole 30s budget, tore
+// the server down and returned `escalate` against a server that was up and
+// serving. Never reported because a UI review has never run on a based site,
+// not because it was rare.
+//
+// Two things were wrong and both are pinned here. The gate probed a URL it had
+// not yet computed the base for (an ordering bug — base detection reads the
+// filesystem and needs no server, so it moves ahead freely), and it demanded a
+// status that a healthy based server will not give (a criterion bug). The
+// navigation step one page later was already base-aware *and* already carried a
+// 404 fallback; only the gate before it was neither.
+//
+// ## Why these assertions are sliced to the step
+//
+// `<base>` appears in the navigation step too. A whole-document match for it
+// would have been green against the exact file that shipped the bug — the
+// guard would exist, pass, and prove nothing. Everything below is therefore
+// scoped to the readiness step's own text.
+// ---------------------------------------------------------------------------
+
+describe('the ui-reviewer readiness gate judges the connection, not the status', () => {
+  const prompt = readPrompt('ui-reviewer');
+
+  /** The readiness step's own text: its heading through the next top-level step. */
+  const readinessStep = (() => {
+    const start = prompt.search(/^\d+\. Wait up to 30s/m);
+    if (start === -1) return null;
+    const rest = prompt.slice(start);
+    const nextIdx = rest.slice(1).search(/^\d+\. /m);
+    return nextIdx === -1 ? rest : rest.slice(0, nextIdx + 1);
+  })();
+
+  it('has a readiness step at all', () => {
+    expect(readinessStep, 'no "Wait up to 30s" step found in ui-reviewer.md').not.toBeNull();
+  });
+
+  it('works out the base path BEFORE the gate that probes it', () => {
+    // The ordering is the bug. Base detection is pure filesystem — it reads
+    // .cloverleaf/config/astro-base.json, else parses an astro config, else
+    // defaults to empty — so nothing stopped it moving ahead of the probe.
+    const base = prompt.search(/^\d+\. Determine the site base path/m);
+    const ready = prompt.search(/^\d+\. Wait up to 30s/m);
+    expect(base, 'no base-detection step found').toBeGreaterThan(-1);
+    expect(ready, 'no readiness step found').toBeGreaterThan(-1);
+    expect(base, 'base detection must precede the readiness gate that probes it').toBeLessThan(ready);
+  });
+
+  it('probes the base, not the bare root', () => {
+    // Scoped to the step: `<base>` also appears in the navigation step, so a
+    // whole-file match here would pass against the file that shipped the bug.
+    expect(readinessStep!).toContain('{{preview_port}}<base>/');
+    expect(readinessStep!).not.toMatch(/localhost:\{\{preview_port\}\}\/`/);
+  });
+
+  it('keeps the trailing slash on the probed URL', () => {
+    // Measured: with `trailingSlash: 'always'`, /cloverleaf 404s where
+    // /cloverleaf/ serves. Probing `<base>` bare reintroduces the bug.
+    //
+    // Count first. A bare `not.toMatch` here passes when `<base>` is absent
+    // altogether, which is exactly the state the buggy file was in — the
+    // assertion would have been green on the defect it names.
+    const occurrences = [...readinessStep!.matchAll(/\{\{preview_port\}\}<base>/g)];
+    expect(occurrences.length, 'readiness step never mentions <base>').toBeGreaterThan(0);
+    expect(readinessStep!).not.toMatch(/\{\{preview_port\}\}<base>[^/]/);
+  });
+
+  it('states that a non-200 answer still means the server is up', () => {
+    // The criterion, in the step that applies it. Without this the agent
+    // reads "wait for the server" and reaches for 200 again.
+    expect(readinessStep!).toMatch(/ANSWERS/);
+    expect(readinessStep!).toMatch(/404/);
+    expect(readinessStep!).toMatch(/refused connection is the only/i);
+  });
+
+  it('does not order a 200 as the readiness condition', () => {
+    // The literal form of the defect: "to respond 200".
+    expect(readinessStep!).not.toMatch(/to respond 200/);
+  });
+
+  it('reports a wrong base rather than silently rendering unbased pages', () => {
+    // A non-200 answer means up-but-probably-wrong-base. It has to surface as
+    // a finding, and at `warning` — step 11 gates on blocker/error, so a
+    // higher severity here would bounce tasks for a recoverable condition the
+    // navigation step already retries around.
+    expect(readinessStep!).toMatch(/severity: "warning"/);
+    expect(readinessStep!).toMatch(/rule: "ui-review-base"/);
   });
 });
 

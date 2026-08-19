@@ -2,6 +2,14 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
+## [Unreleased]
+
+### Fixed
+- `docs/conformance.md` — the example conformance statement cited a version two releases old. The document that tells adopters how to cite a Standard version showed *"Implements Cloverleaf Standard 0.8.1 at L2."* while the package was 0.8.2, and `docs/` is in this package's `files`, so that text ships. It is an illustrative `e.g.` the reader substitutes, which is why it kept being left; the cost of leaving it was that nothing said so, and the staleness compounded each release.
+
+### Added
+- `conformance/tests/docs-conformance-statement.test.ts` binds the example statement to `package.json`, so it cannot silently go stale again — a version bump now fails this suite until the example is substituted, which puts `docs/conformance.md` on the list of files a Standard bump touches. It also pins the one literal in that file which must *not* track the version: the note that the runner's imports *"arrive with the package as of 0.8.1"* names the release that added `@apidevtools/swagger-parser`, `ajv` and `ajv-formats` as runtime dependencies, verified against the tags rather than inferred — no `dependencies` at `v0.8.0-standard`, all three at `v0.8.1-standard`. A file-wide version sweep would rewrite a true statement into a false one; it now fails instead.
+
 ## 0.8.2 — 2026-08-19
 
 ### Fixed

@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.13.3 — 2026-08-19
+
+**Patch: the UI reviewer's readiness gate judges the connection, not the status code.**
+
+### Fixed
+- `prompts/ui-reviewer.md` — the readiness gate escalated against a healthy server on any site with a base path. Step 4 waited up to 30s for `http://localhost:{{preview_port}}/` to answer 200, one step *before* the step that works out the site's base. For a based site that URL is a 404, so the gate never saw its 200, spent the full budget, ran teardown and returned `escalate` against a server that was up and serving. Measured, not inferred: this repo's own site is `base: '/cloverleaf'` and answers 200 only on `/cloverleaf/`, with no redirect from the bare root — under the old rule that is 30s to a false `escalate`, under the new one 4s to a clean pass. Two defects were in play and both are fixed. The ordering: base detection reads `.cloverleaf/config/astro-base.json`, else parses an astro config, else defaults to empty — all filesystem, no server — so it now runs first, as step 4, and the gate is step 5. The criterion: readiness now means the server *answers*, not that it answers 200. Any status counts as up; a refused connection is the only "not up yet", which keeps a genuinely dead port escalating as before. A non-200 answer additionally means the base is probably wrong, so the gate emits a `warning` finding (`rule: "ui-review-base"`) — reported without gating, since the verdict step weighs `blocker` and `error` only, and the navigation step already retries without the base. The probed URL keeps its trailing slash: with `trailingSlash: 'always'`, `/cloverleaf` 404s where `/cloverleaf/` serves. This had never been reported because a UI review has never run against a based site, not because it is rare.
+
+### Added
+- `tests/prompts.test.ts` gains seven assertions over the readiness rule, which nothing pinned before — which is how a bare-root check survived one step above a navigator that was already base-aware and already carried a 404 fallback. They are sliced to the readiness step's own text rather than matched across the document: `<base>` appears in the navigation step too, so a whole-file match would have been green against the exact file that shipped the bug. Proved in both directions against that file — six of the seven fail on it, and the trailing-slash assertion counts its subject first so it cannot pass by the subject being absent. Not part of the published package.
+
 ## 0.13.2 — 2026-08-19
 
 **Patch: `--help` is answered, and the UI reviewer's teardown reaches the server it started.**
