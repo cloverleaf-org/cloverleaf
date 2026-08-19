@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
-## 0.8.2 — 2026-08-18
+## 0.8.2 — 2026-08-19
 
 ### Fixed
 
