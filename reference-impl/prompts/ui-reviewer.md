@@ -167,12 +167,26 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    node "$DRIVER" > /tmp/ui-driver.log 2>&1; echo "EXIT=$?"
    ```
 
-4. Wait up to 30s for `http://localhost:{{preview_port}}/` to respond 200. If the server fails to start in 30s, read `/tmp/ui-dev-server.log` to see why, run teardown (step 13) — `kill -- -$SERVER_PID`, never a command-line pattern — and return verdict `escalate`.
-
-5. Determine the site base path:
-   1. Check `{{repo_root}}/.cloverleaf/config/astro-base.json`. Expected shape: `{ "base": "<path>" }`. If present, use the `base` field verbatim and skip to step 6. (Consumer override — checked before parsing astro config.)
+4. Determine the site base path. This step runs **before** the readiness gate because the gate probes the base, and it needs no server at all — every branch below is pure filesystem.
+   1. Check `{{repo_root}}/.cloverleaf/config/astro-base.json`. Expected shape: `{ "base": "<path>" }`. If present, use the `base` field verbatim and skip to step 5. (Consumer override — checked before parsing astro config.)
    2. Otherwise, attempt to locate and parse an astro config file (common locations: `site/astro.config.mjs`, `astro.config.mjs` at repo root, `apps/web/astro.config.mjs`). Best-effort fallback.
    3. If both fail, treat base as empty string.
+
+5. Wait up to 30s for the dev server to answer on `http://localhost:{{preview_port}}<base>/`. Keep the trailing slash: a site configured `trailingSlash: 'always'` serves `<base>/` and returns 404 for `<base>`.
+
+   **Readiness means the server ANSWERS — not that it answers 200.** A dev server for a based site returns 404 on every path outside its base, so a probe that insists on 200 can burn the entire 30s budget against a server that is up and serving. Judge the connection, not the status:
+
+   - **Any HTTP status — 404 included — means the server is up.** Stop waiting and go on.
+   - **A refused connection is the only "not up yet."** Keep waiting until the budget is spent.
+   - **An answer that is not 200 means the server is up but the base is probably wrong.** Go on — step 8's navigation already retries without the base — and emit one `severity: "warning"` finding with `rule: "ui-review-base"` naming the probed URL and the status. A wrong base then shows up as a finding instead of only as surprising pixels. Keep it at `warning`: step 11 gates on `blocker`/`error` only, so this reports without bouncing the task.
+
+   Probe with the status as the payload — a refused connection prints `000`, which is what distinguishes it from a real 404:
+
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}' "http://localhost:{{preview_port}}<base>/"
+   ```
+
+   If the server fails to start in 30s, read `/tmp/ui-dev-server.log` to see why, run teardown (step 13) — `kill -- -$SERVER_PID`, never a command-line pattern — and return verdict `escalate`.
 
 6. **Apply maxCombinations cap** (when `affected_routes` is a list, not `"all"`):
    - Compute `routes × viewports × browsers`. Use diff line counts as proxy for route diff size.
