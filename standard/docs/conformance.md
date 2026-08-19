@@ -67,7 +67,7 @@ To claim a level for your implementation:
 
 1. Run the filtered suite (`npm run validate:examples -- --level=N`). It validates the corpus shipped inside the package; the runner's root is the package itself, so it cannot be pointed at your own fixtures.
 2. Add your own test suite that exercises your implementation against the level's schemas, validators, and contracts.
-3. Publish a conformance statement in your project's README citing the specific Cloverleaf Standard version and level — e.g. *"Implements Cloverleaf Standard 0.8.1 at L2."*
+3. Publish a conformance statement in your project's README citing the specific Cloverleaf Standard version and level — e.g. *"Implements Cloverleaf Standard 0.8.2 at L2."*
 
 There is no central registry or badge program. Self-declaration is the mechanism; the filtered conformance suite is the evidence.
 
