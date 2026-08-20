@@ -124,3 +124,84 @@ describe('skill FSM transitions: extraction', () => {
     expect(bashBlock(s5)).toContain('STATUS');
   });
 });
+
+/**
+ * The mapping the Standard IMPLIES for a gate, derived — never restated.
+ *
+ * Candidates are the human transitions out of `gate-pending` carrying this gate.
+ * `approve`/`reject` are the candidates named for them; `revise` is the sole
+ * remainder, if exactly one remains. `abandoned` is excluded automatically because
+ * its transition carries no `gate` field.
+ *
+ * Measured: rfc → {approved, rejected, drafting}; plan → {approved, rejected, null}.
+ * The plan `null` is WHY the skill pins revise to `advance-rfc`.
+ */
+function deriveGateMapping(type: WorkItemType, gate: string) {
+  const candidates = stateMachine(type).transitions.filter(
+    (t) => t.from === 'gate-pending' && t.gate === gate && (t.allowed_actors ?? []).includes('human'),
+  );
+  const approve = candidates.find((t) => t.to === 'approved');
+  const reject = candidates.find((t) => t.to === 'rejected');
+  const rest = candidates.filter((t) => t !== approve && t !== reject);
+  return {
+    approve: approve?.to ?? null,
+    reject: reject?.to ?? null,
+    revise: rest.length === 1 ? rest[0].to : null,
+  };
+}
+
+/** Parse step 7's `case "$ACTION" in … esac` into action → advance call. */
+function parseGateMapping(body: string): Record<string, AdvanceCall> {
+  const block = step(body, 7).match(/case\s+"\$ACTION"\s+in([\s\S]*?)esac/);
+  if (!block) return {};
+  const out: Record<string, AdvanceCall> = {};
+  for (const branch of block[1].matchAll(/^\s{2,}(\w+)\)\s*$([\s\S]*?);;/gm)) {
+    const [call] = advances(branch[2]);
+    if (call) out[branch[1]] = call;
+  }
+  return out;
+}
+
+describe('Tier 1: /cloverleaf-gate maps human decisions the way the Standard implies', () => {
+  const body = skill('cloverleaf-gate');
+  const mapping = parseGateMapping(body);
+  const rfc = deriveGateMapping('rfc', 'rfc_strategy_gate');
+  const plan = deriveGateMapping('plan', 'task_batch_gate');
+
+  it('parses exactly approve, reject and revise from step 7 (anti-vacuity)', () => {
+    expect(Object.keys(mapping).sort()).toEqual(['approve', 'reject', 'revise']);
+  });
+
+  it('derives a non-empty mapping from the Standard (anti-vacuity)', () => {
+    expect(rfc.approve).toBeTruthy();
+    expect(rfc.reject).toBeTruthy();
+    expect(rfc.revise).toBeTruthy();
+    expect(plan.approve).toBeTruthy();
+  });
+
+  for (const action of ['approve', 'reject'] as const) {
+    it(`${action} advances to the status the Standard implies, for BOTH rfc and plan`, () => {
+      expect(mapping[action].status).toBe(rfc[action]);
+      expect(mapping[action].status).toBe(plan[action]);
+    });
+
+    it(`${action} uses the polymorphic $TYPE, since it is valid for both types`, () => {
+      expect(mapping[action].typeToken).toBe('$TYPE');
+    });
+  }
+
+  it('revise advances to the RFC revise target the Standard implies', () => {
+    expect(mapping.revise.status).toBe(rfc.revise);
+  });
+
+  it('revise is pinned to advance-rfc BECAUSE plan has no revise transition', () => {
+    expect(plan.revise).toBeNull();
+    expect(mapping.revise.typeToken).toBe('rfc');
+  });
+
+  for (const action of ['approve', 'reject', 'revise'] as const) {
+    it(`${action} is performed by the human actor`, () => {
+      expect(mapping[action].actor).toBe('human');
+    });
+  }
+});
