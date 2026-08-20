@@ -2,6 +2,16 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## 0.13.4 — 2026-08-20
+
+**Patch: the human gate's decision mapping is pinned to the Standard, not to prose alone.**
+
+### Added
+- `tests/skill-fsm-transitions.test.ts` — validates every `advance-*` call the discovery skills document against the Standard's state machines. The gap it closes is narrow and was measured rather than assumed: `/cloverleaf-gate` is the only skill mapping a multi-way human decision (`approve|reject|revise`) onto FSM statuses, and that mapping lived solely in its prose — there is no decision-to-status map anywhere in `lib/`, so nothing could cross-check it. Inverting it is not caught by the runtime either, because both wrong answers are *legal* transitions out of `gate-pending`: `approve` writing `rejected`, and `revise` writing `approved`. Either records the opposite of what the human decided at `rfc_strategy_gate` or `task_batch_gate`, and both passed the full suite untouched before this release. The expected mapping is **derived** from the state machines rather than restated — candidates are the human transitions out of `gate-pending` carrying the gate; `approve` and `reject` are the ones named for them; `revise` is the sole remainder. That reproduces the RFC-only revise rule instead of hardcoding it, since `plan` has no remainder, and it means the guard cannot go green when skill and test drift together. Two further tiers check that every documented `(target, actor, gate)` triple identifies a real transition, and that a linear skill's advances form a legal walk from its initial state; both cover cases the runtime already refuses, so they buy earlier feedback rather than correctness. All ten mutations behind these assertions were proved red individually. One of them — dropping the `gate-pending` precondition — initially passed, because step 5's *prose heading* repeats the token its code was being checked for; assertions target the fenced `bash` block for exactly that reason. Not part of the published package.
+
+### Fixed
+- `skills/cloverleaf-gate/SKILL.md` — the frontmatter said `revise` is valid only at `rfc_strategy_gate`. As a claim about the Standard that is false: `gate-decision-validity` lists `revise` among the decisions allowed at `task_batch_gate`. What the Plan state machine lacks is a single-step `gate-pending → drafting`, so a Plan revise is `reject` followed by `rejected → drafting` — "re-decompose after rejection" — which the skill's own Notes already described correctly. Behaviour is unchanged; only the sentence moves, from a claim about what the Standard permits to one about what the FSM can carry out in a single step. `gate-decision-validity` is deliberately untouched: removing `revise` from `task_batch_gate` would narrow a published validator's accepted input, a conformance change affecting anyone legitimately recording revise-intent on a Plan.
+
 ## 0.13.3 — 2026-08-19
 
 **Patch: the UI reviewer's readiness gate judges the connection, not the status code.**

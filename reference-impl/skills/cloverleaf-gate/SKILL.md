@@ -1,6 +1,6 @@
 ---
 name: cloverleaf-gate
-description: Human gate action on an RFC (rfc_strategy_gate) or Plan (task_batch_gate) in status gate-pending. Usage — /cloverleaf-gate <item-id> <approve|reject|revise> [reason]. `revise` is valid only at rfc_strategy_gate (RFC only).
+description: Human gate action on an RFC (rfc_strategy_gate) or Plan (task_batch_gate) in status gate-pending. Usage — /cloverleaf-gate <item-id> <approve|reject|revise> [reason]. `revise` is single-step on RFCs only; on Plans, reject and re-decompose.
 ---
 
 # Cloverleaf — human gate

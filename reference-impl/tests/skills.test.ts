@@ -1257,9 +1257,9 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.13.3', () => {
-    // v0.13.3: the ui-reviewer readiness gate judges the connection, not the status
-    expect(pkg.version).toBe('0.13.3');
+  it('reports version 0.13.4', () => {
+    // v0.13.4: skill FSM transitions are pinned to the Standard's state machines
+    expect(pkg.version).toBe('0.13.4');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {
