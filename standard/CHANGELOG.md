@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Interoperability Standard are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/spec/v2.0.0.html), with the pre-1.0 policy that MINOR releases may include breaking changes.
 
-## [Unreleased]
+## 0.8.3 — 2026-08-20
 
 ### Fixed
 - `docs/conformance.md` — the example conformance statement cited a version two releases old. The document that tells adopters how to cite a Standard version showed *"Implements Cloverleaf Standard 0.8.1 at L2."* while the package was 0.8.2, and `docs/` is in this package's `files`, so that text ships. It is an illustrative `e.g.` the reader substitutes, which is why it kept being left; the cost of leaving it was that nothing said so, and the staleness compounded each release.
