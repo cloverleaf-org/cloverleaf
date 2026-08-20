@@ -2,6 +2,23 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `tests/skill-fsm-transitions.test.ts` — validates every `advance-*` call documented in the
+  discovery skills against the Standard's state machines, and derives `/cloverleaf-gate`'s
+  `approve`/`reject`/`revise` mapping from those state machines rather than restating it.
+  Closes a gap where inverting the gate's decision mapping — `approve` writing `rejected` —
+  was a legal transition, so neither the test suite nor the runtime validator caught it.
+
+### Fixed
+
+- `/cloverleaf-gate`'s frontmatter said `revise` is valid only at `rfc_strategy_gate`. The
+  Standard's `gate-decision-validity` allows `revise` at `task_batch_gate`; what the Plan FSM
+  lacks is a single-step `gate-pending → drafting`. Behaviour is unchanged — a Plan revise is
+  still reject-then-re-decompose, as the skill's Notes already described.
+
 ## 0.13.3 — 2026-08-19
 
 **Patch: the UI reviewer's readiness gate judges the connection, not the status code.**

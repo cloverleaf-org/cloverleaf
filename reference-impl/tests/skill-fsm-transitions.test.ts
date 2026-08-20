@@ -246,6 +246,19 @@ const GUARDED_SKILLS = [
   'cloverleaf-draft-rfc',
 ] as const;
 
+/**
+ * The gate a type's own state machine carries on its `gate-pending` transitions.
+ * Returns null when a type has none, or more than one, rather than guessing.
+ */
+function gateOf(type: WorkItemType): string | null {
+  const gates = new Set(
+    stateMachine(type)
+      .transitions.filter((t) => t.from === 'gate-pending' && t.gate)
+      .map((t) => t.gate as string),
+  );
+  return gates.size === 1 ? [...gates][0] : null;
+}
+
 describe('Tier 2: every documented advance is a transition the Standard permits', () => {
   it('step 3 pairs each work-item type with the gate its state machine carries', () => {
     const pairs = [...step(skill('cloverleaf-gate'), 3).matchAll(/TYPE=(\w+)\s*\n\s*GATE=(\w+)/g)]
@@ -267,11 +280,12 @@ describe('Tier 2: every documented advance is a transition the Standard permits'
     });
 
     it(`${name}: every (target, actor, gate) identifies a real transition`, () => {
-      const gateFor: Record<string, string> = { rfc: 'rfc_strategy_gate', plan: 'task_batch_gate' };
       const offenders: string[] = [];
       for (const call of calls) {
         for (const type of TYPE_OF[call.typeToken] ?? []) {
-          const gate = call.gateToken === '$GATE' ? gateFor[type] : call.gateToken;
+          // `$GATE` is resolved from the type's own state machine rather than a
+          // literal map, so this suite keeps zero copies of the type→gate pairing.
+          const gate = call.gateToken === '$GATE' ? gateOf(type) : call.gateToken;
           const matches = stateMachine(type).transitions.filter(
             (t) =>
               t.to === call.status &&
