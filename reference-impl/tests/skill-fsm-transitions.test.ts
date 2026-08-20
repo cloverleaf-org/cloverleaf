@@ -205,3 +205,24 @@ describe('Tier 1: /cloverleaf-gate maps human decisions the way the Standard imp
     });
   }
 });
+
+describe('Tier 1b: /cloverleaf-gate enforces the preconditions the Standard requires', () => {
+  const body = skill('cloverleaf-gate');
+  const plan = deriveGateMapping('plan', 'task_batch_gate');
+
+  it('step 4 refuses revise on a non-rfc, because plan has no revise transition', () => {
+    // Derived precondition: the guard is REQUIRED precisely because plan.revise is null.
+    expect(plan.revise).toBeNull();
+    const code = bashBlock(step(body, 4));
+    expect(code).toMatch(/\$ACTION"?\s*=\s*"?revise/);
+    expect(code).toMatch(/\$TYPE"?\s*!=\s*"?rfc/);
+  });
+
+  it('step 5 CODE compares status to the from-state every gate transition requires', () => {
+    // Asserted against the fenced bash block, NOT the step: step 5's heading reads
+    // "Verify the item is in `gate-pending` status", so a step-level match passes
+    // even when the code guard is gutted. That exact miss happened in prototyping.
+    const code = bashBlock(step(body, 5));
+    expect(code).toMatch(/\$STATUS"?\s*!=\s*"?gate-pending/);
+  });
+});
