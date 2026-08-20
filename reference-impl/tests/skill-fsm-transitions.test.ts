@@ -226,3 +226,83 @@ describe('Tier 1b: /cloverleaf-gate enforces the preconditions the Standard requ
     expect(code).toMatch(/\$STATUS"?\s*!=\s*"?gate-pending/);
   });
 });
+
+/** Skills whose advances are a genuine SEQUENCE, so chaining from-states is meaningful. */
+const LINEAR_SKILLS = ['cloverleaf-spike'] as const;
+
+/**
+ * Deliberately short. The other discovery skills emit ALTERNATIVES or loop-backs,
+ * not sequences — cloverleaf-draft-rfc emits `spike-in-flight` OR `planning`.
+ * Chaining those is meaningless; draft-rfc's pair happens to chain legally today,
+ * so it would not false-fail now, but it would after any reordering. Add a skill
+ * here only after confirming its advances really are a sequence.
+ */
+
+const GUARDED_SKILLS = [
+  'cloverleaf-gate',
+  'cloverleaf-breakdown',
+  'cloverleaf-discover',
+  'cloverleaf-spike',
+  'cloverleaf-draft-rfc',
+] as const;
+
+describe('Tier 2: every documented advance is a transition the Standard permits', () => {
+  it('step 3 pairs each work-item type with the gate its state machine carries', () => {
+    const pairs = [...step(skill('cloverleaf-gate'), 3).matchAll(/TYPE=(\w+)\s*\n\s*GATE=(\w+)/g)]
+      .map((m) => ({ type: m[1] as WorkItemType, gate: m[2] }));
+    expect(pairs).toHaveLength(2);
+    for (const { type, gate } of pairs) {
+      const gates = new Set(
+        stateMachine(type).transitions.filter((t) => t.from === 'gate-pending' && t.gate).map((t) => t.gate),
+      );
+      expect([...gates]).toContain(gate);
+    }
+  });
+
+  for (const name of GUARDED_SKILLS) {
+    const calls = advances(skill(name));
+
+    it(`${name}: documents at least one advance call (anti-vacuity)`, () => {
+      expect(calls.length).toBeGreaterThan(0);
+    });
+
+    it(`${name}: every (target, actor, gate) identifies a real transition`, () => {
+      const gateFor: Record<string, string> = { rfc: 'rfc_strategy_gate', plan: 'task_batch_gate' };
+      const offenders: string[] = [];
+      for (const call of calls) {
+        for (const type of TYPE_OF[call.typeToken] ?? []) {
+          const gate = call.gateToken === '$GATE' ? gateFor[type] : call.gateToken;
+          const matches = stateMachine(type).transitions.filter(
+            (t) =>
+              t.to === call.status &&
+              (t.allowed_actors ?? []).includes(call.actor as 'human' | 'agent' | 'system') &&
+              (gate ? t.gate === gate : !t.gate),
+          );
+          if (matches.length === 0) {
+            offenders.push(`${type}: →${call.status} (${call.actor}${gate ? ', ' + gate : ''})`);
+          }
+        }
+      }
+      expect(offenders).toEqual([]);
+    });
+  }
+});
+
+describe('Tier 3: linear skills walk a legal path from the initial state', () => {
+  for (const name of LINEAR_SKILLS) {
+    it(`${name}: its advances form a legal walk`, () => {
+      const calls = advances(skill(name));
+      expect(calls.length).toBeGreaterThan(0);
+      const type = TYPE_OF[calls[0].typeToken][0];
+      const machine = stateMachine(type);
+      let current = machine.states.initial[0];
+      const trace = [current];
+      for (const call of calls) {
+        const legal = machine.transitions.find((t) => t.from === current && t.to === call.status);
+        expect(legal, `no ${current} → ${call.status} (walk so far: ${trace.join(' → ')})`).toBeDefined();
+        current = call.status;
+        trace.push(current);
+      }
+    });
+  }
+});
