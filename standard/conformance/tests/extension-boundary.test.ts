@@ -58,6 +58,28 @@ function schemaShapes(): Shape[] {
 }
 
 /**
+ * Every `additionalProperties: true` that is NOT at the root of a schema, as
+ * `name:path`. There is exactly one, and `docs/extensions.md` says so — which
+ * makes it a load-bearing sentence with nothing holding it up unless this
+ * derives the set rather than spot-checking the known one.
+ */
+function nestedOpenBags(): string[] {
+  const found: string[] = [];
+  for (const f of readdirSync(SCHEMA_DIR).filter((x) => x.endsWith('.schema.json')).sort()) {
+    const name = f.replace('.schema.json', '');
+    const doc = JSON.parse(readFileSync(join(SCHEMA_DIR, f), 'utf-8')) as unknown;
+    (function walk(node: unknown, path: string): void {
+      if (!node || typeof node !== 'object') return;
+      for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+        if (k === 'additionalProperties' && v === true && path !== '') found.push(`${name}:${path}`);
+        walk(v, path ? `${path}.${k}` : k);
+      }
+    })(doc, '');
+  }
+  return found;
+}
+
+/**
  * The ruling, as a literal. Deriving this from the files would make the assertion
  * circular — it would pass for any arrangement of hatches whatsoever.
  */
@@ -119,6 +141,14 @@ describe('the extension hatch is present on exactly the schemas the boundary all
     expect([...union].sort()).toEqual(shapes.map((s) => s.name));
   });
 
+  it('leaves exactly one nested open object, on feedback findings', () => {
+    // A second would be a third way to accept arbitrary data that nothing had
+    // ruled on, and would silently falsify the guide's claim that this is the
+    // only one. feedback's envelope and its finding object are both closed;
+    // only `metadata` is open, and it is a named field with a stated purpose.
+    expect(nestedOpenBags()).toEqual(['feedback:$defs.finding.properties.metadata']);
+  });
+
   it('keeps the hatch pointing at the shared meta-schema', () => {
     // The hatch means `$ref` to extensions.schema.json, not a locally redefined
     // object that happens to be called `extensions`.
@@ -153,6 +183,7 @@ function bulletedSchemas(section: string): string[] {
 
 const HATCHED_HEADING = '### Schemas that carry the hatch';
 const CLOSED_HEADING = '### Schemas that are deliberately closed';
+const OTHER_HEADING = '### Other places arbitrary data is accepted';
 
 describe('docs/extensions.md describes the boundary the schemas implement', () => {
   const shapes = schemaShapes();
@@ -180,6 +211,18 @@ describe('docs/extensions.md describes the boundary the schemas implement', () =
     // The specific fact the old text denied, and the reason this guard exists.
     // Parity alone would be satisfied by a list; this pins the explanation.
     expect(docSection(HATCHED_HEADING)).toMatch(/`project`/);
+  });
+
+  it('names every schema that accepts arbitrary data outside the hatch', () => {
+    // Derived, not listed: the two root-open schemas plus whoever owns a nested
+    // open bag. If a schema opens up and the guide does not mention it, the
+    // guide's account of where arbitrary data may go stops being complete.
+    const owners = new Set([
+      ...shapes.filter((s2) => s2.open).map((s2) => s2.name),
+      ...nestedOpenBags().map((b) => b.split(':')[0]),
+    ]);
+    expect(docSection(OTHER_HEADING), `missing "${OTHER_HEADING}"`).not.toBe('');
+    expect(bulletedSchemas(docSection(OTHER_HEADING))).toEqual([...owners].sort());
   });
 
   it('no longer scopes the mechanism to Work Items alone', () => {

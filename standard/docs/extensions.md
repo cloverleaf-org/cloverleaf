@@ -45,16 +45,17 @@ Protocol messages and generated artifacts are closed for the same reason — a c
 - `council-result` — the council audit artifact.
 - `dependency-dag` — the Task dependency graph emitted by breakdown.
 - `status-transitions` — the declaration of legal transitions for a Work Item type.
-- `extensions` — this mechanism's own meta-schema.
+- `extensions` — this mechanism's own meta-schema. Its closure is what enforces rule 2: `patternProperties` admits any `team.field` key, and `additionalProperties: false` rejects everything without the dot.
 
-### Two schemas that accept arbitrary properties for other reasons
+### Other places arbitrary data is accepted
 
-`problem` and `work-item` set `additionalProperties: true`, which is not the same thing as carrying the hatch:
+Three things in the Standard accept properties no schema names, and none of them is the hatch:
 
-- `problem` is RFC 7807, whose §3.2 *mandates* prefixed extension members. It already ships `cloverleaf.failure_class` and `cloverleaf.work_item_id`.
-- `work-item` is the abstract parent of RFC, Spike, Plan and Task. Closing it would reject its own children, each of which adds fields of its own.
+- `problem` sets `additionalProperties: true` because it is RFC 7807, whose §3.2 *mandates* prefixed extension members. It already ships `cloverleaf.failure_class` and `cloverleaf.work_item_id`.
+- `work-item` sets `additionalProperties: true` because it is the abstract parent of RFC, Spike, Plan and Task. Closing it would reject its own children, each of which adds fields of its own.
+- `feedback` is closed at the envelope, but every finding carries a `metadata` object whose shape *"is not constrained by the Standard"* — it is where a source puts axe rule metadata, viewport aggregations or diff ratios. This is the only nested open object in the Standard, and it is a named field with a purpose rather than a hatch: it holds whatever the emitting agent knows, not namespaced team keys.
 
-Neither is an invitation to add unnamespaced fields to a Work Item; rule 2 still applies.
+None of these is an invitation to add unnamespaced fields to a Work Item; rule 2 still applies.
 
 ## Project-defined linting
 
