@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://cloverleaf.example/schemas/extensions.schema.json",
   "title": "Extensions",
-  "description": "Team-defined extension fields on Work Items. Keys must follow the namespace convention 'team.field'. Reserved keys (without a dot) are forbidden to prevent collision with mandatory Work Item fields.",
+  "description": "Team-defined extension fields on the Cloverleaf schemas that declare an extensions property (the Work Item types and project). Keys must follow the namespace convention 'team.field'. Reserved keys (without a dot) are forbidden to prevent collision with mandatory fields.",
   "type": "object",
   "patternProperties": {
     "^[a-z][a-z0-9_-]*\\.[a-z][a-z0-9_-]*$": {}
