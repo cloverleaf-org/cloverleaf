@@ -107,10 +107,13 @@ describe('package contract: lockfile versions track package.json', () => {
  * VERSION file added to a new package trips it, and so does one deleted from an existing
  * package, which nothing else in the suite would notice for `reference-impl`.
  *
- * ⚠ `reference-impl/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` also
- * carry versions and are deliberately NOT in lockstep — they bump on feature releases
- * only, and the patch train leaves them behind (0.13.2 against a package.json of 0.13.4
- * as this is written). They are decoys, not omissions. Do not extend this guard to them.
+ * ⚠ `reference-impl/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` carry
+ * versions too. An earlier revision of this comment called them deliberate decoys that bump
+ * "on feature releases only", and told you not to guard them. That was wrong twice over. The
+ * release history records no such rule: two lag episodes closed on a *patch* (0.6.5, 0.7.4),
+ * and the 0.7.0 *minor* passed straight through a lag without closing it. And the version
+ * there is functional rather than decorative — Claude Code pins an installed plugin to it.
+ * They are guarded below.
  */
 const EXPECTED_VERSIONED_PACKAGES = ['reference-impl', 'standard'];
 
@@ -129,5 +132,88 @@ describe('package contract: VERSION files track package.json', () => {
       ).version;
       expect(version).toBe(pkgVersion);
     });
+  }
+});
+
+/**
+ * The same rule a third time, and this pair is the only one Claude Code itself reads.
+ * `reference-impl/.claude-plugin/plugin.json` and the repo-root
+ * `.claude-plugin/marketplace.json` carry the version the plugin is *installed* under,
+ * and that string is load-bearing rather than decorative: Claude Code pins an installed
+ * plugin to it and offers an update only when it changes. `package.json` is never
+ * consulted on that path, so npm's version and the plugin's version are independent
+ * facts that must nonetheless agree — and from 0.13.3 to 0.13.5 they did not, which
+ * left anyone installed from this repo pinned at 0.13.2 and offered no update.
+ *
+ * The two files are guarded against `package.json` rather than against each other.
+ * `claude plugin tag` already validates that they agree with one another, and nothing
+ * validates either against `package.json` — which is the axis that actually drifted.
+ *
+ * They are anchored differently because they sit differently. A `plugin.json` describes
+ * the package whose directory encloses `.claude-plugin`, so its anchor is the parent's
+ * `package.json`. A marketplace entry names its plugin by `source`, and the repo root
+ * has no `package.json` at all, so each entry is resolved through that `source` — which
+ * also means a second plugin added to the catalogue is guarded the day it arrives.
+ * ⚠ A `source` is relative to the marketplace ROOT, not to the `.claude-plugin` directory
+ * holding the catalogue, hence the `'..'`: `./reference-impl` means `<repo>/reference-impl`.
+ * Resolving it against `.claude-plugin/` instead reads as ENOENT, not as a version failure.
+ */
+const EXPECTED_PLUGIN_MANIFESTS = ['reference-impl/.claude-plugin'];
+
+const PLUGIN_MANIFESTS = findPackagesWith('plugin.json').sort();
+
+describe('package contract: plugin.json version tracks package.json', () => {
+  it('finds every plugin.json in the repo', () => {
+    expect(PLUGIN_MANIFESTS).toEqual(EXPECTED_PLUGIN_MANIFESTS);
+  });
+
+  for (const dir of PLUGIN_MANIFESTS) {
+    it(`${dir}/plugin.json version matches the enclosing package.json`, () => {
+      const manifest = JSON.parse(
+        readFileSync(resolve(REPO, dir, 'plugin.json'), 'utf-8'),
+      );
+      const pkgVersion = JSON.parse(
+        readFileSync(resolve(REPO, dir, '..', 'package.json'), 'utf-8'),
+      ).version;
+      expect(manifest.version).toBe(pkgVersion);
+    });
+  }
+});
+
+const EXPECTED_MARKETPLACE_MANIFESTS = ['.claude-plugin'];
+
+const MARKETPLACE_MANIFESTS = findPackagesWith('marketplace.json').sort();
+
+describe('package contract: marketplace entry versions track package.json', () => {
+  it('finds every marketplace.json in the repo', () => {
+    expect(MARKETPLACE_MANIFESTS).toEqual(EXPECTED_MARKETPLACE_MANIFESTS);
+  });
+
+  for (const dir of MARKETPLACE_MANIFESTS) {
+    const catalogue = JSON.parse(
+      readFileSync(resolve(REPO, dir, 'marketplace.json'), 'utf-8'),
+    );
+    const entries: { name: string; source: unknown; version?: string }[] = catalogue.plugins;
+
+    // Pinned so that an entry silently dropped from the catalogue — which would
+    // generate no assertions below and read as a pass — fails here instead.
+    it(`${dir}/marketplace.json lists the expected plugin entries`, () => {
+      expect(entries.map((p) => `${p.name}@${String(p.source)}`)).toEqual([
+        'cloverleaf@./reference-impl',
+      ]);
+    });
+
+    for (const entry of entries) {
+      // Only a relative-path source has a package.json in this repo to agree with.
+      // Any other source form trips the roster pin above and is ruled by a human.
+      if (typeof entry.source !== 'string' || !entry.source.startsWith('./')) continue;
+
+      it(`${dir}/marketplace.json: ${entry.name} version matches ${entry.source}/package.json`, () => {
+        const pkgVersion = JSON.parse(
+          readFileSync(resolve(REPO, dir, '..', entry.source as string, 'package.json'), 'utf-8'),
+        ).version;
+        expect(entry.version).toBe(pkgVersion);
+      });
+    }
   }
 });
