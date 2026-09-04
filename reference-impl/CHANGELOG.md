@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## 0.13.6 — 2026-09-03
+## 0.13.6 — 2026-09-04
 
 ### Fixed
 - `reference-impl/.claude-plugin/plugin.json` and the repo-root `.claude-plugin/marketplace.json` were three releases stale, at `0.13.2` against a `package.json` of `0.13.5`, and are now back in lockstep. This was a live defect rather than untidiness: Claude Code **pins an installed plugin to the version string in `plugin.json`** and offers an update only when that string changes, and it never consults `package.json` on that path. Anyone who installed the plugin from this repo was therefore pinned at `0.13.2` and offered no update, with the content of `0.13.3`, `0.13.4` and `0.13.5` unreachable to them. Version resolution runs `plugin.json` > marketplace entry > commit SHA, so the stale manifest — not npm's metadata — was the binding fact.
