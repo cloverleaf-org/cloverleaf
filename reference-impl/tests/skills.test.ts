@@ -1257,10 +1257,10 @@ describe('CHANGELOG.md (v0.6.1)', () => {
 describe('package.json (v0.8.0)', () => {
   const pkg = JSON.parse(readFileSync(resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
-  it('reports version 0.13.6', () => {
-    // v0.13.6: package.json's version is pinned to VERSION, to both package-lock fields,
+  it('reports version 0.13.7', () => {
+    // v0.13.7: package.json's version is pinned to VERSION, to both package-lock fields,
     // and to both plugin manifests (plugin.json + the marketplace entry)
-    expect(pkg.version).toBe('0.13.6');
+    expect(pkg.version).toBe('0.13.7');
   });
 
   it('is the @cloverleaf/reference-impl package (not @cloverleaf/standard)', () => {

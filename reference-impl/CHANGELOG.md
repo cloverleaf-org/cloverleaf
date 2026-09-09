@@ -2,7 +2,7 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## 0.13.7 — 2026-09-09
 
 ### Added
 - `cloverleaf-cli --version` (and `-v`) print the version and exit 0. It was not a supported flag: it fell through to the command switch, printed `Unknown command: --version` on stderr and exited 2, and the documented workaround was to read the shipped `VERSION` file by hand — which meant the first thing most people type at an unfamiliar CLI both failed and produced nothing on stdout a pipe could read. The output is bare, so `$(cloverleaf-cli --version)` is the version itself rather than a sentence a caller has to cut a field out of.
