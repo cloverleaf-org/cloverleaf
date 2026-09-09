@@ -2,6 +2,15 @@
 
 All notable changes to the Cloverleaf Reference Implementation are documented here. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- `cloverleaf-cli --version` (and `-v`) print the version and exit 0. It was not a supported flag: it fell through to the command switch, printed `Unknown command: --version` on stderr and exited 2, and the documented workaround was to read the shipped `VERSION` file by hand — which meant the first thing most people type at an unfamiliar CLI both failed and produced nothing on stdout a pipe could read. The output is bare, so `$(cloverleaf-cli --version)` is the version itself rather than a sentence a caller has to cut a field out of.
+- The string is read from the shipped `VERSION` file rather than written into the source. A literal would be an eighth site to bump every release, and `VERSION` is already pinned to `package.json` by `tests/package-contract.test.ts`, so reading it is transitively correct without needing a guard of its own — the version guards shipped in 0.13.5 and 0.13.6 are what make that safe. `getPluginRoot()` resolves the package root under every install mode, `dist/` and `lib/` alike, so the flag behaves the same from the published tarball as from the repo.
+
+### Changed
+- `--help` grows a `Flags:` section listing `-h, --help` and `-v, --version`. A flag nobody can find from `--help` is half a fix, since hitting `Unknown command: --version` is exactly what sent people to the `VERSION` file. The section is appended to the single shared `USAGE_TEXT`, so the error path lists it too. ⚠ This changes the output size that release smokes have compared byte-for-byte since 0.13.3: `--help` goes from **45 to 48** lines and the error path from **46 to 49**. Both remain exit 0 / empty stderr and exit 2 / empty stdout respectively.
+
 ## 0.13.6 — 2026-09-04
 
 ### Fixed

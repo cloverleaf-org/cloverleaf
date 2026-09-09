@@ -142,7 +142,10 @@ const USAGE_TEXT =
   '  chair-context <chairMemberInputsJson>\n' +
   '  chair-verdict <chairRawJson> <membersJson>\n' +
   '  set-task-field <repoRoot> <taskId> <field> <value>\n' +
-  '  validate-council <repoRoot>\n';
+  '  validate-council <repoRoot>\n' +
+  'Flags:\n' +
+  '  -h, --help     print this command list\n' +
+  '  -v, --version  print the version and exit\n';
 
 function usage(msg?: string): never {
   if (msg) process.stderr.write(msg + '\n');
@@ -155,10 +158,32 @@ function help(): never {
   process.exit(0);
 }
 
+/**
+ * `--version` is a request like `--help`, so its answer goes to stdout and exits
+ * 0, leaving stderr for diagnostics.
+ *
+ * The string is read from the shipped `VERSION` file rather than written here. A
+ * literal would be an eighth site to bump every release, and `VERSION` is already
+ * pinned to `package.json` by tests/package-contract.test.ts — so reading it is
+ * transitively correct without adding a guard of its own. `getPluginRoot()`
+ * resolves the package root under every install mode, `dist/` and `lib/` alike.
+ *
+ * Bare, with no program name: `$(cloverleaf-cli --version)` should be the version
+ * itself rather than a sentence a caller has to cut a field out of.
+ */
+function version(): never {
+  process.stdout.write(readFileSync(join(getPluginRoot(), 'VERSION'), 'utf-8').trim() + '\n');
+  process.exit(0);
+}
+
 const [, , command, ...rest] = process.argv;
 
 if (command === '--help' || command === '-h') {
   help();
+}
+
+if (command === '--version' || command === '-v') {
+  version();
 }
 
 if (!command) {
