@@ -1962,3 +1962,53 @@ describe('cli — help', () => {
     expect(runSplit(['definitely-not-a-command']).stderr).toContain(help);
   });
 });
+
+describe('cli — version', () => {
+  // `cloverleaf-cli --version` was not a supported flag: it fell through to the
+  // command switch, printed `Unknown command: --version` on stderr and exited 2.
+  // The documented workaround was to read the shipped VERSION file by hand.
+  //
+  // Same reasoning as the help block above: spawnSync is used rather than the
+  // module-level `run()`, because `run()` hardcodes `stderr: ''` on a zero exit,
+  // so "version writes nothing to stderr" would pass without being true.
+  function runSplit(args: string[]): { stdout: string; stderr: string; exitCode: number } {
+    const r = spawnSync('npx', ['tsx', CLI, ...args], { encoding: 'utf-8' });
+    return { stdout: r.stdout ?? '', stderr: r.stderr ?? '', exitCode: r.status ?? 1 };
+  }
+
+  it('--version prints a bare version on stdout and exits 0', () => {
+    const r = runSplit(['--version']);
+    expect(r.exitCode).toBe(0);
+    // Bare and script-usable: `$(cloverleaf-cli --version)` should be the
+    // version itself, not a sentence that has to have a field cut out of it.
+    expect(r.stdout).toMatch(/^\d+\.\d+\.\d+\n$/);
+    // An answered request is not a diagnostic.
+    expect(r.stderr).toBe('');
+  });
+
+  it('-v is the same request as --version', () => {
+    expect(runSplit(['-v'])).toEqual(runSplit(['--version']));
+  });
+
+  it('reports the version the package actually declares', () => {
+    // Anchored on both shipped files rather than a literal, so this test never
+    // becomes an eighth bump site. VERSION and package.json are already pinned
+    // to each other by package-contract.test.ts, so agreeing with them is
+    // transitively agreeing with the release.
+    const root = resolve(__dirname, '..');
+    const version = readFileSync(resolve(root, 'VERSION'), 'utf-8').trim();
+    const pkgVersion = JSON.parse(
+      readFileSync(resolve(root, 'package.json'), 'utf-8'),
+    ).version;
+    expect(runSplit(['--version']).stdout.trim()).toBe(version);
+    expect(runSplit(['--version']).stdout.trim()).toBe(pkgVersion);
+  });
+
+  it('is discoverable from --help', () => {
+    // A flag nobody can find from --help is half a fix: hitting `Unknown
+    // command: --version` is exactly what sent people to the VERSION file.
+    const help = runSplit(['--help']).stdout;
+    expect(help).toContain('--version');
+    expect(help).toContain('--help');
+  });
+});
