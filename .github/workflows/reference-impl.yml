@@ -1,0 +1,83 @@
+name: reference-impl-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# No path filter, unlike site.yml: this suite is cross-cutting, not reference-impl-local.
+# tests/site-accuracy.test.ts reads site/src, and tests/package-contract.test.ts walks
+# every package in the repo for package-lock.json drift. A reference-impl/** filter would
+# blind exactly the guards the suite exists for.
+
+concurrency:
+  group: reference-impl-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Contract guards (fast)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: reference-impl
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+          # Only reference-impl's lockfile: this job never installs standard/.
+          cache-dependency-path: reference-impl/package-lock.json
+
+      - run: npm ci
+
+      # These three files import only node builtins, vitest and semver — no lib/, no
+      # @cloverleaf/standard — so they run against an unbuilt standard/ and report a
+      # version-guard regression in seconds instead of waiting on the full suite.
+      - name: Version + contract guards
+        run: npx vitest run tests/package-contract.test.ts tests/skills.test.ts tests/site-accuracy.test.ts
+
+  test:
+    name: Full suite (Node 24)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: reference-impl
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+          cache: npm
+          # Both lockfiles, or this job silently cache-misses every run.
+          cache-dependency-path: |
+            standard/package-lock.json
+            reference-impl/package-lock.json
+
+      # Forced first, not stylistic: reference-impl resolves @cloverleaf/standard by
+      # symlink (package-lock.json records "resolved": "../standard", "link": true), and
+      # standard/ has no prepare script, so nothing builds it implicitly. reference-impl's
+      # pretest (scripts/check-standard-prepped.mjs) fails unless both standard/dist and
+      # standard/node_modules exist.
+      - name: Prep standard/ (reference-impl links ../standard)
+        run: npm ci && npm run build
+        working-directory: standard
+
+      - run: npm ci
+
+      - name: Full suite
+        run: npm test
+
+      # Never exercised by `npm test`; prepublishOnly runs it, so a broken build would
+      # otherwise surface only on publish day. Ordered after the suite, as prepublishOnly does.
+      - name: Build (mirrors prepublishOnly)
+        run: npm run build
