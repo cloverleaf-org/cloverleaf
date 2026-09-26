@@ -1,0 +1,51 @@
+name: site-check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/site-check.yml'
+  workflow_dispatch:
+
+# PR-time check for site/, kept out of site.yml on purpose. site.yml's concurrency group
+# `pages` is repository-wide, so a pull_request run joining it would cancel an in-flight
+# deploy, and a PR run from a branch in this repo would also be granted its workflow-level
+# pages: write and id-token: write. No push trigger: site-deploy already runs this install
+# and build on every push to main that touches site/**.
+#
+# The site/** filter is safe here, unlike in reference-impl.yml: nothing under site/
+# imports or reads outside it, and site/package.json has no @cloverleaf/* dependency. The
+# coupling runs the other way — reference-impl's suite reads site/ — and reference-impl-ci,
+# unfiltered, already covers that on every PR. Because of the filter, this must not become
+# a required check as it stands: GitHub leaves a path-skipped check Pending, which would
+# block every PR that does not touch site/**.
+
+concurrency:
+  group: site-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Check + build (Node 22)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # site.yml's version, so the check validates what the deploy will run.
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: npm ci
+
+      # build is `astro check && astro build` (site/package.json) — the deploy's own command.
+      - name: astro check + astro build
+        run: npm run build
