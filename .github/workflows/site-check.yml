@@ -39,8 +39,8 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          # site.yml's version, so the check validates what the deploy will run.
-          node-version: '22.x'
+          # The file site.yml reads too, so the check validates what the deploy will run.
+          node-version-file: site/.nvmrc
           cache: npm
           cache-dependency-path: site/package-lock.json
 
