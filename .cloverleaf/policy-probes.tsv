@@ -84,6 +84,15 @@ auto_reject	Edit	file_path=/home/ren/Workspace/cloverleaf/.cloverleaf/claw-drive
 auto_reject	Write	file_path=/home/ren/Workspace/cloverleaf/.cloverleaf/claw-drive-policy.json
 auto_reject	Edit	file_path=/home/ren/Workspace/cloverleaf/.claw-drive/sessions/s/events.jsonl
 auto_reject	Write	file_path=/home/ren/Workspace/cloverleaf/.claw-drive/sessions/s/events.jsonl
+# ...and the shapes the lookbehind exists for. Upstream's (?:^|/) misses a quoted,
+# =-prefixed or space-prefixed path, so its escalate_default catches the call with
+# default approve, which claw-drive applies at the decision timeout.
+auto_reject	Edit	file_path=".claw-drive/x"
+auto_reject	Edit	file_path==.claw-drive/x
+auto_reject	Edit	file_path= .claw-drive/x
+auto_reject	Write	file_path=".claw-drive/x"
+auto_reject	Write	file_path==.claw-drive/x
+auto_reject	Write	file_path= .claw-drive/x
 escalate_default	Edit	file_path=/home/ren/Workspace/cloverleaf/reference-impl/lib/task.ts
 escalate_default	Write	file_path=/home/ren/Workspace/cloverleaf/reference-impl/lib/task.ts
 
