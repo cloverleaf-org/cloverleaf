@@ -29,7 +29,8 @@ auto_approve	Bash	echo hi > /dev/fd/3
 # --- ...but a real device write still is ------------------------------------
 # The unspaced forms were auto-approved before this rewrite: no shell requires a
 # space after `>`, and `cat ` matches the auto_approve read-tools rule. Upstream
-# still has that gap; see divergence 3 in the policy's own _comment.
+# had the same gap until claw-drive 1.7.3; the auto_reject rule these hit is now
+# upstream's verbatim. See CLOSED in the policy's _comment, not its divergences.
 auto_reject	Bash	cat img > /dev/sda
 auto_reject	Bash	cat img >/dev/sda
 auto_reject	Bash	cat img > /dev/nvme0n1
@@ -66,9 +67,10 @@ auto_defer	Bash	cd /tmp && su root
 # three are probed.
 auto_reject	Bash	echo '{}' > .cloverleaf/claw-drive-policy.json
 auto_reject	Bash	cp /tmp/evil.json .cloverleaf/claw-drive-policy.json
-# Runtime state at a RELATIVE path. Upstream demands `(?:^|/)\.claw-drive/`, so
-# every row here but the ./ and absolute ones was auto-approved before the fix —
-# a driven session sitting in the repo root writes exactly these forms.
+# Runtime state at a RELATIVE path: a driven session in the repo root writes
+# exactly these forms. Upstream anchored its Bash rule on (?:^|/) until
+# claw-drive 1.7.3, and there the relative `echo x >` row was auto-approved;
+# the other relative rows escalated with approve as the default.
 auto_reject	Bash	tee .claw-drive/sessions/x < /tmp/y
 auto_reject	Bash	echo x > .claw-drive/sessions/y
 auto_reject	Bash	cp /tmp/e .claw-drive/sessions/y

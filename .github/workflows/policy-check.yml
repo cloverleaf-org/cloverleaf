@@ -1,0 +1,92 @@
+name: policy-check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.cloverleaf/claw-drive-policy.json'
+      - '.cloverleaf/policy-probes.tsv'
+      - '.cloverleaf/policy-check.mjs'
+      - '.github/workflows/policy-check.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.cloverleaf/claw-drive-policy.json'
+      - '.cloverleaf/policy-probes.tsv'
+      - '.cloverleaf/policy-check.mjs'
+      - '.github/workflows/policy-check.yml'
+  schedule:
+    - cron: '23 7 * * *'
+  workflow_dispatch:
+
+# Runs .cloverleaf/policy-check.mjs, which puts every row of policy-probes.tsv through the
+# real `claw-drive policy-test` CLI. Before this file, nothing ran it but a human.
+#
+# Unlike site-check, the push trigger is the point: most edits to the policy are committed
+# straight to main, where a pull_request trigger never fires.
+#
+# claw-drive is built from its main branch, not from a release tag, so the check follows the
+# engine as it develops instead of a pin that goes stale between releases. The price is that
+# the verdict no longer depends on this repo alone. The path filter is complete for the
+# inputs here — the script imports only node builtins and reads the policy and the probe
+# table — but no filter can see claw-drive's main move; only the schedule can. So a red run
+# with nothing changed here means the engine changed, and the claw-drive step logs which
+# commit decided. GitHub disables the schedule of a public repository after 60 days without
+# repository activity; re-enable it from the Actions tab.
+#
+# Because of the filter, this must not become a required check as it stands: GitHub leaves a
+# path-skipped check Pending, which would block every PR that does not touch these files.
+
+# Read-only, stated rather than inherited: this job runs claw-drive's moving main, code this
+# repository does not pin.
+permissions:
+  contents: read
+
+concurrency:
+  group: policy-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  probes:
+    name: Policy probes (claw-drive main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # claw-drive is not on npm and its releases carry no assets, so build it from source.
+      # Not `npm install github:renatodarrigo/claw-drive`: that exits 0 without building — no
+      # prepare script, and dist/ is gitignored — and leaves a binary that fails on first run.
+      - name: Check out claw-drive (main)
+        uses: actions/checkout@v4
+        with:
+          repository: renatodarrigo/claw-drive
+          ref: main
+          path: claw-drive
+
+      # No npm cache: the install takes seconds, and its lockfile exists only after the
+      # checkout above.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      # The build is plain tsc, which needs no dependency's install script.
+      - name: Build claw-drive
+        working-directory: claw-drive
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+          echo "$PWD/bin" >> "$GITHUB_PATH"
+
+      # A green install is not a working install, so run the binary before trusting it, and
+      # record the engine: the same commit here can get a different verdict once claw-drive's
+      # main moves. Plain assignments, so a failing command fails the step.
+      - name: claw-drive
+        run: |
+          version="$(claw-drive --version)"
+          commit="$(git -C claw-drive log -1 --format='%H %cs %s')"
+          echo "claw-drive $version at $commit"
+
+      - name: Policy probes
+        run: node .cloverleaf/policy-check.mjs
