@@ -1290,15 +1290,17 @@ describe('F2 remainder — configured install and dev-server commands', () => {
   const prompt = readPrompt('ui-reviewer');
   const starter = () => shellBlocks(prompt).find((b) => b.includes('SERVER_PID=$!'));
 
-  it('exports PORT before the configured dev command starts', () => {
-    // The default `npm run dev -- --port=$PORT` reads the port from `$PORT`. Set
-    // after the start, or not at all, it expands to `--port=`, the server binds
-    // its own default port, and step 5 waits 30s on a port nobody serves.
+  it('exports PORT on the line that starts the configured dev command', () => {
+    // The default `npm run dev -- --port=$PORT` reads the port from `$PORT`, and
+    // shell state does not survive from one Bash call to the next. The block's
+    // own "EXIT must be 0 before you go on" checkpoint makes a member stop after
+    // the install, so an export anywhere above the start line can be left behind
+    // in an earlier call: `--port=` then expands empty, the server binds its own
+    // default port, and step 5 waits 30s on a port nobody serves. On the start
+    // line itself, the port travels with the command however the block is split.
     const block = starter();
     expect(block, 'no shell block in ui-reviewer.md records SERVER_PID=$!').toBeDefined();
-    const exportAt = block!.indexOf('export PORT={{preview_port}}');
-    expect(exportAt).toBeGreaterThan(-1);
-    expect(exportAt).toBeLessThan(block!.search(/setsid\s+\{\{dev_command\}\}/));
+    expect(block!).toMatch(/^[ \t]*export PORT=\{\{preview_port\}\}; setsid\s+\{\{dev_command\}\}/m);
   });
 
   it('captures the configured install command with the redirect-and-exit idiom', () => {

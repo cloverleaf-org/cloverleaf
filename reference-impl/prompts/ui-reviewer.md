@@ -142,35 +142,38 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 
    ```bash
    cd "$WT/site"
-   export PORT={{preview_port}}
    {{install_command}} > /tmp/ui-install.log 2>&1; echo "EXIT=$?"
    # EXIT must be 0 before you go on. On any other value, read /tmp/ui-install.log
    # to see why and return verdict `escalate` — do NOT continue with a broken install.
    npx astro preferences disable devToolbar > /tmp/ui-devtoolbar.log 2>&1; echo "EXIT=$?"
    # Non-zero EXIT means this UI directory is not an Astro project — see below.
-   setsid {{dev_command}} < /dev/null > /tmp/ui-dev-server.log 2>&1 &
+   export PORT={{preview_port}}; setsid {{dev_command}} < /dev/null > /tmp/ui-dev-server.log 2>&1 &
    SERVER_PID=$!
    ```
 
    Run the block as it reads. Its two commands are the config's `installCommand`
    and `devCommand` — by default `npm ci` and `npm run dev -- --port=$PORT` — and
-   `$PORT` is the preview port, exported first so the dev command's own flags can
-   use it and so can a dev server that reads `PORT` from its environment. Do not
-   swap in a different package manager, and do not move either command into a
-   variable run through `sh -c` or `eval`: a policy governing your shell judges
-   the command it is shown. If the install fails because this project uses another
-   package manager — `npm ci` with no `package-lock.json`, for example — say so in
-   the `escalate` finding and name `installCommand` / `devCommand` in
-   `.cloverleaf/config/ui-review.json` as the fix.
+   `$PORT` is the preview port, which both the dev command's own flags and a dev
+   server that reads `PORT` from its environment can use. Shell state does not
+   survive from one Bash call to the next, so the export sits on the start line
+   itself: when you stop after the install to check its EXIT, the port still
+   travels with the command. For the same reason, run the start line and
+   `SERVER_PID=$!` in the same call. Do not swap in a different package manager,
+   and do not move either command into a variable run through `sh -c` or `eval`:
+   a policy governing your shell judges the command it is shown. If the install
+   fails because this project uses another package manager — `npm ci` with no
+   `package-lock.json`, for example — say so in the `escalate` finding and name
+   `installCommand` / `devCommand` in `.cloverleaf/config/ui-review.json` as the
+   fix.
 
-   `setsid` is load-bearing, not decoration. `$SERVER_PID` is the **package
-   manager's** PID — npm's, by default — and it runs the dev server as a child, so
-   `kill $SERVER_PID` reaps the package manager and leaves the server holding the
-   port, reparented to init. `setsid` puts the whole tree in its own process group
-   whose id equals `$SERVER_PID`, which is what lets step 13 kill the group. Keep
-   the two together: without `setsid` the group kill silently matches nothing,
-   because the job would otherwise sit in your shell's group and `$SERVER_PID`
-   would not be a group id at all.
+   `setsid` is load-bearing, not decoration. `$SERVER_PID` is the PID of the
+   command `setsid` started — npm, by default, which runs the dev server as a
+   child — so `kill $SERVER_PID` can reap that command and leave the server
+   holding the port, reparented to init. `setsid` puts the whole tree in its own
+   process group whose id equals `$SERVER_PID`, which is what lets step 13 kill
+   the group. Keep the two together: without `setsid` the group kill silently
+   matches nothing, because the job would otherwise sit in your shell's group and
+   `$SERVER_PID` would not be a group id at all.
 
    `astro preferences disable devToolbar` is **project-scoped** by default: it writes into `$WT/site/.astro/`, which step 13 deletes along with the worktree, so it turns the toolbar off for this capture alone and nothing outside this run changes. Never pass `--global` — that writes to the operator's home directory and silently changes every other Astro project on the machine. Disable it before backgrounding the server, not after: Astro decides whether to inject the toolbar when the dev server boots.
 
@@ -201,7 +204,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
    curl -s -o /dev/null -w '%{http_code}' "http://localhost:{{preview_port}}<base>/"
    ```
 
-   If the server fails to start in 30s, read `/tmp/ui-dev-server.log` to see why, run teardown (step 13) — `kill -- -$SERVER_PID`, never a command-line pattern — and return verdict `escalate`.
+   If the server fails to start in 30s, read `/tmp/ui-dev-server.log` to see why, run teardown (step 13) — `kill -- -$SERVER_PID`, never a command-line pattern — and return verdict `escalate`. If the log shows the server listening on some other port, the dev command never received the preview port: say so in the finding and name `devCommand` in `.cloverleaf/config/ui-review.json`, which must hand `$PORT` to the server.
 
 6. **Apply maxCombinations cap** (when `affected_routes` is a list, not `"all"`):
    - Compute `routes × viewports × browsers`. Use diff line counts as proxy for route diff size.
@@ -295,7 +298,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
     git worktree remove --force "$WT"
     ```
 
-    Kill the process **group** you created in step 3, never by command-line pattern. The leading `-` in `-$SERVER_PID` is what makes this a group kill; `kill $SERVER_PID` without it reaps only the package manager and leaves the dev server orphaned on the port, which the next run then fails to bind.
+    Kill the process **group** you created in step 3, never by command-line pattern. The leading `-` in `-$SERVER_PID` is what makes this a group kill; `kill $SERVER_PID` without it reaps only the command `setsid` started — npm, by default — and leaves the dev server orphaned on the port, which the next run then fails to bind.
 
     `pkill -f "astro dev"` also matches the command line of the shell running it, so the shell kills itself: exit 144, and every command after it in the same compound statement — the `rm -f` and `git worktree remove` above — silently never runs.
 

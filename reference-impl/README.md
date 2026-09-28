@@ -126,7 +126,7 @@ A frontend on another package manager sets both; a file holding only these two k
 }
 ```
 
-`$PORT` holds the port the reviewer allocated for the run, and is exported to the dev server's environment as well. Leave npm's `--` out for pnpm: pnpm passes it through to the script, so Astro receives `-- --port=…`, ignores the port and binds its own default. `devCommand` is one command with its arguments, not a shell list, because the reviewer starts it under `setsid` so it can stop the server's whole process group afterwards.
+`$PORT` holds the port the reviewer allocated for the run, and is exported to the dev server's environment as well. Leave npm's `--` out for pnpm: pnpm passes it through to the script, so Astro receives `-- --port=…`, ignores the port and binds its own default. `devCommand` is one command with its arguments — no `&`, `;`, `&&` or `|` — because the reviewer starts it under `setsid` so it can stop the server's whole process group afterwards. To set a variable for the server, put `env NAME=value` in front of the command.
 
 #### Council profiles
 
