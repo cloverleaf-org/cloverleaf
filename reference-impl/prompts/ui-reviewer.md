@@ -19,7 +19,9 @@ Run this as the first executable step before anything else. Session B sessions m
 - **Diff from base**: {{diff}}
 - **Preview port**: {{preview_port}} (an already-allocated free local port; use it for the dev server)
 - **Affected routes**: {{affected_routes}} — either a JSON array of route paths (e.g., `["/faq/"]`), or the string `"all"`, or `[]`
-- **UI review config**: {{ui_review_config}} — the loaded `UiReviewConfig` object (browsers, viewports, visualDiff, axe, maxCombinations) as JSON. The `viewports` array contains named entries such as `mobile`, `tablet`, and `desktop` with their respective `{ width, height }` dimensions.
+- **UI review config**: {{ui_review_config}} — the loaded `UiReviewConfig` object (browsers, viewports, visualDiff, axe, maxCombinations, installCommand, devCommand) as JSON. The `viewports` array contains named entries such as `mobile`, `tablet`, and `desktop` with their respective `{ width, height }` dimensions.
+- **Install command**: `{{install_command}}` — the config's `installCommand`; installs the UI directory's dependencies in step 3
+- **Dev command**: `{{dev_command}}` — the config's `devCommand`; starts the dev server on `$PORT` in step 3
 
 ## Paths
 
@@ -140,22 +142,35 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
 
    ```bash
    cd "$WT/site"
-   npm ci > /tmp/ui-npm-ci.log 2>&1; echo "EXIT=$?"
-   # EXIT must be 0 before you go on. On any other value, read /tmp/ui-npm-ci.log
+   export PORT={{preview_port}}
+   {{install_command}} > /tmp/ui-install.log 2>&1; echo "EXIT=$?"
+   # EXIT must be 0 before you go on. On any other value, read /tmp/ui-install.log
    # to see why and return verdict `escalate` — do NOT continue with a broken install.
    npx astro preferences disable devToolbar > /tmp/ui-devtoolbar.log 2>&1; echo "EXIT=$?"
    # Non-zero EXIT means this UI directory is not an Astro project — see below.
-   setsid npm run dev -- --port={{preview_port}} < /dev/null > /tmp/ui-dev-server.log 2>&1 &
+   setsid {{dev_command}} < /dev/null > /tmp/ui-dev-server.log 2>&1 &
    SERVER_PID=$!
    ```
 
-   `setsid` is load-bearing, not decoration. `$SERVER_PID` is **npm's** PID and
-   npm runs the dev server as a child, so `kill $SERVER_PID` reaps npm and leaves
-   the server holding the port, reparented to init. `setsid` puts the whole tree
-   in its own process group whose id equals `$SERVER_PID`, which is what lets
-   step 13 kill the group. Keep the two together: without `setsid` the group kill
-   silently matches nothing, because the job would otherwise sit in your shell's
-   group and `$SERVER_PID` would not be a group id at all.
+   Run the block as it reads. Its two commands are the config's `installCommand`
+   and `devCommand` — by default `npm ci` and `npm run dev -- --port=$PORT` — and
+   `$PORT` is the preview port, exported first so the dev command's own flags can
+   use it and so can a dev server that reads `PORT` from its environment. Do not
+   swap in a different package manager, and do not move either command into a
+   variable run through `sh -c` or `eval`: a policy governing your shell judges
+   the command it is shown. If the install fails because this project uses another
+   package manager — `npm ci` with no `package-lock.json`, for example — say so in
+   the `escalate` finding and name `installCommand` / `devCommand` in
+   `.cloverleaf/config/ui-review.json` as the fix.
+
+   `setsid` is load-bearing, not decoration. `$SERVER_PID` is the **package
+   manager's** PID — npm's, by default — and it runs the dev server as a child, so
+   `kill $SERVER_PID` reaps the package manager and leaves the server holding the
+   port, reparented to init. `setsid` puts the whole tree in its own process group
+   whose id equals `$SERVER_PID`, which is what lets step 13 kill the group. Keep
+   the two together: without `setsid` the group kill silently matches nothing,
+   because the job would otherwise sit in your shell's group and `$SERVER_PID`
+   would not be a group id at all.
 
    `astro preferences disable devToolbar` is **project-scoped** by default: it writes into `$WT/site/.astro/`, which step 13 deletes along with the worktree, so it turns the toolbar off for this capture alone and nothing outside this run changes. Never pass `--global` — that writes to the operator's home directory and silently changes every other Astro project on the machine. Disable it before backgrounding the server, not after: Astro decides whether to inject the toolbar when the dev server boots.
 
@@ -280,7 +295,7 @@ Do not attempt to launch a missing engine — fail fast with `verdict: "escalate
     git worktree remove --force "$WT"
     ```
 
-    Kill the process **group** you created in step 3, never by command-line pattern. The leading `-` in `-$SERVER_PID` is what makes this a group kill; `kill $SERVER_PID` without it reaps only npm and leaves the dev server orphaned on the port, which the next run then fails to bind.
+    Kill the process **group** you created in step 3, never by command-line pattern. The leading `-` in `-$SERVER_PID` is what makes this a group kill; `kill $SERVER_PID` without it reaps only the package manager and leaves the dev server orphaned on the port, which the next run then fails to bind.
 
     `pkill -f "astro dev"` also matches the command line of the shell running it, so the shell kills itself: exit 144, and every command after it in the same compound statement — the `rm -f` and `git worktree remove` above — silently never runs.
 

@@ -367,6 +367,22 @@ describe('cloverleaf-ui-review skill (v0.4)', () => {
     expect(body).toContain('{{ui_review_config}}');
   });
 
+  // The council path is pinned token for token (tests/council.test.ts). This skill
+  // dispatches the same prompt by hand, and its substitution list was prose only:
+  // a token the prompt declares but step 10 omits reaches the subagent literal,
+  // and a literal `{{install_command}}` in step 3 is a shell error, then escalate.
+  it('step 10 substitutes every {{token}} ui-reviewer.md declares', () => {
+    const prompt = readFileSync(resolve(__dirname, '..', 'prompts', 'ui-reviewer.md'), 'utf-8');
+    const declared = [...new Set([...prompt.matchAll(/\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g)].map((m) => m[1]))];
+    expect(declared.length).toBeGreaterThan(5);
+    const start = body.indexOf('10. Dispatch the UI Reviewer subagent');
+    const end = body.indexOf('\n11. ', start);
+    expect(start).toBeGreaterThan(-1);
+    expect(end).toBeGreaterThan(start);
+    const step10 = body.slice(start, end);
+    expect(declared.filter((t) => !step10.includes(`{{${t}}}`))).toEqual([]);
+  });
+
   it('mkdirs the .cloverleaf/baselines and runs/<taskId>/ui-review paths', () => {
     expect(body).toContain('.cloverleaf/baselines');
     expect(body).toContain('ui-review');

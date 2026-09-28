@@ -308,6 +308,33 @@ describe('resolveCouncilPlan — per-member prompt substitutions', () => {
     expect(JSON.parse(ui!.substitutions.ui_review_config).viewports.desktop).toEqual({ width: 1280, height: 800 });
   });
 
+  // ui-reviewer.md step 3 runs these two as written. They arrive as raw text, not
+  // JSON like ui_review_config: a JSON-encoded `"npm ci"` would reach the shell
+  // quoted and run a command literally named `npm ci`. Literal text in the block is
+  // also what claw-drive's policy judges — the same commands held in variables and
+  // run through `sh -c` match its inline-shell rule and escalate to a human.
+  it('gives the ui member install_command + dev_command, npm by default', () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/pages/faq.astro'] });
+    const ui = memberOf(plan, 'ui');
+    expect(ui).toBeDefined();
+    expect(ui!.substitutions.install_command).toBe('npm ci');
+    expect(ui!.substitutions.dev_command).toBe('npm run dev -- --port=$PORT');
+  });
+
+  it('honors a consumer ui-review.json override for both commands', () => {
+    repoRoot = makeRepo({ risk_class: 'high' });
+    mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+    writeFileSync(
+      join(repoRoot, '.cloverleaf', 'config', 'ui-review.json'),
+      JSON.stringify({ installCommand: 'pnpm install --frozen-lockfile', devCommand: 'pnpm run dev --port=$PORT' }),
+    );
+    const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/pages/faq.astro'] });
+    const ui = memberOf(plan, 'ui')!;
+    expect(ui.substitutions.install_command).toBe('pnpm install --frozen-lockfile');
+    expect(ui.substitutions.dev_command).toBe('pnpm run dev --port=$PORT');
+  });
+
   it("encodes a global-pattern change as the \"all\" sentinel, not an array", () => {
     repoRoot = makeRepo({ risk_class: 'high' });
     const plan = resolveCouncilPlan(repoRoot, 'DEMO-001', 'task.review', { changedFiles: ['src/components/Nav.astro'] });

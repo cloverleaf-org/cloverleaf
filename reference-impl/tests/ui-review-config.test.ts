@@ -209,6 +209,56 @@ describe('loadUiReviewConfig', () => {
     });
   });
 
+  // Step 3 of ui-reviewer.md ran `npm ci` and `npm run dev` unconditionally, and
+  // `npm ci` exits 1 without a package-lock.json, so a pnpm, yarn or bun frontend
+  // escalated on every UI review. The commands are now configuration. The defaults
+  // are exactly what step 3 always ran, so an npm project sees no change.
+  describe('installCommand / devCommand', () => {
+    const writeOverride = (doc: object) => {
+      mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
+      writeFileSync(join(repoRoot, '.cloverleaf', 'config', 'ui-review.json'), JSON.stringify(doc));
+    };
+
+    it('default config resolves to the npm commands step 3 always ran', () => {
+      const cfg = loadUiReviewConfig(repoRoot);
+      expect(cfg.installCommand).toBe('npm ci');
+      expect(cfg.devCommand).toBe('npm run dev -- --port=$PORT');
+    });
+
+    it('a config written before these fields existed resolves to the same npm commands', () => {
+      // This repo's own .cloverleaf/config/ui-review.json has this shape.
+      writeOverride({
+        viewports: { desktop: { width: 1280, height: 800 } },
+        visualDiff: { enabled: true, threshold: 0.1, maxDiffRatio: 0.01, mask: [] },
+        axe: { viewports: ['desktop'], dedupeBy: ['ruleId', 'target'], ignored: [] },
+      });
+      const cfg = loadUiReviewConfig(repoRoot);
+      expect(cfg.installCommand).toBe('npm ci');
+      expect(cfg.devCommand).toBe('npm run dev -- --port=$PORT');
+    });
+
+    it('a consumer on another package manager overrides both', () => {
+      writeOverride({
+        installCommand: 'pnpm install --frozen-lockfile',
+        devCommand: 'pnpm run dev --port=$PORT',
+      });
+      const cfg = loadUiReviewConfig(repoRoot);
+      expect(cfg.installCommand).toBe('pnpm install --frozen-lockfile');
+      expect(cfg.devCommand).toBe('pnpm run dev --port=$PORT');
+    });
+
+    // An empty devCommand would render `setsid  < /dev/null …`, which starts
+    // nothing and surfaces 30s later as a readiness timeout, far from its cause.
+    for (const bad of ['', '   ', 42, null]) {
+      it(`an unusable value (${JSON.stringify(bad)}) falls back to the default`, () => {
+        writeOverride({ installCommand: bad, devCommand: bad });
+        const cfg = loadUiReviewConfig(repoRoot);
+        expect(cfg.installCommand).toBe('npm ci');
+        expect(cfg.devCommand).toBe('npm run dev -- --port=$PORT');
+      });
+    }
+  });
+
   describe('full legacy config backward-compatibility (CLV-16)', () => {
     it('a config with only legacy keys resolves all new keys to their defaults', () => {
       mkdirSync(join(repoRoot, '.cloverleaf', 'config'), { recursive: true });
