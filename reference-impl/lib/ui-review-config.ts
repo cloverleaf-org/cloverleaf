@@ -36,6 +36,17 @@ export interface UiReviewConfig {
    * Default: 90.
    */
   maxCombinations: number;
+  /**
+   * Installs the UI directory's dependencies, run as written from that directory.
+   * Default: "npm ci".
+   */
+  installCommand: string;
+  /**
+   * Starts the dev server. `$PORT` holds the allocated preview port. One command
+   * with its arguments: the UI member starts it with `setsid`, which has to exec it.
+   * Default: "npm run dev -- --port=$PORT".
+   */
+  devCommand: string;
 }
 
 const HARDCODED_FALLBACK: UiReviewConfig = {
@@ -53,7 +64,13 @@ const HARDCODED_FALLBACK: UiReviewConfig = {
     ignored: [],
   },
   maxCombinations: 90,
+  installCommand: 'npm ci',
+  devCommand: 'npm run dev -- --port=$PORT',
 };
+
+function isUsableCommand(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
 
 function applyDefaults(doc: Partial<UiReviewConfig>): UiReviewConfig {
   // browsers — default ["chromium"]
@@ -88,6 +105,14 @@ function applyDefaults(doc: Partial<UiReviewConfig>): UiReviewConfig {
   // maxCombinations — default 90
   if (typeof doc.maxCombinations !== 'number') {
     (doc as UiReviewConfig).maxCombinations = 90;
+  }
+
+  // installCommand / devCommand — default to the npm commands step 3 always ran
+  if (!isUsableCommand(doc.installCommand)) {
+    (doc as UiReviewConfig).installCommand = HARDCODED_FALLBACK.installCommand;
+  }
+  if (!isUsableCommand(doc.devCommand)) {
+    (doc as UiReviewConfig).devCommand = HARDCODED_FALLBACK.devCommand;
   }
 
   return doc as UiReviewConfig;

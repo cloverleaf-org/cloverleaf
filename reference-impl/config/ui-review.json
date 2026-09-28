@@ -17,5 +17,7 @@
     "dedupeBy": ["ruleId", "target"],
     "ignored": []
   },
-  "maxCombinations": 90
+  "maxCombinations": 90,
+  "installCommand": "npm ci",
+  "devCommand": "npm run dev -- --port=$PORT"
 }

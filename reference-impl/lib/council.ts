@@ -12,7 +12,7 @@ import { classifyTaskSecurity } from './security-classify.js';
 import { writeFeedback } from './feedback.js';
 import { loadAffectedRoutesConfig, computeAffectedRoutes } from './affected-routes.js';
 import { loadQaRulesDocument } from './qa-rules.js';
-import { loadUiReviewConfig } from './ui-review-config.js';
+import { loadUiReviewConfig, type UiReviewConfig } from './ui-review-config.js';
 import { getPluginRoot } from './plugin-path.js';
 
 export interface ResolvedMember {
@@ -169,6 +169,8 @@ export type MemberToken =
   | 'affected_routes'
   | 'preview_port'
   | 'ui_review_config'
+  | 'install_command'
+  | 'dev_command'
   | 'taskId';
 
 /**
@@ -189,7 +191,7 @@ export const MEMBER_TOKENS: Record<string, readonly MemberToken[]> = {
   reviewer: ['test_rules'],
   security: [],
   qa: ['qa_rules'],
-  ui: ['affected_routes', 'preview_port', 'ui_review_config', 'taskId'],
+  ui: ['affected_routes', 'preview_port', 'ui_review_config', 'install_command', 'dev_command', 'taskId'],
 };
 
 interface SubstitutionContext {
@@ -223,6 +225,9 @@ function resolveSubstitutions(
   ctx: SubstitutionContext,
 ): Record<string, string> {
   const out: Record<string, string> = {};
+  // Three ui tokens read this config; load it once per member.
+  let uiConfig: UiReviewConfig | undefined;
+  const uiReviewConfig = (): UiReviewConfig => (uiConfig ??= loadUiReviewConfig(repoRoot));
   for (const token of MEMBER_TOKENS[memberId] ?? []) {
     switch (token) {
       // Both carry the qa-rules *document* (`{ rules: [...] }`) — the shape
@@ -232,7 +237,16 @@ function resolveSubstitutions(
         out[token] = JSON.stringify(loadQaRulesDocument(repoRoot));
         break;
       case 'ui_review_config':
-        out[token] = JSON.stringify(loadUiReviewConfig(repoRoot));
+        out[token] = JSON.stringify(uiReviewConfig());
+        break;
+      // Raw text, not JSON: ui-reviewer.md step 3 runs each as written, so the
+      // policy governing a driven session judges the real command rather than a
+      // `sh -c "$VAR"` indirection it cannot inspect.
+      case 'install_command':
+        out[token] = uiReviewConfig().installCommand;
+        break;
+      case 'dev_command':
+        out[token] = uiReviewConfig().devCommand;
         break;
       case 'affected_routes':
         // Diff-dependent, so available only on a code gate; the plan already

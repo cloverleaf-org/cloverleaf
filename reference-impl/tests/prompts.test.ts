@@ -995,7 +995,8 @@ describe('D4 — a teardown order names the handle it kills by', () => {
     const shell = blocks.join('\n');
     expect(shell).toContain('SERVER_PID=$!');
     expect(shell).toContain('kill -- -$SERVER_PID');
-    // The bare PID kill reaps npm and leaves the dev server holding the port.
+    // The bare PID kill reaps the package manager and leaves the dev server
+    // holding the port.
     expect(shell).not.toMatch(/kill \$SERVER_PID/);
   });
 
@@ -1006,10 +1007,15 @@ describe('D4 — a teardown order names the handle it kills by', () => {
     // silently matches nothing behind its own `|| true` — leaving exactly the
     // orphan it was added to prevent. The two have to travel together, so they
     // are pinned in the same block rather than as two independent facts.
-    const starter = shellBlocks(prompt).find((b) => /\bnpm run dev\b/.test(b));
-    expect(starter, 'no shell block in ui-reviewer.md starts the dev server').toBeDefined();
-    expect(starter!).toMatch(/setsid\s+npm run dev\b/);
-    expect(starter!).toContain('SERVER_PID=$!');
+    //
+    // Found by the PID capture, not by a command's spelling: the server starts as
+    // the configured {{dev_command}}, so no package manager's name is guaranteed
+    // to appear in the block. And adjacent, not merely co-present: `$!` is the
+    // most recent background job, so anything backgrounded between the start and
+    // the capture would hand teardown someone else's PID.
+    const starter = shellBlocks(prompt).find((b) => b.includes('SERVER_PID=$!'));
+    expect(starter, 'no shell block in ui-reviewer.md records SERVER_PID=$!').toBeDefined();
+    expect(starter!).toMatch(/setsid\s+\{\{dev_command\}\}[^\n]*&[ \t]*\n[ \t]*SERVER_PID=\$!/);
   });
 
   it('ui-reviewer.md says why a pattern kill would abort the rest of teardown', () => {
@@ -1174,12 +1180,13 @@ describe('the ui-reviewer readiness gate judges the connection, not the status',
 // reason D4's is: `skills/cloverleaf-ui-review` names `astro dev` in prose in
 // order to forbid a pattern kill, so a whole-file sweep would demand a toolbar
 // disable from a document that starts no server. It keys on the `npm run dev` /
-// `astro dev` spellings, so a doc that starts a server as `vite`, `next dev` or
-// a Makefile target would pass.
+// `astro dev` spellings and on `{{dev_command}}` — how `ui-reviewer.md` starts
+// its server since the command became configuration — so a doc that starts a
+// server as `vite`, `next dev` or a Makefile target would pass.
 // ---------------------------------------------------------------------------
 describe('D6 — a captured baseline contains only what ships', () => {
   const prompt = readPrompt('ui-reviewer');
-  const DEV_SERVER = /\b(?:npm run dev|astro dev)\b/;
+  const DEV_SERVER = /\b(?:npm run dev|astro dev)\b|\{\{dev_command\}\}/;
   const DISABLE = 'astro preferences disable devToolbar';
 
   /** Every fenced shell block, across all shipped docs, that starts a dev server. */
@@ -1251,5 +1258,57 @@ describe('D6 — a captured baseline contains only what ships', () => {
     // one-line fence comment satisfies the check above on its own, so without
     // this the member could be told it is off-Astro and nothing to do about it.
     expect(prompt).toMatch(/emit an `info` finding/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// F2 remainder — the ui member installs and starts a frontend on any package
+// manager.
+//
+// Step 3 ran `npm ci` and `setsid npm run dev -- --port=…` unconditionally, and
+// `npm ci` exits 1 without a package-lock.json, so a frontend on pnpm, yarn or
+// bun escalated on every UI review. The two commands are now `installCommand` /
+// `devCommand` in ui-review.json, which the council renders into the block as
+// {{install_command}} / {{dev_command}}; the allocated port reaches a configured
+// command as `$PORT`.
+//
+// Literal text, not shell variables run through `sh -c`: claw-drive's policy
+// judges the command it is shown, and step 3 as a literal block is approved
+// silently where `sh -c "$VAR"` matches the policy's inline-shell rule and
+// escalates every UI review to a human (measured with `claw-drive policy-test`
+// against this repo's policy and claw-drive's permissive template). The
+// process-group test above already refuses that shape for the start command:
+// it requires `setsid` to be followed directly by {{dev_command}}.
+//
+// ## Coverage bounds — what a green run does NOT prove
+//
+// These pin the block's shape, not a run. Whether a given `devCommand` really
+// reads `$PORT`, or whether a package manager's install flags are right, is the
+// consumer's configuration and is not checked anywhere.
+// ---------------------------------------------------------------------------
+describe('F2 remainder — configured install and dev-server commands', () => {
+  const prompt = readPrompt('ui-reviewer');
+  const starter = () => shellBlocks(prompt).find((b) => b.includes('SERVER_PID=$!'));
+
+  it('exports PORT on the line that starts the configured dev command', () => {
+    // The default `npm run dev -- --port=$PORT` reads the port from `$PORT`, and
+    // shell state does not survive from one Bash call to the next. The block's
+    // own "EXIT must be 0 before you go on" checkpoint makes a member stop after
+    // the install, so an export anywhere above the start line can be left behind
+    // in an earlier call: `--port=` then expands empty, the server binds its own
+    // default port, and step 5 waits 30s on a port nobody serves. On the start
+    // line itself, the port travels with the command however the block is split.
+    const block = starter();
+    expect(block, 'no shell block in ui-reviewer.md records SERVER_PID=$!').toBeDefined();
+    expect(block!).toMatch(/^[ \t]*export PORT=\{\{preview_port\}\}; setsid\s+\{\{dev_command\}\}/m);
+  });
+
+  it('captures the configured install command with the redirect-and-exit idiom', () => {
+    // F7/D5 checks for the idiom anywhere in the prompt, and other lines already
+    // carry it, so the install line itself — the one the 2026-08-06 dogfood ran as
+    // `npm ci 2>&1 | tail -5` — could lose it with that suite still green.
+    expect(shellBlocks(prompt).join('\n')).toMatch(
+      /^[ \t]*\{\{install_command\}\} > \/tmp\/\S+ 2>&1; echo "EXIT=\$\?"$/m,
+    );
   });
 });

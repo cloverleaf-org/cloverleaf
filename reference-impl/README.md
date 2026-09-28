@@ -93,7 +93,7 @@ The package ships defaults for eight config files in `config/`. Your repo overri
 | `qa-rules.json` | Per-package test commands for the QA member |
 | `ui-paths.json` | Glob patterns marking a diff as UI-touching (default: `site/**`). Feeds the `ui_changes` predicate that admits the UI member to a council round |
 | `affected-routes.json` | Rules for mapping a diff to the site routes the UI member visits; includes `contentRoutes` for content-collection mapping |
-| `ui-review.json` | UI Reviewer runtime settings — browser engines, viewports, visual-diff thresholds, axe scope, `maxCombinations` |
+| `ui-review.json` | UI Reviewer runtime settings — browser engines, viewports, visual-diff thresholds, axe scope, `maxCombinations`, and the commands that install and start your frontend |
 | `security-paths.json` | Sensitive paths and keywords that infer `security_class: high` |
 | `secret-patterns.json` | Secret regexes and placeholder excludes for the deterministic scan |
 | `discovery.json` | Discovery-track settings, including `worktree_setup_command` for non-TypeScript consumers |
@@ -105,6 +105,28 @@ One further override has no shipped default, because it only makes sense per-rep
 | `.cloverleaf/config/astro-base.json` | Explicit Astro `base` path — the UI Reviewer reads it instead of best-effort parsing `astro.config.*` |
 
 All overrides are read fresh on every skill invocation; no caching. Edit and the next `/cloverleaf-run` picks it up.
+
+#### Frontend install and dev-server commands
+
+The UI Reviewer installs your UI directory's dependencies and starts its dev server with two commands from `ui-review.json`. The defaults are npm's:
+
+```json
+{
+  "installCommand": "npm ci",
+  "devCommand": "npm run dev -- --port=$PORT"
+}
+```
+
+A frontend on another package manager sets both; a file holding only these two keeps every other setting at its default. For pnpm:
+
+```json
+{
+  "installCommand": "pnpm install --frozen-lockfile",
+  "devCommand": "pnpm run dev --port=$PORT"
+}
+```
+
+`$PORT` holds the port the reviewer allocated for the run, and is exported to the dev server's environment as well. Leave npm's `--` out for pnpm: pnpm passes it through to the script, so Astro receives `-- --port=…`, ignores the port and binds its own default. `devCommand` is one command with its arguments — no `&`, `;`, `&&` or `|` — because the reviewer starts it under `setsid` so it can stop the server's whole process group afterwards. To set a variable for the server, put `env NAME=value` in front of the command.
 
 #### Council profiles
 
